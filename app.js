@@ -1,1557 +1,926 @@
+const STORAGE_KEY = "prs_performance_state_v1";
 
-const STORAGE_KEY = 'prs_next_state_v1';
-
-const selectors = {
-  tabButtons: document.querySelectorAll('.tab-button'),
-  tabPanels: document.querySelectorAll('.tab-panel'),
-  toastContainer: document.querySelector('.toast-container'),
-  sessionSelector: document.getElementById('session-selector'),
-  sessionForm: document.getElementById('session-form'),
-  productionTableBody: document.querySelector('#production-table tbody'),
-  stopsTableBody: document.querySelector('#stops-table tbody'),
-  journalTableBody: document.querySelector('#journal-table tbody'),
-  addHourRow: document.getElementById('add-hour-row'),
-  exportProduction: document.getElementById('export-production'),
-  exportStops: document.getElementById('export-stops'),
-  exportReport: document.getElementById('export-report'),
-  analysisSession: document.getElementById('analysis-session'),
-  analysisTeamFilter: document.getElementById('analysis-team-filter'),
-  analysisMeta: document.getElementById('analysis-meta'),
-  topLosses: document.getElementById('top-losses'),
-  insights: document.getElementById('insights'),
-  kpiCards: {
-    oee: document.getElementById('kpi-oee'),
-    performance: document.getElementById('kpi-performance'),
-    quality: document.getElementById('kpi-quality'),
-    availability: document.getElementById('kpi-availability'),
-    reject: document.getElementById('kpi-reject'),
-    mtbf: document.getElementById('kpi-mtbf'),
-    mttr: document.getElementById('kpi-mttr')
-  },
-  openStopPanel: document.getElementById('open-stop-panel'),
-  stopDialog: document.getElementById('stop-dialog'),
-  stopForm: document.getElementById('stop-form'),
-  stopStart: document.getElementById('stop-start'),
-  stopEnd: document.getElementById('stop-end'),
-  stopDuration: document.getElementById('stop-duration'),
-  stopCategory: document.getElementById('stop-category'),
-  stopCause: document.getElementById('stop-cause'),
-  stopSubCause: document.getElementById('stop-subcause'),
-  stopCriticite: document.getElementById('stop-criticite'),
-  stopComment: document.getElementById('stop-comment'),
-  stopTimerStart: document.getElementById('stop-timer-start'),
-  stopTimerStop: document.getElementById('stop-timer-stop'),
-  saveStop: document.getElementById('save-stop'),
-  reportDialog: document.getElementById('report-dialog'),
-  reportContent: document.getElementById('report-content'),
-  printReport: document.getElementById('print-report'),
-  addTarget: document.getElementById('add-target'),
-  targetsTableBody: document.querySelector('#targets-table tbody'),
-  addTaxonomy: document.getElementById('add-taxonomy'),
-  taxonomyTableBody: document.querySelector('#taxonomy-table tbody'),
-  addUser: document.getElementById('add-user'),
-  usersTableBody: document.querySelector('#users-table tbody'),
-  resetState: document.getElementById('reset-state'),
-  importJsonBtn: document.getElementById('import-json-btn'),
-  importCsvBtn: document.getElementById('import-csv-btn'),
-  importJsonInput: document.getElementById('import-json-input'),
-  importCsvInput: document.getElementById('import-csv-input'),
-  gatewayToggle: document.getElementById('gateway-toggle'),
-  datasourceUrl: document.getElementById('datasource-url'),
-  teamChartCard: document.getElementById('team-chart-card')
-};
-
-let state = migrateState(loadState());
-let currentSessionId = state.sessions[0]?.session_id ?? null;
-let activeTabId = 'saisie';
-let timerHandle = null;
-let timerStartDate = null;
-let charts = {
-  okTarget: null,
-  pareto: null,
-  team: null
-};
-let gatewayInterval = null;
-
-function persistState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (error) {
-    console.error('Impossible de charger le state', error);
-    return null;
-  }
-}
-
-function migrateState(raw) {
-  if (!raw || typeof raw !== 'object' || raw.schema_version !== 1) {
-    return createDefaultState();
-  }
-  const template = {
-    schema_version: 1,
-    sessions: [],
-    production_log: [],
-    stops: [],
-    targets: [],
-    users: [],
-    taxonomy: []
+const Utils = (() => {
+  const pad = (value) => value.toString().padStart(2, "0");
+  const minutesToLabel = (minutes) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+  const hourLabel = (hour) => `${pad(hour)}:00`;
+  const parseTime = (time) => {
+    if (!time) return 0;
+    const [h = "0", m = "0"] = time.split(":");
+    return Number(h) * 60 + Number(m);
   };
-  return { ...template, ...raw };
-}
+  const uid = () => `id-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+  const sum = (values) => values.reduce((acc, value) => acc + Number(value || 0), 0);
+  const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
+  const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
+  const todayISO = () => new Date().toISOString().slice(0, 10);
+  const nowTimestamp = () => new Date().toISOString();
+  return { pad, minutesToLabel, hourLabel, parseTime, uid, sum, clamp, formatPercent, todayISO, nowTimestamp };
+})();
 
-function createDefaultState() {
-  const sessionId = crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`;
-  const date = new Date();
-  date.setHours(8, 0, 0, 0);
-  const end = new Date(date);
-  end.setHours(16, 0, 0, 0);
-
-  const sessions = [
-    {
-      session_id: sessionId,
-      date: date.toISOString().slice(0, 10),
-      site: 'Atelier A',
-      ligne: 'Ligne 1',
-      po: 'OF-45821',
-      produit: 'Module X12',
-      equipe: 'Equipe A',
-      shift: 'Matin',
-      debut: '08:00',
-      fin: '16:00',
-      objectif_h: 220,
-      cadence_cible: 220
-    }
-  ];
-
-  const production_log = [];
-  for (let hour = 8; hour < 16; hour++) {
-    const ts = new Date(date);
-    ts.setHours(hour, 0, 0, 0);
-    const ok = Math.round(1500 / 8);
-    const ko = Math.round(50 / 8);
-    production_log.push({
-      session_id: sessionId,
-      ts: ts.toISOString(),
-      ok,
-      ko,
-      cadence_reelle: ok * 60,
-      objectif_h: 220,
-      comment: ''
-    });
-  }
-
-  const stops = [
-    {
-      session_id: sessionId,
-      start: new Date(date.getTime() + 3 * 3600 * 1000).toISOString(),
-      end: new Date(date.getTime() + 3 * 3600 * 1000 + 20 * 60 * 1000).toISOString(),
-      duree_s: 1200,
-      categorie: 'Technique',
-      cause: 'Capteur',
-      sous_cause: 'Capteur défectueux',
-      criticite: 'Majeur',
-      comment: 'Remplacement capteur station 3'
-    },
-    {
-      session_id: sessionId,
-      start: new Date(date.getTime() + 6 * 3600 * 1000).toISOString(),
-      end: new Date(date.getTime() + 6 * 3600 * 1000 + 10 * 60 * 1000).toISOString(),
-      duree_s: 600,
-      categorie: 'Organisation',
-      cause: 'Manque OF',
-      sous_cause: 'Ordre non disponible',
-      criticite: 'Mineur',
-      comment: 'OF manquant pendant 10 min'
-    }
-  ];
-
-  const targets = [
-    {
-      ligne: 'Ligne 1',
-      produit: 'Module X12',
-      cadence_cible: 220,
-      objectif_h: 220,
-      seuil_perf: 0.85,
-      seuil_rejet: 0.02
-    }
-  ];
-
-  const users = [
-    { user_id: 'sup-01', nom: 'Responsable Ligne', role: 'Superviseur' },
-    { user_id: 'op-01', nom: 'Opérateur 1', role: 'Opérateur' }
-  ];
-
-  const taxonomy = [
-    { categorie: 'Technique', cause: 'Capteur', sous_cause: 'Capteur défectueux' },
-    { categorie: 'Technique', cause: 'Maintenance', sous_cause: 'Préventive manquée' },
-    { categorie: 'Qualité', cause: 'Contrôle', sous_cause: 'Non-conformité' },
-    { categorie: 'Organisation', cause: 'Manque OF', sous_cause: 'Ordre non disponible' },
-    { categorie: 'Sécurité', cause: 'Blocage zone', sous_cause: 'Inspection' },
-    { categorie: 'Logistique', cause: 'Alimentation', sous_cause: 'Rupture composant' }
-  ];
-
-  return {
-    schema_version: 1,
-    sessions,
-    production_log,
-    stops,
-    targets,
-    users,
-    taxonomy
-  };
-}
-
-function init() {
-  setupTabNavigation();
-  populateSessions();
-  bindSessionEvents();
-  selectors.stopCategory.addEventListener('change', updateCauseOptions);
-  selectors.stopCause.addEventListener('change', updateSubCauseOptions);
-  populateTaxonomySelectors();
-  renderProductionTable();
-  renderStopsTable();
-  renderJournal();
-  selectors.analysisSession.addEventListener('change', renderAnalysis);
-  selectors.analysisTeamFilter.addEventListener('change', renderAnalysis);
-  populateAnalysisSelectors();
-  renderAnalysis();
-  renderTargetsTable();
-  renderTaxonomyTable();
-  renderUsersTable();
-  bindStopDialog();
-  bindExports();
-  bindParameters();
-  bindImports();
-  updateGateway();
-  showToast('PRS Next prêt pour la saisie.', 'success');
-}
-
-document.addEventListener('DOMContentLoaded', init);
-
-function setupTabNavigation() {
-  selectors.tabButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const targetId = button.dataset.target;
-      if (!targetId || targetId === activeTabId) return;
-      selectors.tabButtons.forEach((b) => {
-        b.classList.toggle('active', b === button);
-        const selected = b === button;
-        b.setAttribute('aria-selected', selected ? 'true' : 'false');
-      });
-      selectors.tabPanels.forEach((panel) => {
-        const isTarget = panel.id === targetId;
-        panel.classList.toggle('hidden', !isTarget);
-        panel.setAttribute('aria-hidden', isTarget ? 'false' : 'true');
-      });
-      activeTabId = targetId;
-    });
-  });
-}
-
-function bindSessionEvents() {
-  selectors.sessionSelector.addEventListener('change', () => {
-    currentSessionId = selectors.sessionSelector.value;
-    populateSessionForm();
-    ensureProductionGrid();
-    renderProductionTable();
-    renderStopsTable();
-    renderJournal();
-    renderAnalysis();
-  });
-
-  document.getElementById('save-session-meta').addEventListener('click', () => {
-    if (!currentSessionId) return;
-    const formData = new FormData(selectors.sessionForm);
-    const session = state.sessions.find((s) => s.session_id === currentSessionId);
-    if (!session) return;
-    for (const [key, value] of formData.entries()) {
-      session[key] = value;
-    }
-    persistState();
-    showToast('Session mise à jour.');
-    populateSessions();
-    renderAnalysis();
-  });
-
-  document.getElementById('new-session-btn').addEventListener('click', () => {
-    const newId = crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`;
-    const formData = new FormData(selectors.sessionForm);
-    const today = new Date();
-    const newSession = {
-      session_id: newId,
-      date: formData.get('date') || today.toISOString().slice(0, 10),
-      site: formData.get('site') || 'Site',
-      ligne: formData.get('ligne') || 'Ligne',
-      po: formData.get('po') || '',
-      produit: formData.get('produit') || '',
-      equipe: formData.get('equipe') || '',
-      shift: formData.get('shift') || '',
-      debut: formData.get('debut') || '08:00',
-      fin: formData.get('fin') || '16:00',
-      objectif_h: Number(formData.get('objectif_h')) || 0,
-      cadence_cible: Number(formData.get('cadence_cible')) || 0
-    };
-    state.sessions.push(newSession);
-    currentSessionId = newId;
-    ensureProductionGrid();
-    persistState();
-    populateSessions();
-    populateSessionForm();
-    renderProductionTable();
-    renderAnalysis();
-    showToast('Nouvelle session créée.', 'success');
-  });
-
-  document.getElementById('duplicate-session-btn').addEventListener('click', () => {
-    if (!currentSessionId || state.sessions.length === 0) return;
-    const sorted = [...state.sessions].sort((a, b) => (a.date > b.date ? -1 : 1));
-    const previous = sorted[1] || sorted[0];
-    if (!previous) return;
-    const newId = crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`;
-    const newDate = new Date(previous.date);
-    newDate.setDate(newDate.getDate() + 1);
-    const duplicated = {
-      ...previous,
-      session_id: newId,
-      date: newDate.toISOString().slice(0, 10)
-    };
-    state.sessions.push(duplicated);
-    currentSessionId = newId;
-    ensureProductionGrid();
-    persistState();
-    populateSessions();
-    populateSessionForm();
-    renderProductionTable();
-    renderAnalysis();
-    showToast('Session dupliquée à partir de la veille.', 'info');
-  });
-
-  selectors.addHourRow.addEventListener('click', () => {
-    if (!currentSessionId) return;
-    const timeValue = prompt('Heure (HH:MM) pour la nouvelle tranche ?', '');
-    if (!timeValue) return;
-    const session = state.sessions.find((s) => s.session_id === currentSessionId);
-    if (!session) return;
-    const [hourStr, minuteStr] = timeValue.split(':');
-    if (hourStr === undefined || minuteStr === undefined) {
-      showToast('Format heure invalide.', 'error');
-      return;
-    }
-    const date = new Date(`${session.date}T${hourStr.padStart(2, '0')}:${minuteStr.padStart(2, '0')}:00`);
-    if (Number.isNaN(date.getTime())) {
-      showToast('Heure invalide.', 'error');
-      return;
-    }
-    const existing = state.production_log.find((p) => p.session_id === currentSessionId && p.ts === date.toISOString());
-    if (existing) {
-      showToast('Une ligne existe déjà pour cette heure.', 'warn');
-      return;
-    }
-    state.production_log.push({
-      session_id: currentSessionId,
-      ts: date.toISOString(),
-      ok: 0,
-      ko: 0,
-      cadence_reelle: 0,
-      objectif_h: Number(session.objectif_h) || 0,
-      comment: ''
-    });
-    state.production_log.sort((a, b) => new Date(a.ts) - new Date(b.ts));
-    persistState();
-    renderProductionTable();
-    renderJournal();
-    renderAnalysis();
-  });
-}
-
-function populateSessions() {
-  selectors.sessionSelector.innerHTML = '';
-  state.sessions.forEach((session) => {
-    const option = document.createElement('option');
-    option.value = session.session_id;
-    option.textContent = `${session.date} • ${session.ligne} • ${session.produit || 'N/A'}`;
-    selectors.sessionSelector.append(option);
-  });
-  if (currentSessionId && state.sessions.some((s) => s.session_id === currentSessionId)) {
-    selectors.sessionSelector.value = currentSessionId;
-  } else {
-    currentSessionId = state.sessions[0]?.session_id ?? null;
-    if (currentSessionId) {
-      selectors.sessionSelector.value = currentSessionId;
-    }
-  }
-  populateSessionForm();
-}
-
-function populateSessionForm() {
-  if (!currentSessionId) return;
-  const session = state.sessions.find((s) => s.session_id === currentSessionId);
-  if (!session) return;
-  selectors.sessionForm.querySelectorAll('input').forEach((input) => {
-    const name = input.name;
-    if (name && session[name] !== undefined) {
-      input.value = session[name];
-    }
-  });
-}
-
-function ensureProductionGrid() {
-  if (!currentSessionId) return;
-  const session = state.sessions.find((s) => s.session_id === currentSessionId);
-  if (!session) return;
-  const existing = state.production_log.filter((p) => p.session_id === currentSessionId);
-  if (existing.length > 0) return;
-  const start = `${session.date}T${session.debut || '08:00'}:00`;
-  const end = `${session.date}T${session.fin || '16:00'}:00`;
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-  let pointer = new Date(startDate);
-  while (pointer < endDate) {
-    state.production_log.push({
-      session_id: currentSessionId,
-      ts: pointer.toISOString(),
-      ok: 0,
-      ko: 0,
-      cadence_reelle: 0,
-      objectif_h: Number(session.objectif_h) || 0,
-      comment: ''
-    });
-    pointer.setHours(pointer.getHours() + 1);
-  }
-  state.production_log.sort((a, b) => new Date(a.ts) - new Date(b.ts));
-  persistState();
-}
-
-function renderProductionTable() {
-  selectors.productionTableBody.innerHTML = '';
-  if (!currentSessionId) return;
-  const rows = state.production_log
-    .filter((item) => item.session_id === currentSessionId)
-    .sort((a, b) => new Date(a.ts) - new Date(b.ts));
-
-  rows.forEach((row) => {
-    const tr = document.createElement('tr');
-    const hour = new Date(row.ts);
-    const hourCell = document.createElement('td');
-    hourCell.textContent = hour.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    tr.append(hourCell);
-
-    const okCell = document.createElement('td');
-    okCell.append(createProductionInput(row, 'ok'));
-    tr.append(okCell);
-
-    const koCell = document.createElement('td');
-    koCell.append(createProductionInput(row, 'ko'));
-    tr.append(koCell);
-
-    const commentCell = document.createElement('td');
-    const commentInput = document.createElement('textarea');
-    commentInput.value = row.comment || '';
-    commentInput.rows = 1;
-    commentInput.addEventListener('change', () => {
-      row.comment = commentInput.value;
-      persistState();
-      renderJournal();
-    });
-    commentCell.append(commentInput);
-    tr.append(commentCell);
-
-    const actionsCell = document.createElement('td');
-    actionsCell.className = 'cell-actions';
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'btn warn';
-    deleteBtn.textContent = 'Supprimer';
-    deleteBtn.addEventListener('click', () => {
-      const index = state.production_log.indexOf(row);
-      if (index >= 0) {
-        state.production_log.splice(index, 1);
-        persistState();
-        renderProductionTable();
-        renderJournal();
-        renderAnalysis();
+const TeamPlanner = (() => {
+  const teamForMinute = (minute, teams) => {
+    if (!teams || !teams.length) return null;
+    const sorted = [...teams].sort((a, b) => Utils.parseTime(a.shiftStart) - Utils.parseTime(b.shiftStart));
+    const dayMinute = minute % 1440;
+    let chosen = sorted[sorted.length - 1];
+    for (const team of sorted) {
+      if (dayMinute >= Utils.parseTime(team.shiftStart)) {
+        chosen = team;
       }
-    });
-    actionsCell.append(deleteBtn);
-    tr.append(actionsCell);
-
-    selectors.productionTableBody.append(tr);
-  });
-}
-
-function createProductionInput(row, key) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'cell-actions';
-  const minus = document.createElement('button');
-  minus.type = 'button';
-  minus.className = 'increment-btn minus';
-  minus.textContent = '-';
-  minus.addEventListener('click', () => {
-    row[key] = Math.max(0, Number(row[key]) - 1);
-    persistState();
-    renderProductionTable();
-    renderJournal();
-    renderAnalysis();
-  });
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.min = '0';
-  input.value = row[key] ?? 0;
-  input.addEventListener('change', () => {
-    row[key] = Number(input.value) || 0;
-    persistState();
-    renderJournal();
-    renderAnalysis();
-  });
-  const plus = document.createElement('button');
-  plus.type = 'button';
-  plus.className = 'increment-btn';
-  plus.textContent = '+';
-  plus.addEventListener('click', () => {
-    row[key] = Number(row[key]) + 1;
-    persistState();
-    renderProductionTable();
-    renderJournal();
-    renderAnalysis();
-  });
-  wrapper.append(minus, input, plus);
-  return wrapper;
-}
-
-function populateTaxonomySelectors() {
-  const categories = [...new Set(state.taxonomy.map((t) => t.categorie))];
-  selectors.stopCategory.innerHTML = '<option value="">Sélectionner</option>';
-  categories.forEach((category) => {
-    const option = document.createElement('option');
-    option.value = category;
-    option.textContent = category;
-    selectors.stopCategory.append(option);
-  });
-  updateCauseOptions();
-  updateSubCauseOptions();
-}
-
-function updateCauseOptions() {
-  const category = selectors.stopCategory.value;
-  const causes = [...new Set(state.taxonomy.filter((t) => !category || t.categorie === category).map((t) => t.cause))];
-  selectors.stopCause.innerHTML = '<option value="">Sélectionner</option>';
-  causes.forEach((cause) => {
-    const option = document.createElement('option');
-    option.value = cause;
-    option.textContent = cause;
-    selectors.stopCause.append(option);
-  });
-  if (!causes.includes(selectors.stopCause.value)) {
-    selectors.stopCause.value = '';
-  }
-  updateSubCauseOptions();
-}
-
-function updateSubCauseOptions() {
-  const category = selectors.stopCategory.value;
-  const cause = selectors.stopCause.value;
-  const subCauses = state.taxonomy
-    .filter((t) => (!category || t.categorie === category) && (!cause || t.cause === cause))
-    .map((t) => t.sous_cause);
-  selectors.stopSubCause.innerHTML = '<option value="">Sélectionner</option>';
-  subCauses.forEach((sub) => {
-    const option = document.createElement('option');
-    option.value = sub;
-    option.textContent = sub;
-    selectors.stopSubCause.append(option);
-  });
-  if (!subCauses.includes(selectors.stopSubCause.value)) {
-    selectors.stopSubCause.value = '';
-  }
-}
-
-function renderStopsTable() {
-  selectors.stopsTableBody.innerHTML = '';
-  if (!currentSessionId) return;
-  const stops = state.stops
-    .filter((stop) => stop.session_id === currentSessionId)
-    .sort((a, b) => new Date(a.start) - new Date(b.start));
-  stops.forEach((stop) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${formatDateTime(stop.start)}</td>
-      <td>${formatDateTime(stop.end)}</td>
-      <td>${formatDuration(stop.duree_s)}</td>
-      <td>${stop.categorie}</td>
-      <td>${stop.cause}</td>
-      <td>${stop.criticite}</td>
-      <td>${stop.comment || ''}</td>
-    `;
-    selectors.stopsTableBody.append(tr);
-  });
-}
-
-function renderJournal() {
-  selectors.journalTableBody.innerHTML = '';
-  if (!currentSessionId) return;
-  const prodEvents = state.production_log
-    .filter((entry) => entry.session_id === currentSessionId)
-    .map((entry) => ({
-      type: 'Production',
-      timestamp: entry.ts,
-      details: `OK ${entry.ok} / KO ${entry.ko}`,
-      commentKey: 'comment',
-      source: entry
-    }));
-  const stopEvents = state.stops
-    .filter((stop) => stop.session_id === currentSessionId)
-    .map((stop) => ({
-      type: 'Arrêt',
-      timestamp: stop.start,
-      details: `${stop.categorie} • ${stop.cause} (${formatDuration(stop.duree_s)})`,
-      commentKey: 'comment',
-      source: stop
-    }));
-  const events = [...prodEvents, ...stopEvents].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  events.forEach((event) => {
-    const tr = document.createElement('tr');
-    const typeCell = document.createElement('td');
-    typeCell.textContent = event.type;
-    tr.append(typeCell);
-
-    const dateCell = document.createElement('td');
-    dateCell.textContent = formatDateTime(event.timestamp);
-    tr.append(dateCell);
-
-    const detailsCell = document.createElement('td');
-    detailsCell.textContent = event.details;
-    tr.append(detailsCell);
-
-    const commentCell = document.createElement('td');
-    const input = document.createElement('textarea');
-    input.value = event.source[event.commentKey] || '';
-    input.rows = 1;
-    input.addEventListener('change', () => {
-      event.source[event.commentKey] = input.value;
-      persistState();
-    });
-    commentCell.append(input);
-    tr.append(commentCell);
-
-    selectors.journalTableBody.append(tr);
-  });
-}
-
-function bindStopDialog() {
-  selectors.openStopPanel.addEventListener('click', () => {
-    resetStopForm();
-    selectors.stopDialog.showModal();
-  });
-
-  selectors.stopTimerStart.addEventListener('click', () => {
-    timerStartDate = new Date();
-    selectors.stopStart.value = toLocalDateTime(timerStartDate);
-    timerHandle = setInterval(() => {
-      const now = new Date();
-      const seconds = Math.floor((now - timerStartDate) / 1000);
-      selectors.stopDuration.textContent = formatDuration(seconds);
-    }, 1000);
-  });
-
-  selectors.stopTimerStop.addEventListener('click', () => {
-    if (!timerStartDate) return;
-    clearInterval(timerHandle);
-    timerHandle = null;
-    const end = new Date();
-    selectors.stopEnd.value = toLocalDateTime(end);
-    const seconds = Math.floor((end - timerStartDate) / 1000);
-    selectors.stopDuration.textContent = formatDuration(seconds);
-  });
-
-  selectors.stopForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    if (!currentSessionId) return;
-    const start = new Date(selectors.stopStart.value);
-    const end = new Date(selectors.stopEnd.value);
-    if (!(start instanceof Date) || Number.isNaN(start.valueOf()) || !(end instanceof Date) || Number.isNaN(end.valueOf())) {
-      showToast('Horodatage invalide.', 'error');
-      return;
     }
-    const duree = Math.max(0, Math.round((end - start) / 1000));
-    if (duree === 0) {
-      showToast('Durée nulle.', 'warn');
-    }
-    state.stops.push({
-      session_id: currentSessionId,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      duree_s: duree,
-      categorie: selectors.stopCategory.value,
-      cause: selectors.stopCause.value,
-      sous_cause: selectors.stopSubCause.value,
-      criticite: selectors.stopCriticite.value,
-      comment: selectors.stopComment.value
-    });
-    state.stops.sort((a, b) => new Date(a.start) - new Date(b.start));
-    persistState();
-    selectors.stopDialog.close();
-    renderStopsTable();
-    renderJournal();
-    renderAnalysis();
-    showToast('Arrêt enregistré.', 'success');
-  });
+    return chosen;
+  };
 
-  document.querySelectorAll('[data-close-dialog]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-close-dialog');
-      const dialog = document.getElementById(id);
-      if (dialog) dialog.close();
-    });
-  });
-}
+  const teamForHour = (hour, teams) => teamForMinute(hour * 60, teams);
 
-function resetStopForm() {
-  selectors.stopForm.reset();
-  selectors.stopDuration.textContent = '00:00';
-  timerStartDate = null;
-  if (timerHandle) {
-    clearInterval(timerHandle);
-    timerHandle = null;
-  }
-  populateTaxonomySelectors();
-}
-
-function bindExports() {
-  selectors.exportProduction.addEventListener('click', () => {
-    const header = ['session_id', 'ts', 'ok', 'ko', 'cadence_reelle', 'objectif_h', 'comment'];
-    const rows = state.production_log.map((row) => header.map((key) => row[key] ?? ''));
-    downloadCsv('production_log.csv', header, rows);
-  });
-
-  selectors.exportStops.addEventListener('click', () => {
-    const header = ['session_id', 'start', 'end', 'duree_s', 'categorie', 'cause', 'sous_cause', 'criticite', 'comment'];
-    const rows = state.stops.map((row) => header.map((key) => row[key] ?? ''));
-    downloadCsv('stops.csv', header, rows);
-  });
-
-  selectors.exportReport.addEventListener('click', () => {
-    const sessionId = selectors.analysisSession.value || currentSessionId;
-    if (!sessionId) {
-      showToast('Aucune session sélectionnée.', 'warn');
-      return;
-    }
-    const session = state.sessions.find((s) => s.session_id === sessionId);
-    const kpis = computeKpis(sessionId);
-    const topLosses = buildTopLosses(sessionId);
-    const insights = buildInsights(sessionId, kpis, topLosses);
-    updateReport(session, kpis, topLosses, insights);
-    selectors.reportDialog.showModal();
-  });
-
-  selectors.printReport.addEventListener('click', () => {
-    window.print();
-  });
-}
-
-function bindParameters() {
-  selectors.addTarget.addEventListener('click', () => {
-    state.targets.push({
-      ligne: '',
-      produit: '',
-      cadence_cible: 0,
-      objectif_h: 0,
-      seuil_perf: 0.9,
-      seuil_rejet: 0.02
-    });
-    persistState();
-    renderTargetsTable();
-  });
-
-  selectors.addTaxonomy.addEventListener('click', () => {
-    state.taxonomy.push({ categorie: '', cause: '', sous_cause: '' });
-    persistState();
-    renderTaxonomyTable();
-    populateTaxonomySelectors();
-  });
-
-  selectors.addUser.addEventListener('click', () => {
-    state.users.push({ user_id: `user-${Date.now()}`, nom: '', role: '' });
-    persistState();
-    renderUsersTable();
-  });
-
-  selectors.resetState.addEventListener('click', () => {
-    if (!confirm('Confirmer la réinitialisation des données ?')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    state = createDefaultState();
-    currentSessionId = state.sessions[0]?.session_id ?? null;
-    persistState();
-    init();
-    showToast('Données réinitialisées.', 'warn');
-  });
-
-  selectors.gatewayToggle.addEventListener('change', updateGateway);
-}
-
-function renderTargetsTable() {
-  selectors.targetsTableBody.innerHTML = '';
-  state.targets.forEach((target, index) => {
-    const tr = document.createElement('tr');
-    ['ligne', 'produit', 'cadence_cible', 'objectif_h', 'seuil_perf', 'seuil_rejet'].forEach((key) => {
-      const td = document.createElement('td');
-      const input = document.createElement('input');
-      input.value = target[key] ?? '';
-      input.type = key.includes('seuil') ? 'number' : 'text';
-      input.step = key.includes('seuil') ? '0.01' : '1';
-      input.addEventListener('change', () => {
-        target[key] = input.type === 'number' ? Number(input.value) : input.value;
-        persistState();
-        renderAnalysis();
+  const createTimeline = (teams) => {
+    const slots = [];
+    for (let minute = 0; minute < 1440; minute += 10) {
+      const team = teamForMinute(minute, teams);
+      slots.push({
+        id: Utils.uid(),
+        minute,
+        status: "run",
+        teamId: team ? team.id : null,
+        eventId: null,
+        note: "",
       });
-      td.append(input);
-      tr.append(td);
-    });
-    const actions = document.createElement('td');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn warn';
-    btn.textContent = 'Supprimer';
-    btn.addEventListener('click', () => {
-      state.targets.splice(index, 1);
-      persistState();
-      renderTargetsTable();
-      renderAnalysis();
-    });
-    actions.append(btn);
-    tr.append(actions);
-    selectors.targetsTableBody.append(tr);
-  });
-}
-
-function renderTaxonomyTable() {
-  selectors.taxonomyTableBody.innerHTML = '';
-  state.taxonomy.forEach((item, index) => {
-    const tr = document.createElement('tr');
-    ['categorie', 'cause', 'sous_cause'].forEach((key) => {
-      const td = document.createElement('td');
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = item[key] ?? '';
-      input.addEventListener('change', () => {
-        item[key] = input.value;
-        persistState();
-        populateTaxonomySelectors();
-      });
-      td.append(input);
-      tr.append(td);
-    });
-    const actions = document.createElement('td');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn warn';
-    btn.textContent = 'Supprimer';
-    btn.addEventListener('click', () => {
-      state.taxonomy.splice(index, 1);
-      persistState();
-      renderTaxonomyTable();
-      populateTaxonomySelectors();
-    });
-    actions.append(btn);
-    tr.append(actions);
-    selectors.taxonomyTableBody.append(tr);
-  });
-}
-
-function renderUsersTable() {
-  selectors.usersTableBody.innerHTML = '';
-  state.users.forEach((user, index) => {
-    const tr = document.createElement('tr');
-    ['user_id', 'nom', 'role'].forEach((key) => {
-      const td = document.createElement('td');
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = user[key] ?? '';
-      input.addEventListener('change', () => {
-        user[key] = input.value;
-        persistState();
-        populateAnalysisSelectors();
-      });
-      td.append(input);
-      tr.append(td);
-    });
-    const actions = document.createElement('td');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn warn';
-    btn.textContent = 'Supprimer';
-    btn.addEventListener('click', () => {
-      state.users.splice(index, 1);
-      persistState();
-      renderUsersTable();
-    });
-    actions.append(btn);
-    tr.append(actions);
-    selectors.usersTableBody.append(tr);
-  });
-}
-
-function downloadCsv(filename, headers, rows) {
-  const csvRows = [headers.join(',')];
-  rows.forEach((row) => {
-    csvRows.push(row.map((value) => formatCsvValue(value)).join(','));
-  });
-  const bom = '﻿';
-  const blob = new Blob([bom + csvRows.join('
-')], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(link.href);
-  showToast(`${filename} exporté.`, 'success');
-}
-
-function formatCsvValue(value) {
-  const str = value === null || value === undefined ? '' : String(value).replace(/"/g, '""');
-  if (str.includes(',') || str.includes('
-')) {
-    return `"${str}"`;
-  }
-  return str;
-}
-
-function populateAnalysisSelectors() {
-  selectors.analysisSession.innerHTML = '';
-  state.sessions.forEach((session) => {
-    const option = document.createElement('option');
-    option.value = session.session_id;
-    option.textContent = `${session.date} • ${session.ligne}`;
-    selectors.analysisSession.append(option);
-  });
-  const analysisId = currentSessionId || state.sessions[0]?.session_id;
-  if (analysisId) {
-    selectors.analysisSession.value = analysisId;
-  }
-
-  const teams = [...new Set(state.sessions.map((s) => s.equipe).filter(Boolean))];
-  selectors.analysisTeamFilter.innerHTML = '';
-  const allOption = document.createElement('option');
-  allOption.value = 'all';
-  allOption.textContent = 'Toutes équipes';
-  selectors.analysisTeamFilter.append(allOption);
-  teams.forEach((team) => {
-    const option = document.createElement('option');
-    option.value = team;
-    option.textContent = team;
-    selectors.analysisTeamFilter.append(option);
-  });
-  selectors.analysisTeamFilter.value = 'all';
-
-
-}
-
-function renderAnalysis() {
-  const selectedSessionId = selectors.analysisSession.value || currentSessionId;
-  const teamFilter = selectors.analysisTeamFilter.value;
-  let sessionIds = [];
-  let focusSession = null;
-  let metaLabel = '';
-
-  if (teamFilter && teamFilter !== 'all') {
-    sessionIds = state.sessions.filter((s) => s.equipe === teamFilter).map((s) => s.session_id);
-    if (sessionIds.length === 0) {
-      selectors.analysisMeta.textContent = `Aucune session pour ${teamFilter}`;
-      return;
     }
-    focusSession = state.sessions.find((s) => s.session_id === selectedSessionId) ||
-      state.sessions.find((s) => s.session_id === sessionIds[0]);
-    metaLabel = `Équipe ${teamFilter} — ${sessionIds.length} session${sessionIds.length > 1 ? 's' : ''}`;
-  } else {
-    if (!selectedSessionId) return;
-    focusSession = state.sessions.find((s) => s.session_id === selectedSessionId);
-    if (!focusSession) return;
-    sessionIds = [focusSession.session_id];
-    metaLabel = `${focusSession.date} • ${focusSession.site} • ${focusSession.ligne} • ${focusSession.produit || ''}`;
-  }
+    return slots;
+  };
 
-  const kpis = computeAggregateKpis(sessionIds);
-  const target = focusSession ? findTarget(focusSession) : null;
-  updateKpiCard('oee', kpis.oee, '%', evaluateStatus(kpis.oee / 100, target?.seuil_perf));
-  updateKpiCard('performance', kpis.performance, '%', evaluateStatus(kpis.performance / 100, target?.seuil_perf));
-  updateKpiCard('quality', kpis.quality, '%', evaluateQualityStatus(kpis.quality / 100, target?.seuil_rejet));
-  updateKpiCard('availability', kpis.availability, '%', evaluateStatus(kpis.availability / 100, target?.seuil_perf));
-  updateKpiCard('reject', kpis.rejectRate, '%', evaluateRejectStatus(kpis.rejectRate / 100, target?.seuil_rejet));
-  updateKpiCard('mtbf', kpis.mtbf, ' min', classifyDuration(kpis.mtbf));
-  updateKpiCard('mttr', kpis.mttr, ' min', classifyDurationReverse(kpis.mttr));
+  const createHourlyRecords = (teams) => {
+    const records = [];
+    for (let hour = 0; hour < 24; hour += 1) {
+      const team = teamForHour(hour, teams);
+      const base = 180 + hour * 3;
+      records.push({
+        hour,
+        teamId: team ? team.id : null,
+        good: base,
+        scrap: Math.floor((hour % 4) * 1.5),
+      });
+    }
+    return records;
+  };
 
-  selectors.analysisMeta.textContent = metaLabel;
+  return { teamForMinute, teamForHour, createTimeline, createHourlyRecords };
+})();
 
-  if (focusSession) {
-    renderCharts(focusSession.session_id);
-  }
-
-  const losses = buildTopLosses(sessionIds);
-  selectors.topLosses.innerHTML = '';
-  losses.forEach((loss) => {
-    const li = document.createElement('li');
-    li.textContent = `${loss.cause} — ${formatDuration(loss.duration)}`;
-    selectors.topLosses.append(li);
-  });
-
-  const insights = buildInsights(sessionIds, kpis, losses);
-  selectors.insights.innerHTML = '';
-  insights.forEach((text) => {
-    const li = document.createElement('li');
-    li.textContent = text;
-    selectors.insights.append(li);
-  });
-}
-
-function computeKpis(sessionId) {
-  const base = getSessionBase(sessionId);
-  if (!base) {
+const Storage = (() => {
+  const defaultState = () => {
+    const lines = [
+      { id: Utils.uid(), name: "Ligne A", cadence: 360, cycleTime: 0.17, trsThreshold: 0.85 },
+      { id: Utils.uid(), name: "Ligne B", cadence: 420, cycleTime: 0.14, trsThreshold: 0.88 },
+    ];
+    const teams = [
+      { id: Utils.uid(), name: "Équipe A", shiftStart: "06:00", color: "#3ddc97" },
+      { id: Utils.uid(), name: "Équipe B", shiftStart: "14:00", color: "#ffb703" },
+      { id: Utils.uid(), name: "Équipe C", shiftStart: "22:00", color: "#8ecae6" },
+    ];
+    const events = [
+      { id: Utils.uid(), name: "Panne technique", category: "Technique", subCategory: "Capteur", color: "#f94144" },
+      { id: Utils.uid(), name: "Réglage qualité", category: "Qualité", subCategory: "Démarrage", color: "#f3722c" },
+      { id: Utils.uid(), name: "Manque matière", category: "Logistique", subCategory: "Appro", color: "#f9c74f" },
+    ];
+    const sessionId = Utils.uid();
+    const timeline = TeamPlanner.createTimeline(teams);
+    const hourlyRecords = TeamPlanner.createHourlyRecords(teams);
+    const journal = [
+      { id: Utils.uid(), ts: Utils.nowTimestamp(), type: "info", detail: "Session initialisée", comment: "" },
+    ];
     return {
-      planned: 0,
-      run: 0,
-      downtime: 0,
-      performance: 0,
-      availability: 0,
-      quality: 0,
-      oee: 0,
-      rejectRate: 0,
-      mtbf: 0,
-      mttr: 0
-    };
-  }
-  const performance = base.theoretical > 0 ? (base.ok / base.theoretical) * 100 : 0;
-  const availability = base.plannedMinutes > 0 ? (base.runMinutes / base.plannedMinutes) * 100 : 0;
-  const total = base.ok + base.ko;
-  const quality = total > 0 ? (base.ok / total) * 100 : 0;
-  const oee = (availability / 100) * (performance / 100) * (quality / 100) * 100;
-  const rejectRate = total > 0 ? (base.ko / total) * 100 : 0;
-  const mtbf = base.majorStops > 0 ? base.runMinutes / base.majorStops : base.runMinutes;
-  const mttr = base.majorStops > 0 ? base.majorDowntimeMinutes / base.majorStops : 0;
-  return {
-    planned: base.plannedMinutes,
-    run: base.runMinutes,
-    downtime: base.downtimeMinutes,
-    ok: base.ok,
-    ko: base.ko,
-    performance: Number.isFinite(performance) ? performance : 0,
-    availability: Number.isFinite(availability) ? availability : 0,
-    quality: Number.isFinite(quality) ? quality : 0,
-    oee: Number.isFinite(oee) ? oee : 0,
-    rejectRate: Number.isFinite(rejectRate) ? rejectRate : 0,
-    mtbf: Number.isFinite(mtbf) ? mtbf : 0,
-    mttr: Number.isFinite(mttr) ? mttr : 0
-  };
-}
-
-function computeAggregateKpis(sessionIds) {
-  const ids = Array.isArray(sessionIds) ? sessionIds : [sessionIds];
-  const totals = {
-    plannedMinutes: 0,
-    runMinutes: 0,
-    downtimeMinutes: 0,
-    ok: 0,
-    ko: 0,
-    theoretical: 0,
-    majorStops: 0,
-    majorDowntimeMinutes: 0
-  };
-  ids.forEach((id) => {
-    const base = getSessionBase(id);
-    if (!base) return;
-    totals.plannedMinutes += base.plannedMinutes;
-    totals.runMinutes += base.runMinutes;
-    totals.downtimeMinutes += base.downtimeMinutes;
-    totals.ok += base.ok;
-    totals.ko += base.ko;
-    totals.theoretical += base.theoretical;
-    totals.majorStops += base.majorStops;
-    totals.majorDowntimeMinutes += base.majorDowntimeMinutes;
-  });
-  const performance = totals.theoretical > 0 ? (totals.ok / totals.theoretical) * 100 : 0;
-  const availability = totals.plannedMinutes > 0 ? (totals.runMinutes / totals.plannedMinutes) * 100 : 0;
-  const totalPieces = totals.ok + totals.ko;
-  const quality = totalPieces > 0 ? (totals.ok / totalPieces) * 100 : 0;
-  const oee = (availability / 100) * (performance / 100) * (quality / 100) * 100;
-  const rejectRate = totalPieces > 0 ? (totals.ko / totalPieces) * 100 : 0;
-  const mtbf = totals.majorStops > 0 ? totals.runMinutes / totals.majorStops : totals.runMinutes;
-  const mttr = totals.majorStops > 0 ? totals.majorDowntimeMinutes / totals.majorStops : 0;
-  return {
-    planned: totals.plannedMinutes,
-    run: totals.runMinutes,
-    downtime: totals.downtimeMinutes,
-    ok: totals.ok,
-    ko: totals.ko,
-    performance: Number.isFinite(performance) ? performance : 0,
-    availability: Number.isFinite(availability) ? availability : 0,
-    quality: Number.isFinite(quality) ? quality : 0,
-    oee: Number.isFinite(oee) ? oee : 0,
-    rejectRate: Number.isFinite(rejectRate) ? rejectRate : 0,
-    mtbf: Number.isFinite(mtbf) ? mtbf : 0,
-    mttr: Number.isFinite(mttr) ? mttr : 0
-  };
-}
-
-function getSessionBase(sessionId) {
-  const session = state.sessions.find((s) => s.session_id === sessionId);
-  if (!session) return null;
-  const start = new Date(`${session.date}T${session.debut || '00:00'}:00`);
-  const end = new Date(`${session.date}T${session.fin || '00:00'}:00`);
-  const plannedMinutes = Math.max(0, (end - start) / 60000);
-  const stops = state.stops.filter((stop) => stop.session_id === sessionId);
-  const downtimeMinutes = stops.reduce((sum, stop) => sum + (stop.duree_s || 0) / 60, 0);
-  const runMinutes = Math.max(0, plannedMinutes - downtimeMinutes);
-  const production = state.production_log.filter((log) => log.session_id === sessionId);
-  const ok = production.reduce((sum, log) => sum + (Number(log.ok) || 0), 0);
-  const ko = production.reduce((sum, log) => sum + (Number(log.ko) || 0), 0);
-  const cadenceCible = Number(session.cadence_cible) || 0;
-  const theoretical = cadenceCible * (runMinutes / 60);
-  const majorStops = stops.filter((stop) => ['Majeur', 'Critique'].includes(stop.criticite));
-  const majorDowntimeMinutes = majorStops.reduce((sum, stop) => sum + (stop.duree_s || 0) / 60, 0);
-  return {
-    session,
-    plannedMinutes,
-    downtimeMinutes,
-    runMinutes,
-    ok,
-    ko,
-    theoretical,
-    majorStops: majorStops.length,
-    majorDowntimeMinutes
-  };
-}
-
-function findTarget(session) {
-  return state.targets.find((target) => target.ligne === session.ligne && target.produit === session.produit);
-}
-
-function updateKpiCard(key, value, suffix = '', status = 'ok') {
-  const card = selectors.kpiCards[key];
-  if (!card) return;
-  card.querySelector('.kpi-value').textContent = `${value.toFixed(1)}${suffix}`;
-  card.classList.remove('ok', 'warn', 'bad');
-  card.classList.add(status);
-}
-
-function evaluateStatus(value, threshold = 0.85) {
-  if (value >= (threshold || 0.85)) return 'ok';
-  if (value >= (threshold || 0.85) * 0.9) return 'warn';
-  return 'bad';
-}
-
-function evaluateQualityStatus(value, rejectThreshold = 0.02) {
-  const target = 1 - (rejectThreshold || 0.02);
-  if (value >= target) return 'ok';
-  if (value >= target - 0.05) return 'warn';
-  return 'bad';
-}
-
-function evaluateRejectStatus(value, threshold = 0.02) {
-  if (value <= (threshold || 0.02)) return 'ok';
-  if (value <= (threshold || 0.02) * 1.5) return 'warn';
-  return 'bad';
-}
-
-function classifyDuration(value) {
-  if (value >= 60) return 'ok';
-  if (value >= 30) return 'warn';
-  return 'bad';
-}
-
-function classifyDurationReverse(value) {
-  if (value <= 15) return 'ok';
-  if (value <= 30) return 'warn';
-  return 'bad';
-}
-
-function renderCharts(sessionId) {
-  const session = state.sessions.find((s) => s.session_id === sessionId);
-  if (!session) return;
-  const production = state.production_log
-    .filter((log) => log.session_id === sessionId)
-    .sort((a, b) => new Date(a.ts) - new Date(b.ts));
-  const labels = production.map((log) => new Date(log.ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
-  const cumulativeOk = [];
-  const cumulativeTarget = [];
-  let accOk = 0;
-  production.forEach((log, idx) => {
-    accOk += Number(log.ok) || 0;
-    cumulativeOk.push(accOk);
-    const targetHourly = Number(log.objectif_h) || Number(session.objectif_h) || Number(session.cadence_cible) || 0;
-    cumulativeTarget.push(targetHourly * (idx + 1));
-  });
-  const ctxOk = document.getElementById('chart-ok-target').getContext('2d');
-  if (charts.okTarget) charts.okTarget.destroy();
-  charts.okTarget = new Chart(ctxOk, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
+      schema_version: 1,
+      lines,
+      teams,
+      events,
+      sessions: [
         {
-          label: 'OK cumulés',
-          data: cumulativeOk,
-          borderColor: '#34d399',
-          backgroundColor: 'rgba(52, 211, 153, 0.2)',
-          fill: true
+          id: sessionId,
+          date: Utils.todayISO(),
+          lineId: lines[0].id,
+          orderId: "OF-001",
+          cycleTime: lines[0].cycleTime,
+          targetPerHour: lines[0].cadence,
+          timeline,
+          hourlyRecords,
+          journal,
         },
-        {
-          label: 'Cible cumulée',
-          data: cumulativeTarget,
-          borderColor: '#38bdf8',
-          backgroundColor: 'rgba(56, 189, 248, 0.2)',
-          fill: false
-        }
-      ]
-    }
-  });
+      ],
+      currentSessionId: sessionId,
+    };
+  };
 
-  const losses = buildTopLosses(sessionId, Infinity);
-  const ctxPareto = document.getElementById('chart-pareto').getContext('2d');
-  if (charts.pareto) charts.pareto.destroy();
-  charts.pareto = new Chart(ctxPareto, {
-    type: 'bar',
-    data: {
-      labels: losses.map((l) => l.cause),
-      datasets: [
-        {
-          data: losses.map((l) => Math.round(l.duration / 60)),
-          backgroundColor: losses.map(() => '#f97316')
-        }
-      ]
+  const migrate = (state) => {
+    if (!state || typeof state !== "object") return defaultState();
+    if (state.schema_version !== 1) {
+      const migrated = defaultState();
+      migrated.sessions = state.sessions || migrated.sessions;
+      migrated.lines = state.lines || migrated.lines;
+      migrated.teams = state.teams || migrated.teams;
+      migrated.events = state.events || migrated.events;
+      migrated.currentSessionId = migrated.sessions[0]?.id || migrated.currentSessionId;
+      return migrated;
     }
-  });
+    return state;
+  };
 
-  const sessionsByTeam = state.sessions.reduce((map, s) => {
-    if (!s.equipe) return map;
-    const key = s.equipe;
-    const kpis = computeKpis(s.session_id);
-    map[key] = (map[key] || 0) + kpis.ok;
-    return map;
-  }, {});
-  const teamEntries = Object.entries(sessionsByTeam);
-  if (teamEntries.length <= 1) {
-    selectors.teamChartCard.classList.add('hidden');
-  } else {
-    selectors.teamChartCard.classList.remove('hidden');
-    const ctxTeam = document.getElementById('chart-team').getContext('2d');
-    if (charts.team) charts.team.destroy();
-    charts.team = new Chart(ctxTeam, {
-      type: 'doughnut',
-      data: {
-        labels: teamEntries.map(([team]) => team),
-        datasets: [
-          {
-            data: teamEntries.map(([, value]) => value),
-            backgroundColor: ['#22d3ee', '#34d399', '#facc15', '#f97316', '#f87171']
+  const load = () => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return defaultState();
+      const parsed = JSON.parse(stored);
+      return migrate(parsed);
+    } catch (error) {
+      console.warn("Erreur lecture localStorage", error);
+      return defaultState();
+    }
+  };
+
+  const save = (state) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.warn("Erreur écriture localStorage", error);
+    }
+  };
+
+  return { load, save, defaultState };
+})();
+
+const Toasts = (() => {
+  const container = document.querySelector(".toast-container");
+  const show = (label, message, type = "info", timeout = 3500) => {
+    if (!container) return;
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span class="label">${label}</span><span class="message">${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add("hide");
+      setTimeout(() => toast.remove(), 250);
+    }, timeout);
+  };
+  return { show };
+})();
+
+const Analytics = (() => {
+  const compute = (session, line, teams, events) => {
+    if (!session) return null;
+    const openMinutes = session.timeline.length * 10;
+    const runMinutes = session.timeline.filter((slot) => slot.status === "run").length * 10;
+    const goods = Utils.sum(session.hourlyRecords.map((record) => record.good));
+    const scraps = Utils.sum(session.hourlyRecords.map((record) => record.scrap));
+    const total = goods + scraps;
+    const cycle = session.cycleTime || line?.cycleTime || 1;
+    const target = session.targetPerHour || line?.cadence || 0;
+    const trs = openMinutes ? (goods * cycle) / openMinutes : 0;
+    const availability = openMinutes ? runMinutes / openMinutes : 0;
+    const performance = runMinutes ? (goods * cycle) / runMinutes : 0;
+    const quality = total ? goods / total : 0;
+
+    const eventDurations = session.timeline
+      .filter((slot) => slot.status === "event" && slot.eventId)
+      .reduce((acc, slot) => {
+        const key = slot.eventId;
+        acc[key] = (acc[key] || 0) + 10;
+        return acc;
+      }, {});
+
+    const losses = Object.entries(eventDurations)
+      .map(([eventId, minutes]) => {
+        const event = events.find((item) => item.id === eventId);
+        return {
+          id: eventId,
+          name: event ? event.name : "Évènement",
+          minutes,
+          category: event?.category || "",
+        };
+      })
+      .sort((a, b) => b.minutes - a.minutes)
+      .slice(0, 3);
+
+    const recurring = Object.values(
+      session.timeline
+        .filter((slot) => slot.status === "event" && slot.eventId)
+        .reduce((acc, slot) => {
+          const event = events.find((item) => item.id === slot.eventId);
+          const key = event ? `${event.category}|${event.subCategory}` : "Autre";
+          if (!acc[key]) {
+            acc[key] = { key, count: 0, label: event ? `${event.category} - ${event.subCategory}` : "Autre" };
           }
-        ]
+          acc[key].count += 1;
+          return acc;
+        }, {})
+    ).sort((a, b) => b.count - a.count);
+
+    const teamTotals = session.hourlyRecords.reduce((acc, record) => {
+      if (!record.teamId) return acc;
+      acc[record.teamId] = acc[record.teamId] || { good: 0, scrap: 0 };
+      acc[record.teamId].good += Number(record.good || 0);
+      acc[record.teamId].scrap += Number(record.scrap || 0);
+      return acc;
+    }, {});
+
+    return {
+      openMinutes,
+      runMinutes,
+      goods,
+      scraps,
+      total,
+      cycle,
+      target,
+      trs,
+      availability,
+      performance,
+      quality,
+      losses,
+      recurring,
+      teamTotals,
+    };
+  };
+
+  const drawHourlyChart = (canvas, session, line) => {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const { width, height } = canvas;
+    ctx.clearRect(0, 0, width, height);
+    const records = session?.hourlyRecords || [];
+    if (!records.length) return;
+    const target = session?.targetPerHour || line?.cadence || 0;
+    const maxGood = Math.max(target, ...records.map((record) => Number(record.good || 0)));
+    const maxValue = maxGood <= 0 ? 1 : maxGood * 1.2;
+
+    ctx.strokeStyle = "rgba(154, 167, 199, 0.3)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i += 1) {
+      const y = height - (i / 4) * height;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    if (target > 0) {
+      const y = height - (target / maxValue) * height;
+      ctx.strokeStyle = "rgba(61, 220, 151, 0.7)";
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(61, 220, 151, 0.9)";
+      ctx.font = "12px Inter";
+      ctx.fillText(`Cible ${target}`, 8, Math.max(12, y - 6));
+    }
+
+    const barWidth = width / (records.length * 1.6);
+    records.forEach((record, index) => {
+      const good = Number(record.good || 0);
+      const x = 20 + index * (barWidth * 1.6);
+      const barHeight = (good / maxValue) * (height - 24);
+      ctx.fillStyle = "rgba(61, 220, 151, 0.75)";
+      ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+      if (index % 3 === 0) {
+        ctx.fillStyle = "rgba(245, 247, 255, 0.7)";
+        ctx.font = "11px Inter";
+        ctx.fillText(Utils.pad(record.hour), x, height - 4);
       }
     });
+  };
+
+  const drawTeamChart = (canvas, teamTotals, teams) => {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const { width, height } = canvas;
+    ctx.clearRect(0, 0, width, height);
+    const items = teams.map((team) => ({ team, totals: teamTotals[team.id] || { good: 0, scrap: 0 } }));
+    const maxValue = Math.max(...items.map((item) => item.totals.good), 1) * 1.2;
+    const barHeight = 36;
+    const spacing = 24;
+    items.forEach((item, index) => {
+      const y = spacing + index * (barHeight + spacing);
+      ctx.fillStyle = "rgba(154, 167, 199, 0.2)";
+      ctx.fillRect(40, y, width - 160, barHeight);
+      const valueWidth = ((item.totals.good || 0) / maxValue) * (width - 160);
+      ctx.fillStyle = item.team.color || "rgba(61, 220, 151, 0.8)";
+      ctx.fillRect(40, y, valueWidth, barHeight);
+      ctx.fillStyle = "rgba(245, 247, 255, 0.85)";
+      ctx.font = "14px Inter";
+      ctx.fillText(item.team.name, 40, y - 8);
+      ctx.fillText(`${Math.round(item.totals.good)} u`, 50, y + barHeight / 1.5);
+      ctx.fillStyle = "rgba(255, 107, 107, 0.7)";
+      const scrapWidth = ((item.totals.scrap || 0) / maxValue) * (width - 160);
+      ctx.fillRect(40, y + barHeight - 6, scrapWidth, 6);
+    });
+  };
+
+  return { compute, drawHourlyChart, drawTeamChart };
+})();
+
+const Exporters = (() => {
+  const download = (filename, content, type = "text/plain") => {
+    const blob = new Blob([content], { type });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(link.href);
+      link.remove();
+    }, 0);
+  };
+
+  const journalToCSV = (journal) => {
+    const header = "ts,type,detail,comment";
+    const rows = journal.map((item) => [item.ts, item.type, item.detail, item.comment?.replace(/\n/g, " ") || ""].map((value) => `"${(value || "").replace(/"/g, '""')}"`).join(","));
+    return [header, ...rows].join("\n");
+  };
+
+  const sessionToHTML = (session, line, metrics) => {
+    const header = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8" /><title>Rapport ${session.orderId || ""}</title><style>body{font-family:Inter,Arial,sans-serif;background:#fff;color:#0f1a34;padding:32px;}h1{margin-top:0;}section{margin-bottom:28px;}table{border-collapse:collapse;width:100%;margin-top:12px;}th,td{border:1px solid #d9e2f5;padding:8px;text-align:left;}th{background:#f2f5fb;} .kpis{display:flex;gap:18px;flex-wrap:wrap;} .kpi{flex:1 1 160px;border:1px solid #d9e2f5;border-radius:12px;padding:12px;} .kpi h2{margin:0;font-size:0.9rem;color:#53608c;} .kpi p{margin:6px 0 0;font-size:1.6rem;font-weight:600;} ul{margin:0;padding-left:18px;} .badge{display:inline-block;padding:2px 10px;border-radius:999px;background:#3ddc97;color:#0f1a34;font-size:0.75rem;margin-left:8px;}</style></head><body>`;
+    const meta = `<h1>Rapport Performance</h1><p><strong>Ligne :</strong> ${line?.name || ""} <span class="badge">${session.date}</span></p><p><strong>Ordre :</strong> ${session.orderId || "-"}</p>`;
+    const kpis = `<section><div class="kpis"><div class="kpi"><h2>TRS</h2><p>${Utils.formatPercent(metrics.trs)}</p></div><div class="kpi"><h2>Disponibilité</h2><p>${Utils.formatPercent(metrics.availability)}</p></div><div class="kpi"><h2>Performance</h2><p>${Utils.formatPercent(metrics.performance)}</p></div><div class="kpi"><h2>Qualité</h2><p>${Utils.formatPercent(metrics.quality)}</p></div></div></section>`;
+    const journalRows = session.journal
+      .map((item) => `<tr><td>${item.ts}</td><td>${item.type}</td><td>${item.detail}</td><td>${item.comment || ""}</td></tr>`)
+      .join("");
+    const journal = `<section><h2>Journal</h2><table><thead><tr><th>Horodatage</th><th>Type</th><th>Détails</th><th>Commentaire</th></tr></thead><tbody>${journalRows}</tbody></table></section>`;
+    const losses = metrics.losses
+      .map((loss) => `<li>${loss.name} : ${loss.minutes} min</li>`)
+      .join("") || "<li>RAS</li>";
+    const recurring = metrics.recurring
+      .map((item) => `<li>${item.label} (${item.count})</li>`)
+      .join("") || "<li>RAS</li>";
+    const lossesBlock = `<section><h2>Pertes</h2><ul>${losses}</ul><h3>Causes récurrentes</h3><ul>${recurring}</ul></section>`;
+    const footer = "</body></html>";
+    return `${header}${meta}${kpis}${lossesBlock}${journal}${footer}`;
+  };
+
+  return { download, journalToCSV, sessionToHTML };
+})();
+
+const App = (() => {
+  const state = Storage.load();
+  let currentSession = state.sessions.find((session) => session.id === state.currentSessionId) || state.sessions[0];
+  if (!currentSession && state.sessions.length) {
+    currentSession = state.sessions[0];
+    state.currentSessionId = currentSession.id;
   }
-}
 
-function buildTopLosses(sessionIds, limit = 3) {
-  const ids = Array.isArray(sessionIds) ? sessionIds : [sessionIds];
-  const stops = state.stops.filter((stop) => ids.includes(stop.session_id));
-  const grouped = new Map();
-  stops.forEach((stop) => {
-    const key = `${stop.categorie} • ${stop.cause}`;
-    grouped.set(key, (grouped.get(key) || 0) + (stop.duree_s || 0));
-  });
-  return Array.from(grouped.entries())
-    .map(([cause, duration]) => ({ cause, duration }))
-    .sort((a, b) => b.duration - a.duration)
-    .slice(0, limit);
-}
+  const dom = {
+    tabs: Array.from(document.querySelectorAll(".tab-button")),
+    panels: Array.from(document.querySelectorAll(".tab-panel")),
+    sessionMeta: document.querySelector("#session-meta"),
+    sessionLine: document.querySelector("#session-line"),
+    sessionOrder: document.querySelector("#session-order"),
+    sessionDate: document.querySelector("#session-date"),
+    sessionCycle: document.querySelector("#session-cycle"),
+    sessionTarget: document.querySelector("#session-target"),
+    saveSession: document.querySelector("#save-session"),
+    newSession: document.querySelector("#new-session"),
+    hourlyTableBody: document.querySelector("#hourly-table tbody"),
+    timelineGrid: document.querySelector("#timeline-grid"),
+    journalBody: document.querySelector("#journal-table tbody"),
+    exportJournalCsv: document.querySelector("#export-journal-csv"),
+    exportReportHtml: document.querySelector("#export-report-html"),
+    eventShortcut: document.querySelector("#event-shortcut"),
+    slotDialog: document.querySelector("#slot-dialog"),
+    slotForm: document.querySelector("#slot-form"),
+    slotTeam: document.querySelector("#slot-team"),
+    slotEvent: document.querySelector("#slot-event"),
+    slotNote: document.querySelector("#slot-note"),
+    slotTime: document.querySelector("#slot-time"),
+    slotSave: document.querySelector("#slot-save"),
+    kpiGrid: document.querySelector("#kpi-grid"),
+    hourlyCanvas: document.querySelector("#chart-hourly"),
+    teamCanvas: document.querySelector("#chart-team"),
+    topLosses: document.querySelector("#top-losses"),
+    recurringCauses: document.querySelector("#recurring-causes"),
+    historyBody: document.querySelector("#history-table tbody"),
+    linesTableBody: document.querySelector("#lines-table tbody"),
+    teamsTableBody: document.querySelector("#teams-table tbody"),
+    eventsTableBody: document.querySelector("#events-table tbody"),
+    addLine: document.querySelector("#add-line"),
+    addTeam: document.querySelector("#add-team"),
+    addEvent: document.querySelector("#add-event"),
+    resetState: document.querySelector("#reset-state"),
+    confirmReset: document.querySelector("#confirm-reset"),
+  };
 
-function buildInsights(sessionIds, kpis, losses) {
-  const insights = [];
-  if (kpis.availability < 80) {
-    insights.push(`Disponibilité à ${kpis.availability.toFixed(1)} %, investiguer les arrêts prolongés.`);
-  }
-  if (kpis.performance < 90 && kpis.performance > 0) {
-    insights.push(`Performance à ${kpis.performance.toFixed(1)} %, vérifier cadence et goulots.`);
-  }
-  if (kpis.rejectRate > 2) {
-    insights.push(`Taux de rejet ${kpis.rejectRate.toFixed(1)} %, renforcer les contrôles.`);
-  }
-  if (losses.length > 0) {
-    const top = losses.slice(0, 2);
-    const totalDuration = losses.reduce((sum, loss) => sum + loss.duration, 0);
-    const share = totalDuration > 0 ? (top.reduce((sum, loss) => sum + loss.duration, 0) / totalDuration) * 100 : 0;
-    insights.push(`${share.toFixed(0)} % des pertes concentrées sur ${top.length} causes.`);
-  }
-  if (insights.length === 0) {
-    insights.push('Rien à signaler, maintien du plan de contrôle.');
-  }
-  return insights;
-}
+  let selectedSlotIndex = null;
 
-function updateReport(session, kpis, losses, insights) {
-  const container = selectors.reportContent;
-  container.innerHTML = '';
-  const header = document.createElement('section');
-  header.className = 'report-header';
-  header.innerHTML = `
-    <h3>${session.date} — ${session.site}</h3>
-    <p>Ligne ${session.ligne} • ${session.produit || 'N/A'} • ${session.equipe || ''} • Shift ${session.shift || ''}</p>
-  `;
-  container.append(header);
+  const persist = () => Storage.save(state);
 
-  const kpiSection = document.createElement('section');
-  kpiSection.className = 'report-kpis';
-  const kpiList = [
-    { label: 'TRS / OEE', value: `${kpis.oee.toFixed(1)} %` },
-    { label: 'Disponibilité', value: `${kpis.availability.toFixed(1)} %` },
-    { label: 'Performance', value: `${kpis.performance.toFixed(1)} %` },
-    { label: 'Qualité', value: `${kpis.quality.toFixed(1)} %` },
-    { label: 'Taux rejet', value: `${kpis.rejectRate.toFixed(1)} %` }
-  ];
-  kpiList.forEach((item) => {
-    const card = document.createElement('article');
-    card.innerHTML = `<h4>${item.label}</h4><p>${item.value}</p>`;
-    kpiSection.append(card);
-  });
-  container.append(kpiSection);
+  const updateCurrentSession = (session) => {
+    currentSession = session;
+    state.currentSessionId = session.id;
+    persist();
+    renderAll();
+  };
 
-  const lossSection = document.createElement('section');
-  lossSection.innerHTML = '<h4>Top pertes</h4>';
-  const list = document.createElement('ol');
-  losses.slice(0, 3).forEach((loss) => {
-    const li = document.createElement('li');
-    li.textContent = `${loss.cause} — ${formatDuration(loss.duration)}`;
-    list.append(li);
-  });
-  lossSection.append(list);
-  container.append(lossSection);
-
-  const insightSection = document.createElement('section');
-  insightSection.innerHTML = '<h4>Points d’attention</h4>';
-  const insightList = document.createElement('ul');
-  insights.forEach((text) => {
-    const li = document.createElement('li');
-    li.textContent = text;
-    insightList.append(li);
-  });
-  insightSection.append(insightList);
-  container.append(insightSection);
-}
-
-function bindImports() {
-  selectors.importJsonBtn.addEventListener('click', () => selectors.importJsonInput.click());
-  selectors.importCsvBtn.addEventListener('click', () => selectors.importCsvInput.click());
-
-  selectors.importJsonInput.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    try {
-      const data = JSON.parse(text);
-      state = migrateState(data);
-      persistState();
-      init();
-      showToast('Import JSON réussi.', 'success');
-    } catch (error) {
-      console.error(error);
-      showToast('Import JSON invalide.', 'error');
-    } finally {
-      event.target.value = '';
+  const renderSessionMeta = () => {
+    if (!currentSession) {
+      dom.sessionMeta.textContent = "Aucune session";
+      return;
     }
-  });
+    const line = state.lines.find((item) => item.id === currentSession.lineId);
+    dom.sessionMeta.textContent = `${currentSession.date} · ${line?.name || "Ligne"} · OF ${currentSession.orderId || "-"}`;
+  };
 
-  selectors.importCsvInput.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    const type = prompt('Importer pour Production ou Arrêts ? (prod/stop)', 'prod');
-    try {
-      if (type === 'prod') {
-        mergeProductionCsv(text);
-      } else if (type === 'stop') {
-        mergeStopsCsv(text);
-      } else {
-        showToast('Type inconnu, import annulé.', 'warn');
-      }
-      persistState();
-      renderProductionTable();
-      renderStopsTable();
+  const populateSessionForm = () => {
+    dom.sessionLine.innerHTML = state.lines.map((line) => `<option value="${line.id}">${line.name}</option>`).join("");
+    dom.sessionLine.value = currentSession.lineId || state.lines[0]?.id || "";
+    dom.sessionOrder.value = currentSession.orderId || "";
+    dom.sessionDate.value = currentSession.date || Utils.todayISO();
+    dom.sessionCycle.value = currentSession.cycleTime || "";
+    dom.sessionTarget.value = currentSession.targetPerHour || "";
+  };
+
+  const renderHourlyTable = () => {
+    dom.hourlyTableBody.innerHTML = "";
+    currentSession.hourlyRecords.forEach((record) => {
+      const team = TeamPlanner.teamForHour(record.hour, state.teams);
+      record.teamId = team ? team.id : record.teamId;
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${Utils.hourLabel(record.hour)}</td>
+        <td><span class="team-pill" style="background:${team?.color || "#3ddc97"}"></span>${team?.name || ""}</td>
+        <td><input type="number" min="0" step="1" value="${record.good}" data-hour="${record.hour}" data-field="good" /></td>
+        <td><input type="number" min="0" step="1" value="${record.scrap}" data-hour="${record.hour}" data-field="scrap" /></td>`;
+      dom.hourlyTableBody.appendChild(row);
+    });
+  };
+
+  const attachHourlyEvents = () => {
+    dom.hourlyTableBody.addEventListener("change", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      const hour = Number(input.dataset.hour);
+      const field = input.dataset.field;
+      const record = currentSession.hourlyRecords.find((item) => item.hour === hour);
+      if (!record) return;
+      record[field] = Number(input.value || 0);
+      currentSession.journal.push({
+        id: Utils.uid(),
+        ts: Utils.nowTimestamp(),
+        type: "production",
+        detail: `Heure ${Utils.hourLabel(hour)} - ${field === "good" ? "Bon" : "Rebut"} : ${record[field]}`,
+        comment: "",
+      });
+      persist();
       renderJournal();
-      renderAnalysis();
-      showToast('Import CSV terminé.', 'success');
-    } catch (error) {
-      console.error(error);
-      showToast('Erreur import CSV.', 'error');
-    } finally {
-      event.target.value = '';
-    }
-  });
-}
+      refreshAnalysis();
+    });
+  };
 
-function mergeProductionCsv(text) {
-  const rows = parseCsv(text);
-  const header = rows.shift();
-  if (!header) throw new Error('En-tête manquant');
-  const indexes = Object.fromEntries(header.map((h, i) => [h.trim(), i]));
-  rows.forEach((row) => {
-    const entry = {
-      session_id: row[indexes.session_id],
-      ts: row[indexes.ts],
-      ok: Number(row[indexes.ok]) || 0,
-      ko: Number(row[indexes.ko]) || 0,
-      cadence_reelle: Number(row[indexes.cadence_reelle]) || 0,
-      objectif_h: Number(row[indexes.objectif_h]) || 0,
-      comment: row[indexes.comment] || ''
-    };
-    const existing = state.production_log.find((p) => p.session_id === entry.session_id && p.ts === entry.ts);
-    if (existing) {
-      Object.assign(existing, entry);
-    } else {
-      state.production_log.push(entry);
-    }
-  });
-}
+  const renderTimeline = () => {
+    dom.timelineGrid.innerHTML = "";
+    currentSession.timeline.forEach((slot, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `timeline-slot ${slot.status}`;
+      button.dataset.index = String(index);
+      button.setAttribute("aria-label", `${Utils.minutesToLabel(slot.minute)} ${slot.status}`);
+      button.textContent = Utils.minutesToLabel(slot.minute);
+      const team = state.teams.find((item) => item.id === slot.teamId);
+      const dot = document.createElement("span");
+      dot.className = "team-dot";
+      dot.style.background = team?.color || "#3ddc97";
+      button.appendChild(dot);
+      button.addEventListener("click", () => openSlotDialog(index));
+      dom.timelineGrid.appendChild(button);
+    });
+  };
 
-function mergeStopsCsv(text) {
-  const rows = parseCsv(text);
-  const header = rows.shift();
-  if (!header) throw new Error('En-tête manquant');
-  const indexes = Object.fromEntries(header.map((h, i) => [h.trim(), i]));
-  rows.forEach((row) => {
-    const entry = {
-      session_id: row[indexes.session_id],
-      start: row[indexes.start],
-      end: row[indexes.end],
-      duree_s: Number(row[indexes.duree_s]) || 0,
-      categorie: row[indexes.categorie] || '',
-      cause: row[indexes.cause] || '',
-      sous_cause: row[indexes.sous_cause] || '',
-      criticite: row[indexes.criticite] || '',
-      comment: row[indexes.comment] || ''
-    };
-    const existing = state.stops.find(
-      (stop) => stop.session_id === entry.session_id && stop.start === entry.start && stop.end === entry.end
-    );
-    if (existing) {
-      Object.assign(existing, entry);
-    } else {
-      state.stops.push(entry);
-    }
-  });
-}
-
-function parseCsv(text) {
-  const lines = text.split(/
-?
-/).filter(Boolean);
-  return lines.map((line) => {
-    const values = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (char === ',' && !inQuotes) {
-        values.push(current);
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    values.push(current);
-    return values;
-  });
-}
-
-function updateGateway() {
-  if (gatewayInterval) {
-    clearInterval(gatewayInterval);
-    gatewayInterval = null;
-  }
-  if (!selectors.gatewayToggle.checked) return;
-  const url = selectors.datasourceUrl.value;
-  if (!url) return;
-  const fetchData = async () => {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Erreur réseau');
-      const payload = await response.json();
-      if (payload.production_log) {
-        payload.production_log.forEach((row) => {
-          const existing = state.production_log.find((p) => p.session_id === row.session_id && p.ts === row.ts);
-          if (existing) Object.assign(existing, row);
-        });
-      }
-      if (payload.stops) {
-        payload.stops.forEach((stop) => {
-          const existing = state.stops.find((s) => s.session_id === stop.session_id && s.start === stop.start);
-          if (existing) Object.assign(existing, stop);
-        });
-      }
-      persistState();
-      renderProductionTable();
-      renderStopsTable();
-      renderJournal();
-      renderAnalysis();
-    } catch (error) {
-      console.warn('Passerelle indisponible', error);
+  const openSlotDialog = (index) => {
+    const slot = currentSession.timeline[index];
+    if (!slot) return;
+    selectedSlotIndex = index;
+    dom.slotTime.textContent = `Tranche ${Utils.minutesToLabel(slot.minute)}`;
+    dom.slotTeam.innerHTML = state.teams.map((team) => `<option value="${team.id}">${team.name}</option>`).join("");
+    dom.slotTeam.value = slot.teamId || state.teams[0]?.id || "";
+    dom.slotEvent.innerHTML = `<option value="">-</option>` + state.events.map((event) => `<option value="${event.id}">${event.name}</option>`).join("");
+    dom.slotEvent.value = slot.eventId || "";
+    dom.slotNote.value = slot.note || "";
+    dom.slotForm.querySelectorAll('input[name="slot-status"]').forEach((input) => {
+      input.checked = input.value === slot.status;
+    });
+    if (typeof dom.slotDialog.showModal === "function") {
+      dom.slotDialog.showModal();
     }
   };
-  fetchData();
-  gatewayInterval = setInterval(fetchData, 5 * 60 * 1000);
-}
 
-function showToast(message, type = 'info') {
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  selectors.toastContainer.append(toast);
-  setTimeout(() => {
-    toast.classList.add('visible');
-  }, 10);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(20px)';
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
-}
+  const applySlotChanges = () => {
+    if (selectedSlotIndex == null) return;
+    const slot = currentSession.timeline[selectedSlotIndex];
+    if (!slot) return;
+    const formData = new FormData(dom.slotForm);
+    const status = formData.get("slot-status") || "run";
+    slot.teamId = formData.get("slot-team") || slot.teamId;
+    slot.status = status;
+    slot.eventId = status === "event" ? formData.get("slot-event") || null : null;
+    slot.note = dom.slotNote.value.trim();
+    currentSession.journal.push({
+      id: Utils.uid(),
+      ts: Utils.nowTimestamp(),
+      type: status === "event" ? "évènement" : "run",
+      detail: `${Utils.minutesToLabel(slot.minute)} - ${status === "event" ? getEventName(slot.eventId) : "Run"}`,
+      comment: slot.note,
+    });
+    persist();
+    renderTimeline();
+    renderJournal();
+    refreshAnalysis();
+    Toasts.show("Timeline", "Tranche mise à jour", "success");
+  };
 
-function formatDateTime(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return `${date.toLocaleDateString('fr-FR')} ${date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })}`;
-}
+  const getEventName = (eventId) => state.events.find((event) => event.id === eventId)?.name || "Évènement";
 
-function formatDuration(seconds) {
-  const value = Math.round(seconds);
-  const mins = Math.floor(value / 60)
-    .toString()
-    .padStart(2, '0');
-  const secs = Math.floor(value % 60)
-    .toString()
-    .padStart(2, '0');
-  return `${mins}:${secs}`;
-}
+  const renderJournal = () => {
+    const sorted = [...currentSession.journal].sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    dom.journalBody.innerHTML = "";
+    sorted.forEach((entry) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${entry.ts}</td>
+        <td>${entry.type}</td>
+        <td>${entry.detail}</td>
+        <td><input type="text" value="${entry.comment || ""}" data-journal="${entry.id}" /></td>`;
+      dom.journalBody.appendChild(row);
+    });
+  };
 
-function toLocalDateTime(date) {
-  const tzOffset = date.getTimezoneOffset() * 60000;
-  const local = new Date(date.getTime() - tzOffset);
-  return local.toISOString().slice(0, 16);
-}
+  const attachJournalEvents = () => {
+    dom.journalBody.addEventListener("change", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      const id = input.dataset.journal;
+      const entry = currentSession.journal.find((item) => item.id === id);
+      if (!entry) return;
+      entry.comment = input.value;
+      persist();
+    });
+  };
 
-window.addEventListener('beforeunload', () => {
-  if (gatewayInterval) {
-    clearInterval(gatewayInterval);
-  }
-});
+  const renderKpis = () => {
+    const line = state.lines.find((item) => item.id === currentSession.lineId);
+    const metrics = Analytics.compute(currentSession, line, state.teams, state.events);
+    if (!metrics) return;
+    const threshold = line?.trsThreshold || 0.85;
+    const kpiMap = { trs: metrics.trs, availability: metrics.availability, performance: metrics.performance, quality: metrics.quality };
+    dom.kpiGrid.querySelectorAll(".kpi-card").forEach((card) => {
+      const key = card.dataset.kpi;
+      const value = kpiMap[key];
+      if (typeof value === "number") {
+        card.querySelector(".value").textContent = Utils.formatPercent(Utils.clamp(value, 0, 1.5));
+      }
+      card.classList.remove("ok", "warn", "bad");
+      if (key === "trs") {
+        if (value >= threshold) card.classList.add("ok");
+        else if (value >= threshold * 0.9) card.classList.add("warn");
+        else card.classList.add("bad");
+      }
+    });
+    dom.topLosses.innerHTML = metrics.losses.map((loss) => `<li>${loss.name} · ${loss.minutes} min</li>`).join("") || "<li>Aucune perte</li>";
+    dom.recurringCauses.innerHTML = metrics.recurring.map((item) => `<li>${item.label} (${item.count})</li>`).join("") || "<li>Aucune</li>";
+    Analytics.drawHourlyChart(dom.hourlyCanvas, currentSession, line);
+    Analytics.drawTeamChart(dom.teamCanvas, metrics.teamTotals, state.teams);
+  };
+
+  const renderHistory = () => {
+    const rows = state.sessions
+      .map((session) => {
+        const line = state.lines.find((item) => item.id === session.lineId);
+        const metrics = Analytics.compute(session, line, state.teams, state.events) || {};
+        return { session, line, trs: metrics.trs || 0 };
+      })
+      .sort((a, b) => new Date(b.session.date) - new Date(a.session.date));
+    dom.historyBody.innerHTML = rows
+      .map(
+        (row) => `
+        <tr>
+          <td>${row.session.date}</td>
+          <td>${row.line?.name || ""}</td>
+          <td>${row.session.orderId || ""}</td>
+          <td>${Utils.formatPercent(Utils.clamp(row.trs, 0, 1.5))}</td>
+        </tr>`
+      )
+      .join("");
+  };
+
+  const renderLines = () => {
+    dom.linesTableBody.innerHTML = state.lines
+      .map(
+        (line) => `
+        <tr data-id="${line.id}">
+          <td><input type="text" value="${line.name}" data-field="name" /></td>
+          <td><input type="number" step="1" value="${line.cadence}" data-field="cadence" /></td>
+          <td><input type="number" step="0.01" value="${line.cycleTime}" data-field="cycleTime" /></td>
+          <td><input type="number" step="0.01" value="${line.trsThreshold}" data-field="trsThreshold" /></td>
+          <td><button type="button" class="round-btn outline" data-action="remove-line">Supprimer</button></td>
+        </tr>`
+      )
+      .join("");
+  };
+
+  const renderTeams = () => {
+    dom.teamsTableBody.innerHTML = state.teams
+      .map(
+        (team) => `
+        <tr data-id="${team.id}">
+          <td><input type="text" value="${team.name}" data-field="name" /></td>
+          <td><input type="time" value="${team.shiftStart}" data-field="shiftStart" /></td>
+          <td><input type="color" value="${team.color}" data-field="color" /></td>
+          <td><button type="button" class="round-btn outline" data-action="remove-team">Supprimer</button></td>
+        </tr>`
+      )
+      .join("");
+  };
+
+  const renderEvents = () => {
+    dom.eventsTableBody.innerHTML = state.events
+      .map(
+        (event) => `
+        <tr data-id="${event.id}">
+          <td><input type="text" value="${event.name}" data-field="name" /></td>
+          <td><input type="text" value="${event.category}" data-field="category" /></td>
+          <td><input type="text" value="${event.subCategory}" data-field="subCategory" /></td>
+          <td><input type="color" value="${event.color}" data-field="color" /></td>
+          <td><button type="button" class="round-btn outline" data-action="remove-event">Supprimer</button></td>
+        </tr>`
+      )
+      .join("");
+  };
+
+  const attachSettingsEvents = () => {
+    dom.linesTableBody.addEventListener("change", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      const id = input.closest("tr")?.dataset.id;
+      const line = state.lines.find((item) => item.id === id);
+      if (!line) return;
+      const field = input.dataset.field;
+      line[field] = input.type === "number" ? Number(input.value || 0) : input.value;
+      persist();
+      renderSessionMeta();
+      refreshAnalysis();
+    });
+    dom.linesTableBody.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action='remove-line']");
+      if (!button) return;
+      const id = button.closest("tr")?.dataset.id;
+      state.lines = state.lines.filter((line) => line.id !== id);
+      if (currentSession.lineId === id && state.lines.length) {
+        currentSession.lineId = state.lines[0].id;
+      }
+      persist();
+      renderLines();
+      populateSessionForm();
+      refreshAnalysis();
+    });
+
+    dom.teamsTableBody.addEventListener("change", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      const id = input.closest("tr")?.dataset.id;
+      const team = state.teams.find((item) => item.id === id);
+      if (!team) return;
+      const field = input.dataset.field;
+      team[field] = input.value;
+      reassignTeams();
+      persist();
+      renderTimeline();
+      renderHourlyTable();
+      refreshAnalysis();
+    });
+    dom.teamsTableBody.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action='remove-team']");
+      if (!button) return;
+      const id = button.closest("tr")?.dataset.id;
+      state.teams = state.teams.filter((team) => team.id !== id);
+      reassignTeams();
+      persist();
+      renderTeams();
+      renderTimeline();
+      renderHourlyTable();
+      refreshAnalysis();
+    });
+
+    dom.eventsTableBody.addEventListener("change", (event) => {
+      const input = event.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      const id = input.closest("tr")?.dataset.id;
+      const item = state.events.find((event) => event.id === id);
+      if (!item) return;
+      const field = input.dataset.field;
+      item[field] = input.value;
+      persist();
+    });
+    dom.eventsTableBody.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action='remove-event']");
+      if (!button) return;
+      const id = button.closest("tr")?.dataset.id;
+      state.events = state.events.filter((event) => event.id !== id);
+      persist();
+      renderEvents();
+    });
+
+    dom.addLine.addEventListener("click", () => {
+      const line = { id: Utils.uid(), name: "Nouvelle ligne", cadence: 360, cycleTime: 0.2, trsThreshold: 0.85 };
+      state.lines.push(line);
+      persist();
+      renderLines();
+      populateSessionForm();
+      Toasts.show("Paramètres", "Ligne ajoutée", "success");
+    });
+    dom.addTeam.addEventListener("click", () => {
+      const team = { id: Utils.uid(), name: "Nouvelle équipe", shiftStart: "00:00", color: "#3ddc97" };
+      state.teams.push(team);
+      reassignTeams();
+      persist();
+      renderTeams();
+      renderTimeline();
+      renderHourlyTable();
+      Toasts.show("Paramètres", "Équipe ajoutée", "success");
+    });
+    dom.addEvent.addEventListener("click", () => {
+      const event = { id: Utils.uid(), name: "Nouvel évènement", category: "", subCategory: "", color: "#ff6b6b" };
+      state.events.push(event);
+      persist();
+      renderEvents();
+      Toasts.show("Paramètres", "Évènement ajouté", "success");
+    });
+
+    dom.resetState.addEventListener("click", () => {
+      if (typeof dom.confirmReset.showModal === "function") {
+        dom.confirmReset.returnValue = "";
+        dom.confirmReset.showModal();
+      }
+    });
+
+    dom.confirmReset.addEventListener("close", () => {
+      if (dom.confirmReset.returnValue === "confirm") {
+        const fresh = Storage.defaultState();
+        Object.assign(state, fresh);
+        currentSession = state.sessions[0];
+        renderAll();
+        persist();
+        Toasts.show("Reset", "Données réinitialisées", "warn");
+      }
+    });
+  };
+
+  const reassignTeams = () => {
+    currentSession.timeline.forEach((slot) => {
+      const team = TeamPlanner.teamForMinute(slot.minute, state.teams);
+      slot.teamId = team ? team.id : slot.teamId;
+    });
+    currentSession.hourlyRecords.forEach((record) => {
+      const team = TeamPlanner.teamForHour(record.hour, state.teams);
+      record.teamId = team ? team.id : record.teamId;
+    });
+  };
+
+  const attachSessionEvents = () => {
+    dom.sessionLine.addEventListener("change", () => {
+      currentSession.lineId = dom.sessionLine.value;
+      const line = state.lines.find((item) => item.id === currentSession.lineId);
+      if (line) {
+        currentSession.cycleTime = line.cycleTime;
+        currentSession.targetPerHour = line.cadence;
+        dom.sessionCycle.value = line.cycleTime;
+        dom.sessionTarget.value = line.cadence;
+      }
+      persist();
+      refreshAnalysis();
+      renderSessionMeta();
+    });
+    dom.sessionOrder.addEventListener("input", () => {
+      currentSession.orderId = dom.sessionOrder.value;
+      persist();
+      renderSessionMeta();
+    });
+    dom.sessionDate.addEventListener("change", () => {
+      currentSession.date = dom.sessionDate.value;
+      persist();
+      renderSessionMeta();
+      renderHistory();
+    });
+    dom.sessionCycle.addEventListener("change", () => {
+      currentSession.cycleTime = Number(dom.sessionCycle.value || 0);
+      persist();
+      refreshAnalysis();
+    });
+    dom.sessionTarget.addEventListener("change", () => {
+      currentSession.targetPerHour = Number(dom.sessionTarget.value || 0);
+      persist();
+      refreshAnalysis();
+    });
+    dom.saveSession.addEventListener("click", () => {
+      persist();
+      Toasts.show("Session", "Métadonnées sauvegardées", "success");
+    });
+    dom.newSession.addEventListener("click", () => {
+      const line = state.lines[0];
+      const session = {
+        id: Utils.uid(),
+        date: Utils.todayISO(),
+        lineId: line?.id || null,
+        orderId: "",
+        cycleTime: line?.cycleTime || 0.2,
+        targetPerHour: line?.cadence || 0,
+        timeline: TeamPlanner.createTimeline(state.teams),
+        hourlyRecords: TeamPlanner.createHourlyRecords(state.teams),
+        journal: [],
+      };
+      state.sessions.push(session);
+      updateCurrentSession(session);
+      Toasts.show("Session", "Nouvelle session créée", "success");
+    });
+  };
+
+  const attachTimelineEvents = () => {
+    dom.slotSave.addEventListener("click", (event) => {
+      event.preventDefault();
+      applySlotChanges();
+      dom.slotDialog.close();
+    });
+    if (dom.eventShortcut) {
+      dom.eventShortcut.addEventListener("click", () => {
+        const now = new Date();
+        const minutes = now.getHours() * 60 + Math.floor(now.getMinutes() / 10) * 10;
+        const index = currentSession.timeline.findIndex((slot) => slot.minute === minutes);
+        openSlotDialog(index >= 0 ? index : 0);
+      });
+    }
+  };
+
+  const attachExportEvents = () => {
+    dom.exportJournalCsv.addEventListener("click", () => {
+      const csv = Exporters.journalToCSV(currentSession.journal);
+      Exporters.download(`journal-${currentSession.date}.csv`, csv, "text/csv");
+      Toasts.show("Export", "Journal exporté", "success");
+    });
+    dom.exportReportHtml.addEventListener("click", () => {
+      const line = state.lines.find((item) => item.id === currentSession.lineId);
+      const metrics = Analytics.compute(currentSession, line, state.teams, state.events);
+      const html = Exporters.sessionToHTML(currentSession, line, metrics);
+      Exporters.download(`rapport-${currentSession.date}.html`, html, "text/html");
+      Toasts.show("Export", "Rapport généré", "success");
+    });
+  };
+
+  const attachTabNavigation = () => {
+    dom.tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const target = tab.dataset.target;
+        dom.tabs.forEach((button) => {
+          const isActive = button === tab;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+        dom.panels.forEach((panel) => {
+          const visible = panel.id === target;
+          panel.classList.toggle("active", visible);
+          panel.toggleAttribute("hidden", !visible);
+        });
+      });
+    });
+  };
+
+  const refreshAnalysis = () => {
+    renderKpis();
+    renderHistory();
+  };
+
+  const renderAll = () => {
+    populateSessionForm();
+    renderSessionMeta();
+    renderHourlyTable();
+    renderTimeline();
+    renderJournal();
+    renderLines();
+    renderTeams();
+    renderEvents();
+    refreshAnalysis();
+  };
+
+  const init = () => {
+    attachTabNavigation();
+    attachSessionEvents();
+    attachHourlyEvents();
+    attachJournalEvents();
+    attachTimelineEvents();
+    attachSettingsEvents();
+    attachExportEvents();
+    renderAll();
+    Toasts.show("Dashboard", "Chargé avec succès", "success", 2500);
+  };
+
+  return { init };
+})();
+
+App.init();

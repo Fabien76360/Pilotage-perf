@@ -3,119 +3,85 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PRS Next - Pilotage Atelier</title>
+    <title>Performance Lignes - Dashboard Atelier</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="topbar" role="banner">
-      <div class="topbar-brand">
-        <h1>PRS Next</h1>
-        <p class="subtitle">Pilotage temps réel &amp; Analyse atelier</p>
-      </div>
-      <div class="topbar-actions">
-        <button class="btn" id="export-production" type="button">Exporter Production</button>
-        <button class="btn" id="export-stops" type="button">Exporter Arrêts</button>
-        <button class="btn accent" id="export-report" type="button">Rapport 1-page</button>
-        <div class="import-actions">
-          <button class="btn" id="import-json-btn" type="button">Importer JSON</button>
-          <button class="btn" id="import-csv-btn" type="button">Importer CSV</button>
+    <header class="app-header">
+      <div class="brand-block">
+        <span class="brand-mark">PRS</span>
+        <div>
+          <h1>Performance Lignes</h1>
+          <p>Tableau de bord 3x8 - Inspiration SMED V05</p>
         </div>
+      </div>
+      <div class="session-meta" aria-live="polite" id="session-meta"></div>
+      <div class="header-actions">
+        <button class="round-btn" id="new-session">Nouvelle session</button>
+        <button class="round-btn accent" id="export-report-html">Exporter Rapport HTML</button>
+        <button class="round-btn outline" id="export-journal-csv">Journal CSV</button>
       </div>
     </header>
 
     <main>
-      <nav class="tabs" aria-label="Sections principales">
-        <button class="tab-button active" role="tab" aria-selected="true" aria-controls="saisie" data-target="saisie">Saisie</button>
-        <button class="tab-button" role="tab" aria-selected="false" aria-controls="analyse" data-target="analyse">Analyse</button>
-        <button class="tab-button" role="tab" aria-selected="false" aria-controls="parametres" data-target="parametres">Paramètres</button>
+      <nav class="tab-bar" aria-label="Navigation principale">
+        <button class="tab-button active" data-target="production" role="tab" aria-selected="true">Production</button>
+        <button class="tab-button" data-target="analysis" role="tab" aria-selected="false">Analyse</button>
+        <button class="tab-button" data-target="settings" role="tab" aria-selected="false">Paramètres</button>
       </nav>
 
-      <section id="saisie" class="tab-panel" role="tabpanel">
-        <div class="layout-grid">
-          <section class="card span-2" aria-labelledby="session-header">
-            <header class="card-header" id="session-header">
+      <section id="production" class="tab-panel active" role="tabpanel">
+        <div class="panel-grid">
+          <section class="card session-card" aria-labelledby="session-title">
+            <header class="card-header" id="session-title">
               <h2>Session de production</h2>
-              <div class="session-actions">
-                <label for="session-selector" class="visually-hidden">Session</label>
-                <select id="session-selector" aria-label="Session en cours"></select>
-                <button class="btn" id="new-session-btn" type="button">Nouvelle session</button>
-                <button class="btn" id="duplicate-session-btn" type="button">Dupliquer veille</button>
-              </div>
+              <p>Sélectionner la ligne, l'ordre et la date à suivre.</p>
             </header>
             <form id="session-form" class="session-form">
+              <div class="form-row">
+                <label for="session-line">Ligne</label>
+                <select id="session-line" name="line" required></select>
+              </div>
+              <div class="form-row">
+                <label for="session-order">Ordre de Production</label>
+                <input type="text" id="session-order" name="order" placeholder="OF-2024-001" />
+              </div>
               <div class="form-row">
                 <label for="session-date">Date</label>
                 <input type="date" id="session-date" name="date" required />
               </div>
               <div class="form-row">
-                <label for="session-site">Site</label>
-                <input type="text" id="session-site" name="site" required />
+                <label for="session-cycle">Temps cycle (min)</label>
+                <input type="number" step="0.01" id="session-cycle" name="cycle" />
               </div>
               <div class="form-row">
-                <label for="session-line">Ligne</label>
-                <input type="text" id="session-line" name="ligne" required />
-              </div>
-              <div class="form-row">
-                <label for="session-po">Ordre de fabrication</label>
-                <input type="text" id="session-po" name="po" />
-              </div>
-              <div class="form-row">
-                <label for="session-product">Produit</label>
-                <input type="text" id="session-product" name="produit" />
-              </div>
-              <div class="form-row">
-                <label for="session-team">Équipe</label>
-                <input type="text" id="session-team" name="equipe" />
-              </div>
-              <div class="form-row">
-                <label for="session-shift">Shift</label>
-                <input type="text" id="session-shift" name="shift" />
-              </div>
-              <div class="form-row two-col">
-                <div>
-                  <label for="session-start">Début</label>
-                  <input type="time" id="session-start" name="debut" required />
-                </div>
-                <div>
-                  <label for="session-end">Fin</label>
-                  <input type="time" id="session-end" name="fin" required />
-                </div>
-              </div>
-              <div class="form-row two-col">
-                <div>
-                  <label for="session-target">Objectif / h</label>
-                  <input type="number" id="session-target" name="objectif_h" min="0" step="1" />
-                </div>
-                <div>
-                  <label for="session-cadence">Cadence cible</label>
-                  <input type="number" id="session-cadence" name="cadence_cible" min="0" step="1" />
-                </div>
+                <label for="session-target">Cadence cible (u/h)</label>
+                <input type="number" step="1" id="session-target" name="target" />
               </div>
               <div class="form-actions">
-                <button class="btn accent" id="save-session-meta" type="button">Enregistrer session</button>
+                <button type="button" class="round-btn" id="save-session">Enregistrer</button>
               </div>
             </form>
           </section>
 
-          <section class="card span-3" aria-labelledby="production-header">
-            <header class="card-header" id="production-header">
-              <div>
-                <h2>Quantités heure par heure</h2>
-                <p>Saisie rapide des volumes OK/KO et commentaires.</p>
-              </div>
-              <div class="card-actions">
-                <button class="btn" id="add-hour-row" type="button">Ajouter tranche</button>
-              </div>
+          <section class="card" aria-labelledby="hourly-title">
+            <header class="card-header" id="hourly-title">
+              <h2>Saisie horaire par équipe</h2>
+              <p>Quantités bonnes et rebuts sur 24h (3×8).</p>
             </header>
             <div class="table-wrapper">
-              <table class="data-table" id="production-table">
+              <table id="hourly-table" class="data-table">
                 <thead>
                   <tr>
-                    <th scope="col">Heure</th>
-                    <th scope="col">OK</th>
-                    <th scope="col">KO</th>
-                    <th scope="col">Commentaire</th>
-                    <th scope="col">Actions</th>
+                    <th>Heure</th>
+                    <th>Équipe</th>
+                    <th>Bon</th>
+                    <th>Rebut</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -123,49 +89,34 @@
             </div>
           </section>
 
-          <section class="card span-2" aria-labelledby="stops-header">
-            <header class="card-header" id="stops-header">
+          <section class="card timeline-card" aria-labelledby="timeline-title">
+            <header class="card-header" id="timeline-title">
               <div>
-                <h2>Arrêts &amp; incidents</h2>
-                <p>Chrono, catégorisation et impact.</p>
+                <h2>Timeline 10 min</h2>
+                <p>Cliquer sur une tranche pour noter « run » ou « événement ».</p>
               </div>
-              <div class="card-actions">
-                <button class="btn warn" id="open-stop-panel" type="button">Nouvel arrêt</button>
-              </div>
+              <button class="round-btn outline" id="event-shortcut">Évènement</button>
             </header>
-            <div class="table-wrapper">
-              <table class="data-table" id="stops-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Début</th>
-                    <th scope="col">Fin</th>
-                    <th scope="col">Durée</th>
-                    <th scope="col">Catégorie</th>
-                    <th scope="col">Cause</th>
-                    <th scope="col">Criticité</th>
-                    <th scope="col">Commentaire</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+            <div class="timeline-grid" id="timeline-grid" aria-describedby="timeline-title"></div>
+            <div class="timeline-legend">
+              <span><span class="dot run"></span>Run</span>
+              <span><span class="dot event"></span>Évènement</span>
             </div>
           </section>
 
-          <section class="card span-3" aria-labelledby="journal-header">
-            <header class="card-header" id="journal-header">
-              <div>
-                <h2>Journal d'atelier</h2>
-                <p>Suivi des événements production et arrêts.</p>
-              </div>
+          <section class="card" aria-labelledby="journal-title">
+            <header class="card-header" id="journal-title">
+              <h2>Journal Chronologique</h2>
+              <p>Historique des productions et évènements.</p>
             </header>
             <div class="table-wrapper">
-              <table class="data-table" id="journal-table">
+              <table id="journal-table" class="data-table">
                 <thead>
                   <tr>
-                    <th scope="col">Type</th>
-                    <th scope="col">Horodatage</th>
-                    <th scope="col">Détails</th>
-                    <th scope="col">Commentaire</th>
+                    <th>Horodatage</th>
+                    <th>Type</th>
+                    <th>Détails</th>
+                    <th>Commentaire</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -175,110 +126,103 @@
         </div>
       </section>
 
-      <section id="analyse" class="tab-panel hidden" role="tabpanel" aria-hidden="true">
-        <div class="analysis-header">
-          <div class="filters">
-            <label for="analysis-session">Session</label>
-            <select id="analysis-session"></select>
-            <label for="analysis-team-filter">Équipe</label>
-            <select id="analysis-team-filter"></select>
-          </div>
-          <div class="analysis-meta" id="analysis-meta"></div>
-        </div>
-        <div class="kpi-grid" role="list">
-          <article class="kpi-card" id="kpi-oee" role="listitem">
-            <h3>TRS / OEE</h3>
-            <p class="kpi-value">--</p>
-            <p class="kpi-detail">Disponibilité × Performance × Qualité</p>
-          </article>
-          <article class="kpi-card" id="kpi-performance" role="listitem">
-            <h3>Performance</h3>
-            <p class="kpi-value">--</p>
-            <p class="kpi-detail">Réel vs cible</p>
-          </article>
-          <article class="kpi-card" id="kpi-quality" role="listitem">
-            <h3>Qualité</h3>
-            <p class="kpi-value">--</p>
-            <p class="kpi-detail">Pièces OK / Total</p>
-          </article>
-          <article class="kpi-card" id="kpi-availability" role="listitem">
-            <h3>Disponibilité</h3>
-            <p class="kpi-value">--</p>
-            <p class="kpi-detail">Temps marche / Planifié</p>
-          </article>
-          <article class="kpi-card" id="kpi-reject" role="listitem">
-            <h3>Taux de rejet</h3>
-            <p class="kpi-value">--</p>
-            <p class="kpi-detail">KO / Total</p>
-          </article>
-          <article class="kpi-card" id="kpi-mtbf" role="listitem">
-            <h3>MTBF</h3>
-            <p class="kpi-value">--</p>
-            <p class="kpi-detail">Temps marche / pannes</p>
-          </article>
-          <article class="kpi-card" id="kpi-mttr" role="listitem">
-            <h3>MTTR</h3>
-            <p class="kpi-value">--</p>
-            <p class="kpi-detail">Temps arrêt / pannes</p>
-          </article>
-        </div>
-        <div class="layout-grid analysis-grid">
-          <section class="card span-3">
-            <header class="card-header">
-              <h2>OK cumul vs objectif</h2>
+      <section id="analysis" class="tab-panel" role="tabpanel" hidden>
+        <div class="panel-grid">
+          <section class="card" aria-labelledby="kpi-title">
+            <header class="card-header" id="kpi-title">
+              <h2>KPI TRS</h2>
+              <p>Mesures consolidées pour la session sélectionnée.</p>
             </header>
-            <canvas id="chart-ok-target" height="240" role="img" aria-label="Comparaison production vs objectif"></canvas>
+            <div class="kpi-grid" id="kpi-grid">
+              <article class="kpi-card" data-kpi="trs">
+                <h3>TRS</h3>
+                <p class="value">0%</p>
+                <p class="hint">(QTÉ bonne × temps cycle) ÷ temps ouvert</p>
+              </article>
+              <article class="kpi-card" data-kpi="availability">
+                <h3>Disponibilité</h3>
+                <p class="value">0%</p>
+              </article>
+              <article class="kpi-card" data-kpi="performance">
+                <h3>Performance</h3>
+                <p class="value">0%</p>
+              </article>
+              <article class="kpi-card" data-kpi="quality">
+                <h3>Qualité</h3>
+                <p class="value">0%</p>
+              </article>
+            </div>
           </section>
-          <section class="card span-2">
-            <header class="card-header">
-              <h2>Pareto arrêts</h2>
+
+          <section class="card" aria-labelledby="chart-hourly-title">
+            <header class="card-header" id="chart-hourly-title">
+              <h2>Production vs Cible</h2>
+              <p>Comparatif horaire.</p>
             </header>
-            <canvas id="chart-pareto" height="240" role="img" aria-label="Pareto des arrêts"></canvas>
+            <canvas id="chart-hourly" width="900" height="300" role="img" aria-label="Production vs cible par heure"></canvas>
           </section>
-          <section class="card span-2 hidden" id="team-chart-card">
-            <header class="card-header">
-              <h2>Répartition par équipe</h2>
+
+          <section class="card" aria-labelledby="chart-team-title">
+            <header class="card-header" id="chart-team-title">
+              <h2>Production par équipe</h2>
+              <p>Répartition 3×8.</p>
             </header>
-            <canvas id="chart-team" height="240" role="img" aria-label="Répartition des performances par équipe"></canvas>
+            <canvas id="chart-team" width="900" height="260" role="img" aria-label="Production par équipe"></canvas>
           </section>
-          <section class="card span-2">
-            <header class="card-header">
-              <h2>Top 3 pertes</h2>
+
+          <section class="card" aria-labelledby="losses-title">
+            <header class="card-header" id="losses-title">
+              <h2>Top pertes &amp; causes</h2>
             </header>
-            <ol id="top-losses"></ol>
+            <div class="losses-grid">
+              <div>
+                <h3>Top 3 pertes</h3>
+                <ol id="top-losses"></ol>
+              </div>
+              <div>
+                <h3>Causes récurrentes</h3>
+                <ul id="recurring-causes"></ul>
+              </div>
+            </div>
           </section>
-          <section class="card span-3">
-            <header class="card-header">
-              <h2>Insights</h2>
+
+          <section class="card" aria-labelledby="history-title">
+            <header class="card-header" id="history-title">
+              <h2>Historique sessions</h2>
             </header>
-            <ul id="insights"></ul>
+            <div class="table-wrapper">
+              <table id="history-table" class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Ligne</th>
+                    <th>OF</th>
+                    <th>TRS</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </section>
         </div>
       </section>
 
-      <section id="parametres" class="tab-panel hidden" role="tabpanel" aria-hidden="true">
-        <div class="layout-grid">
-          <section class="card span-3">
-            <header class="card-header">
-              <div>
-                <h2>Cibles &amp; seuils</h2>
-                <p>Cadence cible par ligne / produit.</p>
-              </div>
-              <div class="card-actions">
-                <button class="btn" id="add-target" type="button">Ajouter cible</button>
-              </div>
+      <section id="settings" class="tab-panel" role="tabpanel" hidden>
+        <div class="panel-grid">
+          <section class="card" aria-labelledby="lines-title">
+            <header class="card-header" id="lines-title">
+              <h2>Lignes</h2>
+              <button class="round-btn" id="add-line">Ajouter ligne</button>
             </header>
             <div class="table-wrapper">
-              <table class="data-table" id="targets-table">
+              <table id="lines-table" class="data-table">
                 <thead>
                   <tr>
-                    <th scope="col">Ligne</th>
-                    <th scope="col">Produit</th>
-                    <th scope="col">Cadence cible</th>
-                    <th scope="col">Objectif / h</th>
-                    <th scope="col">Seuil perf</th>
-                    <th scope="col">Seuil rejet</th>
-                    <th scope="col">Actions</th>
+                    <th>Nom</th>
+                    <th>Cadence (u/h)</th>
+                    <th>Temps cycle (min)</th>
+                    <th>Seuil TRS</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -286,24 +230,19 @@
             </div>
           </section>
 
-          <section class="card span-3">
-            <header class="card-header">
-              <div>
-                <h2>Taxonomie arrêts</h2>
-                <p>Catégories &gt; Causes &gt; Sous-causes.</p>
-              </div>
-              <div class="card-actions">
-                <button class="btn" id="add-taxonomy" type="button">Ajouter ligne</button>
-              </div>
+          <section class="card" aria-labelledby="teams-title">
+            <header class="card-header" id="teams-title">
+              <h2>Équipes 3×8</h2>
+              <button class="round-btn" id="add-team">Ajouter équipe</button>
             </header>
             <div class="table-wrapper">
-              <table class="data-table" id="taxonomy-table">
+              <table id="teams-table" class="data-table">
                 <thead>
                   <tr>
-                    <th scope="col">Catégorie</th>
-                    <th scope="col">Cause</th>
-                    <th scope="col">Sous-cause</th>
-                    <th scope="col">Actions</th>
+                    <th>Nom</th>
+                    <th>Début poste</th>
+                    <th>Couleur</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -311,24 +250,20 @@
             </div>
           </section>
 
-          <section class="card span-2">
-            <header class="card-header">
-              <div>
-                <h2>Utilisateurs</h2>
-                <p>Accès et rôles.</p>
-              </div>
-              <div class="card-actions">
-                <button class="btn" id="add-user" type="button">Ajouter utilisateur</button>
-              </div>
+          <section class="card" aria-labelledby="events-title">
+            <header class="card-header" id="events-title">
+              <h2>Événements standard</h2>
+              <button class="round-btn" id="add-event">Ajouter événement</button>
             </header>
             <div class="table-wrapper">
-              <table class="data-table" id="users-table">
+              <table id="events-table" class="data-table">
                 <thead>
                   <tr>
-                    <th scope="col">ID</th>
-                    <th scope="col">Nom</th>
-                    <th scope="col">Rôle</th>
-                    <th scope="col">Actions</th>
+                    <th>Nom</th>
+                    <th>Catégorie</th>
+                    <th>Sous-catégorie</th>
+                    <th>Couleur</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -336,103 +271,60 @@
             </div>
           </section>
 
-          <section class="card span-2">
-            <header class="card-header">
-              <div>
-                <h2>Connectivité</h2>
-                <p>Préparation passerelle MES.</p>
-              </div>
+          <section class="card" aria-labelledby="reset-title">
+            <header class="card-header" id="reset-title">
+              <h2>Maintenance des données</h2>
             </header>
-            <div class="form-row">
-              <label for="datasource-url">URL datasource</label>
-              <input type="url" id="datasource-url" readonly placeholder="https://mes.local/api" />
-            </div>
-            <div class="form-row toggle-row">
-              <input type="checkbox" id="gateway-toggle" />
-              <label for="gateway-toggle">Activer la passerelle</label>
-            </div>
-            <p class="hint">Si activé, la synchronisation tentera de récupérer les données toutes les 5 minutes.</p>
-            <div class="form-actions">
-              <button class="btn warn" id="reset-state" type="button">Réinitialiser les données</button>
+            <div class="reset-block">
+              <p>Réinitialiser l'ensemble des données locales.</p>
+              <button class="round-btn warn" id="reset-state">Reset localStorage</button>
             </div>
           </section>
         </div>
       </section>
     </main>
 
-    <div class="toast-container" aria-live="polite" aria-atomic="true"></div>
+    <div class="toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
 
-    <dialog id="stop-dialog" aria-labelledby="stop-dialog-title">
-      <form method="dialog" id="stop-form">
-        <header class="dialog-header">
-          <h2 id="stop-dialog-title">Nouvel arrêt</h2>
-        </header>
-        <div class="dialog-body">
-          <div class="form-row">
-            <label for="stop-start">Début</label>
-            <input type="datetime-local" id="stop-start" required />
-          </div>
-          <div class="form-row">
-            <label for="stop-end">Fin</label>
-            <input type="datetime-local" id="stop-end" required />
-          </div>
-          <div class="form-row">
-            <label>Chronomètre</label>
-            <div class="timer-controls">
-              <span id="stop-duration">00:00</span>
-              <button class="btn" id="stop-timer-start" type="button">Start</button>
-              <button class="btn" id="stop-timer-stop" type="button">Stop</button>
-            </div>
-          </div>
-          <div class="form-row">
-            <label for="stop-category">Catégorie</label>
-            <select id="stop-category" required></select>
-          </div>
-          <div class="form-row">
-            <label for="stop-cause">Cause</label>
-            <select id="stop-cause" required></select>
-          </div>
-          <div class="form-row">
-            <label for="stop-subcause">Sous-cause</label>
-            <select id="stop-subcause" required></select>
-          </div>
-          <div class="form-row">
-            <label for="stop-criticite">Criticité</label>
-            <select id="stop-criticite" required>
-              <option value="Mineur">Mineur</option>
-              <option value="Majeur">Majeur</option>
-              <option value="Critique">Critique</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label for="stop-comment">Commentaire</label>
-            <textarea id="stop-comment" rows="3"></textarea>
-          </div>
-        </div>
-        <footer class="dialog-footer">
-          <button class="btn" type="reset" data-close-dialog="stop-dialog">Annuler</button>
-          <button class="btn accent" id="save-stop" type="submit">Enregistrer</button>
-        </footer>
+    <dialog id="slot-dialog" aria-labelledby="slot-dialog-title">
+      <form method="dialog" id="slot-form">
+        <h2 id="slot-dialog-title">Configurer la tranche</h2>
+        <p id="slot-time"></p>
+        <label for="slot-team">Équipe</label>
+        <select id="slot-team"></select>
+        <fieldset>
+          <legend>Statut</legend>
+          <label class="radio">
+            <input type="radio" name="slot-status" value="run" checked />
+            Run
+          </label>
+          <label class="radio">
+            <input type="radio" name="slot-status" value="event" />
+            Évènement
+          </label>
+        </fieldset>
+        <label for="slot-event">Évènement standard</label>
+        <select id="slot-event"></select>
+        <label for="slot-note">Commentaire</label>
+        <textarea id="slot-note" rows="3"></textarea>
+        <menu>
+          <button value="cancel" class="round-btn outline">Annuler</button>
+          <button value="default" class="round-btn accent" id="slot-save">Enregistrer</button>
+        </menu>
       </form>
     </dialog>
 
-    <dialog id="report-dialog" aria-labelledby="report-dialog-title">
-      <header class="dialog-header">
-        <h2 id="report-dialog-title">Rapport synthétique</h2>
-      </header>
-      <div class="dialog-body">
-        <div id="report-content"></div>
-      </div>
-      <footer class="dialog-footer">
-        <button class="btn" type="button" data-close-dialog="report-dialog">Fermer</button>
-        <button class="btn accent" id="print-report" type="button">Imprimer</button>
-      </footer>
+    <dialog id="confirm-reset" aria-labelledby="confirm-reset-title">
+      <form method="dialog">
+        <h2 id="confirm-reset-title">Réinitialiser les données ?</h2>
+        <p>Cette action efface toutes les sessions et paramètres locaux.</p>
+        <menu>
+          <button value="cancel" class="round-btn outline">Annuler</button>
+          <button value="confirm" class="round-btn warn">Confirmer</button>
+        </menu>
+      </form>
     </dialog>
 
-    <input type="file" id="import-json-input" accept="application/json" hidden />
-    <input type="file" id="import-csv-input" accept=".csv,text/csv" hidden />
-
-    <script src="vendor/chart.umd.min.js"></script>
     <script type="module" src="app.js"></script>
   </body>
 </html>
