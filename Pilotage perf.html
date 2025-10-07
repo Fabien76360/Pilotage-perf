@@ -287,20 +287,22 @@
     /* Grille d'heures en cartes */
     .hours-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1.25rem;
     }
 
     .hour-card {
       background: var(--card);
       backdrop-filter: blur(20px);
-      border-radius: 1rem;
-      padding: 1.25rem;
+      border-radius: 1.25rem;
+      padding: 1.5rem;
       border: 2px solid var(--border);
-      cursor: pointer;
       transition: all 0.3s ease;
       position: relative;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
     }
 
     .hour-card::after {
@@ -311,13 +313,13 @@
       right: 0;
       height: 4px;
       background: var(--text-muted);
-      opacity: 0.2;
+      opacity: 0.15;
     }
 
     .hour-card.active {
       border-color: var(--primary);
       box-shadow: 0 0 30px var(--glow);
-      transform: scale(1.05);
+      transform: translateY(-4px);
     }
 
     .hour-card.validated::after {
@@ -325,22 +327,27 @@
       opacity: 1;
     }
 
-    .hour-card.low-trs::after {
+    .hour-card.low-oee::after {
       background: var(--danger);
       opacity: 1;
     }
 
     .hour-card:hover {
-      transform: translateY(-4px);
       border-color: var(--primary);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    .oee-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
     }
 
     .hour-time {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: 700;
       color: var(--text);
-      margin-bottom: 0.5rem;
     }
 
     .hour-team {
@@ -348,50 +355,509 @@
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-bottom: 1rem;
     }
 
-    .hour-value {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--primary);
-      margin-bottom: 0.25rem;
-    }
-
-    .hour-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .hour-trs {
-      margin-top: 0.75rem;
-      padding-top: 0.75rem;
-      border-top: 1px solid var(--border);
+    .oee-card-actions {
       display: flex;
-      justify-content: space-between;
+      gap: 0.5rem;
       align-items: center;
     }
 
-    .trs-badge {
-      padding: 0.25rem 0.6rem;
-      border-radius: 0.5rem;
+    .oee-inline-edit,
+    .oee-card-menu-button {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      background: var(--card-light);
+      color: var(--text);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .oee-inline-edit:hover,
+    .oee-card-menu-button:hover,
+    .oee-inline-edit:focus,
+    .oee-card-menu-button:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--glow);
+      outline: none;
+    }
+
+    .oee-card-menu {
+      position: relative;
+    }
+
+    .oee-card-menu-panel {
+      position: absolute;
+      top: 110%;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      min-width: 220px;
+      box-shadow: 0 15px 35px rgba(15, 23, 42, 0.45);
+      z-index: 20;
+    }
+
+    .oee-card-menu-panel button {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: none;
+      border-radius: 0.65rem;
+      background: transparent;
+      color: var(--text);
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .oee-card-menu-panel button:hover {
+      background: var(--card-light);
+    }
+
+    .oee-history-list {
+      margin-top: 0.75rem;
+      border-top: 1px solid var(--border);
+      padding-top: 0.5rem;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    .oee-history-item {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .oee-main-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .oee-components {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
       font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .oee-component {
+      background: var(--card-light);
+      border-radius: 0.65rem;
+      padding: 0.35rem 0.75rem;
       font-weight: 600;
     }
 
-    .trs-excellent {
+    .oee-causes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .oee-cause-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.85rem;
+      background: var(--card-light);
+      border: 1px solid var(--border);
+    }
+
+    .oee-cause-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .oee-cause-actions {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+    }
+
+    .oee-cause-actions button {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      min-height: 36px;
+      border-radius: 0.65rem;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .oee-cause-actions button:hover,
+    .oee-cause-actions button:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--glow);
+      outline: none;
+    }
+
+    .oee-progress-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-top: 1rem;
+    }
+
+    .oee-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .oee-progress-bar {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.2);
+      overflow: hidden;
+    }
+
+    .oee-progress-fill {
+      height: 100%;
+      border-radius: inherit;
+      transition: width 0.3s ease, background 0.3s ease;
+      width: 0%;
+    }
+
+    .oee-inline-alert {
+      margin-top: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.85rem;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .oee-hidden {
+      display: none !important;
+    }
+
+    .oee-chip,
+    .cause-chip {
+      padding: 0.65rem 1.1rem;
+      border-radius: 0.85rem;
+      background: var(--card-light);
+      border: 1px solid var(--border);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .oee-chip:hover,
+    .oee-chip:focus,
+    .cause-chip:hover,
+    .cause-chip:focus {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      outline: none;
+      box-shadow: 0 0 0 3px var(--glow);
+    }
+
+    .oee-category-chips,
+    .quick-causes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .oee-subtitle {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .oee-subcategory-panel {
+      margin-top: 0.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .oee-chip-active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      box-shadow: 0 0 0 3px var(--glow);
+    }
+
+    .oee-causes-empty {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .oee-modal-grid {
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      align-items: stretch;
+    }
+
+    .oee-block {
+      background: var(--card-light);
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .oee-block h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .oee-field-pair {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .oee-field label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      display: block;
+    }
+
+    .oee-comment-group {
+      margin-top: 1.5rem;
+    }
+
+    .oee-comment-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .oee-comment-group textarea {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      border-radius: 0.85rem;
+      border: 1px solid var(--border);
+      background: var(--card-light);
+      color: var(--text);
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
+    }
+
+    .oee-comment-group textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--glow);
+      outline: none;
+    }
+
+    .oee-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .oee-toggle span {
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .oee-switch {
+      position: relative;
+      display: inline-block;
+      width: 52px;
+      height: 28px;
+    }
+
+    .oee-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .oee-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(148, 163, 184, 0.5);
+      transition: 0.3s;
+      border-radius: 999px;
+    }
+
+    .oee-slider::before {
+      position: absolute;
+      content: '';
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #fff;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+
+    .oee-switch input:checked + .oee-slider {
+      background-color: var(--primary);
+    }
+
+    .oee-switch input:checked + .oee-slider::before {
+      transform: translateX(24px);
+    }
+
+    .oee-performance-block {
+      align-items: flex-start;
+      text-align: left;
+      justify-content: space-between;
+    }
+
+    .oee-performance-block .oee-main-value {
+      font-size: 2.5rem;
+      letter-spacing: -0.03em;
+    }
+
+    .oee-performance-block .oee-component {
+      background: rgba(148, 163, 184, 0.2);
+    }
+
+    .oee-availability-overview {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .oee-availability-overview h4 {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .oee-quality-message {
+      font-size: 0.85rem;
+      color: var(--warning);
+      font-weight: 600;
+    }
+
+    .oee-card-menu-panel button.oee-danger {
+      color: var(--danger);
+    }
+
+    .oee-card-menu-panel button.oee-danger:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .oee-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: rgba(99, 102, 241, 0.12);
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .oee-status-good {
       background: rgba(16, 185, 129, 0.2);
       color: var(--success);
     }
 
-    .trs-good {
+    .oee-status-medium {
       background: rgba(245, 158, 11, 0.2);
       color: var(--warning);
     }
 
-    .trs-low {
+    .oee-status-low {
       background: rgba(239, 68, 68, 0.2);
       color: var(--danger);
+    }
+
+    .oee-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .oee-card-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .oee-card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .oee-card-comment {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .oee-changelog {
+      list-style: none;
+      margin: 1rem 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .oee-changelog-item {
+      background: var(--card-light);
+      border-radius: 0.85rem;
+      border: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+    }
+
+    .oee-changelog-item h4 {
+      font-size: 0.95rem;
+      margin-bottom: 0.35rem;
+      color: var(--text);
+    }
+
+    .oee-changelog-item p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    dialog {
+      max-width: 960px;
     }
 
     /* Chart section */
@@ -772,38 +1238,84 @@
           <h2 class="modal-title" id="modal-title">Saisie Production</h2>
           <p style="color: var(--text-muted); margin-top: 0.5rem;" id="modal-subtitle"></p>
         </div>
-        <form id="hour-form">
+        <form id="hour-form" novalidate>
           <input type="hidden" id="hour-index" />
 
-          <div class="form-group">
-            <label class="form-label">Production Bonne (unités)</label>
-            <input type="number" id="good-input" class="form-input" min="0" step="1" required />
+          <div class="oee-modal-grid">
+            <section class="oee-block oee-quality-block">
+              <h3>Qualité</h3>
+              <div class="oee-field-pair">
+                <div class="oee-field">
+                  <label for="good-input">Production Bonne (unités)</label>
+                  <input type="number" id="good-input" class="form-input" min="0" step="1" required />
+                </div>
+                <div class="oee-field" id="oee-scrap-field">
+                  <label for="scrap-input">Rebut (unités)</label>
+                  <input type="number" id="scrap-input" class="form-input" min="0" step="1" />
+                </div>
+              </div>
+              <div class="oee-quality-message oee-hidden" id="oee-quality-disabled-message">
+                Qualité désactivée — activer dans Paramètres pour tracer le rebut.
+              </div>
+            </section>
+
+            <section class="oee-block oee-availability-block">
+              <h3>Disponibilité</h3>
+              <div class="oee-availability-overview">
+                <div>
+                  <div class="oee-subtitle">Catégories</div>
+                  <div class="oee-category-chips" id="oee-category-chips"></div>
+                </div>
+                <div>
+                  <div class="oee-subtitle">Sous-catégories</div>
+                  <div class="oee-subcategory-panel" id="oee-subcategory-panel"></div>
+                </div>
+                <div>
+                  <div class="oee-subtitle">Sélection rapide</div>
+                  <div class="quick-causes" id="quick-causes"></div>
+                </div>
+              </div>
+              <div class="oee-causes-list" id="oee-causes-list">
+                <div class="oee-causes-empty">Aucune cause ajoutée pour l’instant.</div>
+              </div>
+              <div class="oee-progress-wrapper">
+                <div class="oee-progress-label">
+                  <span>Total arrêts</span>
+                  <span id="oee-progress-value">0 min / 60</span>
+                </div>
+                <div class="oee-progress-bar">
+                  <div class="oee-progress-fill" id="oee-progress-bar"></div>
+                </div>
+              </div>
+              <div class="oee-inline-alert oee-hidden" id="oee-overflow-alert">
+                Total supérieur à 60 minutes — ajustez vos causes pour valider.
+              </div>
+            </section>
+
+            <section class="oee-block oee-performance-block">
+              <h3>Performance &amp; OEE</h3>
+              <div>
+                <div class="oee-main-value" id="oee-modal-value">0%</div>
+                <div class="oee-components">
+                  <span class="oee-component" id="oee-availability-label">D 0%</span>
+                  <span class="oee-component" id="oee-performance-label">P 0%</span>
+                  <span class="oee-component" id="oee-quality-label">Q 0%</span>
+                </div>
+              </div>
+              <div class="oee-inline-alert oee-hidden" id="oee-warning-alert">
+                OEE supérieur à 100 % — vérifier la saisie.
+              </div>
+            </section>
           </div>
 
-          <div class="justify-display">
-            <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">À Justifier</div>
-            <div class="justify-value" id="justify-value">0 min</div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Causes d'Arrêt (sélection rapide)</label>
-            <div class="quick-causes" id="quick-causes">
-              <button type="button" class="cause-chip" data-cause="Production nominale">✅ Nominale</button>
-              <button type="button" class="cause-chip" data-cause="Micro-arrêts">⏱️ Micro-arrêts</button>
-              <button type="button" class="cause-chip" data-cause="Panne machine">🔧 Panne</button>
-              <button type="button" class="cause-chip" data-cause="Changement format">🔄 Format</button>
-              <button type="button" class="cause-chip" data-cause="Approvisionnement">📦 Appro</button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Commentaire</label>
-            <textarea id="comment-input" class="form-input" rows="3" placeholder="Observations, actions..."></textarea>
+          <div class="oee-comment-group">
+            <label for="comment-input">Commentaire</label>
+            <textarea id="comment-input" placeholder="Observations, actions…"></textarea>
           </div>
 
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" id="cancel-btn">Annuler</button>
-            <button type="submit" class="btn btn-primary">✓ Valider</button>
+            <button type="submit" class="btn btn-primary" id="oee-submit-button">✅ Valider</button>
           </div>
         </form>
       </dialog>
@@ -814,11 +1326,11 @@
       <section class="kpi-section">
       <div class="kpi-card">
         <div class="kpi-header">
-          <span class="kpi-title">TRS Global</span>
+          <span class="kpi-title">OEE Global</span>
           <span class="kpi-icon">⚡</span>
         </div>
-        <div class="kpi-value" id="kpi-trs">0%</div>
-        <div class="kpi-trend" id="trs-trend">
+        <div class="kpi-value" id="kpi-oee">0%</div>
+        <div class="kpi-trend" id="oee-trend">
           <span>↗</span> +2.3% vs hier
         </div>
       </div>
@@ -842,6 +1354,17 @@
         <div class="kpi-value" id="kpi-performance">0%</div>
         <div class="kpi-trend">
           <span>↗</span> +1.5% vs hier
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Qualité</span>
+          <span class="kpi-icon">🧪</span>
+        </div>
+        <div class="kpi-value" id="kpi-quality">0%</div>
+        <div class="kpi-trend">
+          <span>→</span> Suivi en temps réel
         </div>
       </div>
 
@@ -898,11 +1421,18 @@
         <div class="settings-grid">
           <div class="settings-card">
             <div class="settings-title">Cadence cible</div>
-            <div class="settings-description">Définissez la cadence horaire nominale utilisée pour calculer les TRS et les justifications.</div>
+            <div class="settings-description">Définissez la cadence horaire nominale utilisée pour calculer l’OEE et ses composantes.</div>
             <div>
               <label style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600; display: flex; flex-direction: column; gap: 0.5rem;">
                 Cadence (u/h)
                 <input type="number" id="target-rate" value="16000" style="width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 0.5rem 0.75rem; color: var(--text);" />
+              </label>
+            </div>
+            <div class="oee-toggle" style="margin-top: 1rem;">
+              <span>Suivre la Qualité</span>
+              <label class="oee-switch">
+                <input type="checkbox" id="oee-quality-toggle" checked />
+                <span class="oee-slider"></span>
               </label>
             </div>
           </div>
@@ -948,7 +1478,7 @@
           </div>
 
           <div class="settings-card">
-            <div class="settings-title">Seuils TRS</div>
+            <div class="settings-title">Seuils OEE</div>
             <div class="settings-description">Personnalisez les seuils de performance utilisés pour colorer les cartes horaires.</div>
             <div class="threshold-fields">
               <label>
@@ -977,12 +1507,58 @@
               <input type="file" id="config-import-input" accept="application/json" style="display: none;" />
             </div>
           </div>
+
+          <div class="settings-card">
+            <div class="settings-title">Version &amp; Changelog</div>
+            <div class="settings-description">Suivez les évolutions de l’application et les nouveautés livrées.</div>
+            <div id="oee-version-info" style="font-weight: 700; font-size: 1rem; color: var(--text);"></div>
+            <ul class="oee-changelog" id="oee-changelog-list"></ul>
+          </div>
         </div>
       </section>
     </div>
   </main>
 
   <script>
+    const APP_VERSION = { major: 1, minor: 0, patch: 0 };
+    const CHANGELOG = [];
+
+    function formatVersion(version) {
+      return `${version.major}.${version.minor}.${version.patch}`;
+    }
+
+    function bump(level = 'patch', items = []) {
+      const normalized = ['major', 'minor', 'patch'].includes(level) ? level : 'patch';
+
+      if (normalized === 'major') {
+        APP_VERSION.major += 1;
+        APP_VERSION.minor = 0;
+        APP_VERSION.patch = 0;
+      } else if (normalized === 'minor') {
+        APP_VERSION.minor += 1;
+        APP_VERSION.patch = 0;
+      } else {
+        APP_VERSION.patch += 1;
+      }
+
+      const versionLabel = formatVersion(APP_VERSION);
+      CHANGELOG.unshift({
+        version: versionLabel,
+        dateISO: new Date().toISOString(),
+        items: Array.isArray(items) && items.length ? items : ['Mise à jour applicative']
+      });
+
+      return versionLabel;
+    }
+
+    const CURRENT_VERSION = bump('patch', [
+      'Refonte tactile de la pastille opérateur',
+      'Calcul OEE complet (Disponibilité/Performance/Qualité)',
+      'Mode correction avec historique et suppression',
+      'Versionning SemVer et cache-busting'
+    ]);
+
+    const MAX_HOUR_MINUTES = 60;
     const DEFAULT_VIEW = 'operateur';
     const DEFAULT_TEAM_ASSIGNMENTS = [
       'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit',
@@ -991,30 +1567,50 @@
     ];
 
     let TEAM_ASSIGNMENTS = [...DEFAULT_TEAM_ASSIGNMENTS];
-    let TRS_THRESHOLDS = { excellent: 95, good: 85 };
+    let OEE_THRESHOLDS = { excellent: 95, good: 85 };
     let CATEGORY_DATA = [
       { category: 'Machine', subcategory: 'Dépileuse' },
       { category: 'Machine', subcategory: 'MASS' }
     ];
 
-    // État global en mémoire (PAS de localStorage)
-    function createEmptyHourlyData() {
-      return new Array(24).fill(null).map((_, i) => ({
-        hour: i,
-        good: 0,
-        causes: [],
-        comment: '',
-        validated: false
-      }));
-    }
-
+    let QUALITY_TRACKING = true;
     let hourlyData = createEmptyHourlyData();
-
+    let modalState = createInitialModalState();
     let currentChart = null;
     let unlockedBadges = new Set();
+    let openMenuCard = null;
 
-    // Initialisation
+    function createInitialModalState() {
+      return {
+        hour: null,
+        isEditing: false,
+        selectedCategory: null,
+        causes: []
+      };
+    }
+
+    function createEmptyHour(hour) {
+      return {
+        hour,
+        good: 0,
+        scrap: 0,
+        comment: '',
+        causes: [],
+        validated: false,
+        createdAt: null,
+        updatedAt: null,
+        edits: []
+      };
+    }
+
+    function createEmptyHourlyData() {
+      return Array.from({ length: 24 }, (_, hour) => createEmptyHour(hour));
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+      document.documentElement.dataset.appVersion = CURRENT_VERSION;
+      applyCacheBusting();
+      renderVersionInfo();
       buildHoursGrid();
       updateKPIs();
       initChart();
@@ -1025,9 +1621,10 @@
       rebuildQuickCauses();
       populateParameters();
       setupNavigation();
+      attachModalEvents();
+      attachGlobalListeners();
 
       setInterval(highlightCurrentHour, 60000);
-
       showView(location.hash.replace('#', '') || DEFAULT_VIEW);
     });
 
@@ -1036,9 +1633,140 @@
       showView(view);
     });
 
+    function attachGlobalListeners() {
+      const refreshBtn = document.getElementById('refresh-btn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+          refreshDisplay();
+          showToast('🔄 Données actualisées', 'success');
+        });
+      }
+
+      const exportBtn = document.getElementById('export-btn');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+          const csvData = generateCSV();
+          downloadCSV(csvData, getCSVFilename());
+          showToast('📊 Export réussi', 'success');
+        });
+      }
+
+      const targetRateInput = document.getElementById('target-rate');
+      if (targetRateInput) {
+        targetRateInput.addEventListener('change', () => {
+          updateKPIs();
+          updateChart();
+          if (document.getElementById('hour-modal').open) {
+            renderModal();
+          }
+        });
+      }
+
+      const qualityToggle = document.getElementById('oee-quality-toggle');
+      if (qualityToggle) {
+        qualityToggle.addEventListener('change', (event) => {
+          QUALITY_TRACKING = !!event.target.checked;
+          if (!QUALITY_TRACKING) {
+            showToast('🔕 Suivi Qualité désactivé', 'success');
+          } else {
+            showToast('🧪 Suivi Qualité activé', 'success');
+          }
+          if (document.getElementById('hour-modal').open) {
+            renderModal();
+          }
+          refreshDisplay();
+        });
+      }
+
+      document.getElementById('save-settings-btn')?.addEventListener('click', saveSettings);
+      document.getElementById('import-config-btn')?.addEventListener('click', () => {
+        document.getElementById('config-import-input').click();
+      });
+      document.getElementById('config-import-input')?.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        importConfig(file);
+        event.target.value = '';
+      });
+      document.getElementById('export-config-btn')?.addEventListener('click', exportConfig);
+      document.getElementById('reset-day-btn')?.addEventListener('click', resetDay);
+      document.getElementById('add-category-row-btn')?.addEventListener('click', addCategoryRow);
+      document.getElementById('save-categories-btn')?.addEventListener('click', saveCategoriesList);
+      document.getElementById('export-categories-btn')?.addEventListener('click', exportCategories);
+      document.getElementById('import-categories-btn')?.addEventListener('click', () => {
+        document.getElementById('categories-import-input').click();
+      });
+      document.getElementById('categories-import-input')?.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        importCategories(file);
+        event.target.value = '';
+      });
+
+      document.addEventListener('click', (event) => {
+        if (openMenuCard && !openMenuCard.contains(event.target)) {
+          closeOpenMenu();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeOpenMenu();
+        }
+      });
+    }
+
+    function applyCacheBusting() {
+      const versionQuery = `?v=${CURRENT_VERSION}`;
+      const assets = [
+        ...document.querySelectorAll('link[href]'),
+        ...document.querySelectorAll('script[src]'),
+        ...document.querySelectorAll('img[src]')
+      ];
+
+      assets.forEach(asset => {
+        const attr = asset.tagName === 'LINK' ? 'href' : 'src';
+        const value = asset.getAttribute(attr);
+        if (!value) return;
+        try {
+          const url = new URL(value, location.origin);
+          if (url.origin !== location.origin) return;
+          if (url.searchParams.get('v') === CURRENT_VERSION) return;
+          url.searchParams.set('v', CURRENT_VERSION);
+          asset.setAttribute(attr, url.pathname + url.search + url.hash);
+        } catch (error) {
+          console.warn('Cache busting ignoré pour', value);
+        }
+      });
+    }
+
+    function renderVersionInfo() {
+      const versionInfo = document.getElementById('oee-version-info');
+      if (versionInfo) {
+        versionInfo.textContent = `Version ${CURRENT_VERSION}`;
+      }
+
+      const changelogList = document.getElementById('oee-changelog-list');
+      if (changelogList) {
+        changelogList.innerHTML = '';
+        CHANGELOG.forEach(entry => {
+          const item = document.createElement('li');
+          item.className = 'oee-changelog-item';
+
+          const title = document.createElement('h4');
+          title.textContent = `${entry.version} — ${new Date(entry.dateISO).toLocaleString('fr-FR')}`;
+          item.appendChild(title);
+
+          const description = document.createElement('p');
+          description.innerHTML = entry.items.map(text => `• ${text}`).join('<br>');
+          item.appendChild(description);
+
+          changelogList.appendChild(item);
+        });
+      }
+    }
+
     function showView(view) {
-      document.querySelectorAll('[data-view]').forEach(v => {
-        v.style.display = 'none';
+      document.querySelectorAll('[data-view]').forEach(section => {
+        section.style.display = 'none';
       });
 
       const normalized = ['operateur', 'analyse', 'parametres'].includes(view) ? view : DEFAULT_VIEW;
@@ -1056,6 +1784,7 @@
 
       if (normalized === 'parametres') {
         populateParameters();
+        renderVersionInfo();
       }
     }
 
@@ -1078,240 +1807,774 @@
       });
     }
 
-    function buildTeamAssignmentsTable() {
-      const tbody = document.getElementById('team-assignments-body');
-      if (!tbody) return;
-
-      tbody.innerHTML = '';
-      for (let i = 0; i < 24; i++) {
-        const row = document.createElement('tr');
-        const hourCell = document.createElement('td');
-        hourCell.textContent = `${String(i).padStart(2, '0')}h`;
-
-        const teamCell = document.createElement('td');
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = TEAM_ASSIGNMENTS[i] || '';
-        input.dataset.teamHour = i;
-        input.placeholder = 'Équipe';
-
-        teamCell.appendChild(input);
-        row.appendChild(hourCell);
-        row.appendChild(teamCell);
-        tbody.appendChild(row);
-      }
-    }
-
-    function populateParameters() {
-      const targetRateInput = document.getElementById('target-rate');
-      if (targetRateInput) {
-        targetRateInput.value = parseInt(targetRateInput.value, 10) || 16000;
-      }
-
-      const excellentInput = document.getElementById('threshold-excellent');
-      const goodInput = document.getElementById('threshold-good');
-      const lowInput = document.getElementById('threshold-low');
-
-      if (excellentInput) excellentInput.value = TRS_THRESHOLDS.excellent;
-      if (goodInput) goodInput.value = TRS_THRESHOLDS.good;
-      if (lowInput) lowInput.value = Math.max(0, TRS_THRESHOLDS.good - 1);
-
-      buildTeamAssignmentsTable();
-      buildCategoryTable();
-    }
-
-    function saveSettings() {
-      const targetRateInput = document.getElementById('target-rate');
-      if (targetRateInput) {
-        let rateValue = parseInt(targetRateInput.value, 10);
-        if (!Number.isFinite(rateValue) || rateValue <= 0) {
-          rateValue = 16000;
-        }
-        targetRateInput.value = rateValue;
-        targetRateInput.dispatchEvent(new Event('change'));
-      }
-
-      document.querySelectorAll('#team-assignments-body input').forEach(input => {
-        const hour = parseInt(input.dataset.teamHour, 10);
-        if (Number.isInteger(hour)) {
-          const value = input.value.trim();
-          TEAM_ASSIGNMENTS[hour] = value || DEFAULT_TEAM_ASSIGNMENTS[hour];
-          input.value = TEAM_ASSIGNMENTS[hour];
-        }
-      });
-
-      let excellent = parseInt(document.getElementById('threshold-excellent').value, 10);
-      let good = parseInt(document.getElementById('threshold-good').value, 10);
-
-      if (!Number.isFinite(excellent)) excellent = TRS_THRESHOLDS.excellent;
-      if (!Number.isFinite(good)) good = TRS_THRESHOLDS.good;
-
-      excellent = Math.max(0, Math.min(100, excellent));
-      good = Math.max(0, Math.min(100, good));
-
-      if (excellent < good) {
-        excellent = good;
-      }
-
-      TRS_THRESHOLDS.excellent = excellent;
-      TRS_THRESHOLDS.good = Math.min(excellent, good);
-
-      document.getElementById('threshold-excellent').value = TRS_THRESHOLDS.excellent;
-      document.getElementById('threshold-good').value = TRS_THRESHOLDS.good;
-      document.getElementById('threshold-low').value = Math.max(0, TRS_THRESHOLDS.good - 1);
-
-      buildTeamAssignmentsTable();
-      refreshDisplay();
-      checkBadges();
-      showToast('💾 Paramètres appliqués', 'success');
-    }
-
-    function exportConfig() {
-      const config = {
-        targetRate: parseInt(document.getElementById('target-rate').value, 10) || 16000,
-        teamAssignments: [...TEAM_ASSIGNMENTS],
-        thresholds: { ...TRS_THRESHOLDS },
-        categories: CATEGORY_DATA.map(item => ({
-          category: item.category,
-          subcategory: item.subcategory
-        }))
-      };
-
-      const dateStr = new Date().toISOString().split('T')[0];
-      downloadJSON(config, `config-production-${dateStr}.json`);
-      showToast('📤 Configuration exportée', 'success');
-    }
-
-    function importConfig(file) {
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const config = JSON.parse(event.target.result);
-
-          if (typeof config.targetRate === 'number' && Number.isFinite(config.targetRate)) {
-            const targetRateInput = document.getElementById('target-rate');
-            if (targetRateInput) {
-              targetRateInput.value = Math.max(0, Math.round(config.targetRate));
-              targetRateInput.dispatchEvent(new Event('change'));
-            }
-          }
-
-          if (Array.isArray(config.teamAssignments) && config.teamAssignments.length === 24) {
-            TEAM_ASSIGNMENTS = config.teamAssignments.map((team, index) => {
-              const value = typeof team === 'string' ? team.trim() : '';
-              return value || DEFAULT_TEAM_ASSIGNMENTS[index];
-            });
-          }
-
-          if (Array.isArray(config.categories)) {
-            CATEGORY_DATA = config.categories.map(item => ({
-              category: typeof item.category === 'string' ? item.category.trim() : '',
-              subcategory: typeof item.subcategory === 'string' ? item.subcategory.trim() : ''
-            }));
-            buildCategoryTable();
-            rebuildQuickCauses();
-          }
-
-          if (config.thresholds && typeof config.thresholds === 'object') {
-            const { excellent, good } = config.thresholds;
-
-            if (Number.isFinite(excellent)) {
-              TRS_THRESHOLDS.excellent = Math.max(0, Math.min(100, Math.round(excellent)));
-            }
-            if (Number.isFinite(good)) {
-              TRS_THRESHOLDS.good = Math.max(0, Math.min(TRS_THRESHOLDS.excellent, Math.round(good)));
-            }
-
-            if (TRS_THRESHOLDS.excellent < TRS_THRESHOLDS.good) {
-              TRS_THRESHOLDS.excellent = TRS_THRESHOLDS.good;
-            }
-          }
-
-          populateParameters();
-          refreshDisplay();
-          checkBadges();
-          updateJustifyDisplay();
-          showToast('📥 Configuration importée', 'success');
-        } catch (error) {
-          console.error('Erreur import configuration', error);
-          showToast('❌ Import impossible', 'error');
-        }
-      };
-
-      reader.readAsText(file);
-    }
-
-    function resetDay() {
-      hourlyData = createEmptyHourlyData();
-      unlockedBadges = new Set();
-      document.querySelectorAll('.badge').forEach(badge => badge.classList.remove('unlocked'));
-      refreshDisplay();
-      checkBadges();
-      showToast('🧹 Journée réinitialisée', 'success');
-    }
-
-    // Construction de la grille d'heures
     function buildHoursGrid() {
       const grid = document.getElementById('hours-grid');
-      const currentHour = new Date().getHours();
-      
-      for (let i = 0; i < 24; i++) {
-        const card = document.createElement('div');
+      if (!grid) return;
+
+      grid.innerHTML = '';
+
+      hourlyData.forEach((data, hour) => {
+        const card = document.createElement('article');
         card.className = 'hour-card';
-        card.dataset.hour = i;
-        
-        if (i === currentHour) {
-          card.classList.add('active');
-        }
-        
-        const data = hourlyData[i];
-        const trsClass = getTRSClass(data);
-        
-        card.innerHTML = `
-          <div class="hour-time">${String(i).padStart(2, '0')}:00</div>
-          <div class="hour-team">${TEAM_ASSIGNMENTS[i] || ''}</div>
-          <div class="hour-value">${data.validated ? data.good.toLocaleString('fr-FR') : '—'}</div>
-          <div class="hour-label">unités</div>
-          <div class="hour-trs">
-            <span style="font-size: 0.75rem; color: var(--text-muted);">TRS</span>
-            <span class="trs-badge ${trsClass}">${data.validated ? calculateTRS(data) + '%' : '—'}</span>
-          </div>
-        `;
-        
+        card.dataset.hour = hour;
+
         if (data.validated) {
           card.classList.add('validated');
-          if (calculateTRS(data) < TRS_THRESHOLDS.good) {
-            card.classList.add('low-trs');
-          }
         }
-        
-        card.addEventListener('click', () => openHourModal(i));
+
+        const header = document.createElement('div');
+        header.className = 'oee-card-header';
+
+        const infoWrapper = document.createElement('div');
+        const hourLabel = document.createElement('div');
+        hourLabel.className = 'hour-time';
+        hourLabel.textContent = `${String(hour).padStart(2, '0')}h - ${String((hour + 1) % 24).padStart(2, '0')}h`;
+        const teamLabel = document.createElement('div');
+        teamLabel.className = 'hour-team';
+        teamLabel.textContent = TEAM_ASSIGNMENTS[hour];
+        infoWrapper.append(hourLabel, teamLabel);
+
+        const actionsWrapper = document.createElement('div');
+        actionsWrapper.className = 'oee-card-actions';
+
+        if (data.validated) {
+          const inlineEdit = document.createElement('button');
+          inlineEdit.type = 'button';
+          inlineEdit.className = 'oee-inline-edit';
+          inlineEdit.setAttribute('aria-label', 'Modifier la production bonne');
+          inlineEdit.textContent = '✏️';
+          inlineEdit.addEventListener('click', (event) => {
+            event.stopPropagation();
+            handleInlineEdit(hour);
+          });
+          actionsWrapper.appendChild(inlineEdit);
+
+          const menuWrapper = document.createElement('div');
+          menuWrapper.className = 'oee-card-menu';
+
+          const menuButton = document.createElement('button');
+          menuButton.type = 'button';
+          menuButton.className = 'oee-card-menu-button';
+          menuButton.setAttribute('aria-label', 'Historique et options');
+          menuButton.textContent = '⋯';
+
+          const menuPanel = document.createElement('div');
+          menuPanel.className = 'oee-card-menu-panel oee-hidden';
+          renderMenuPanel(menuPanel, data, hour);
+
+          menuButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            toggleMenu(menuWrapper, menuPanel);
+          });
+
+          menuWrapper.append(menuButton, menuPanel);
+          actionsWrapper.appendChild(menuWrapper);
+        }
+
+        header.append(infoWrapper, actionsWrapper);
+        card.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'oee-card-body';
+
+        if (data.validated) {
+          const components = calculateComponents(data);
+
+          if (components.oee < OEE_THRESHOLDS.good) {
+            card.classList.add('low-oee');
+          }
+
+          const metrics = document.createElement('div');
+          metrics.className = 'oee-card-metrics';
+
+          const oeeValue = document.createElement('div');
+          oeeValue.className = 'oee-main-value';
+          oeeValue.textContent = `${Math.round(components.oee)}%`;
+
+          const componentList = document.createElement('div');
+          componentList.className = 'oee-components';
+          componentList.innerHTML = `
+            <span class="oee-component">D ${Math.round(components.availability * 100)}%</span>
+            <span class="oee-component">P ${Math.round(components.performance * 100)}%</span>
+            <span class="oee-component">Q ${Math.round(components.quality * 100)}%</span>
+          `;
+
+          metrics.append(oeeValue, componentList);
+
+          const productionTags = document.createElement('div');
+          productionTags.className = 'oee-card-tags';
+          productionTags.appendChild(createBadge('Bonne', data.good.toLocaleString('fr-FR')));
+          if (QUALITY_TRACKING) {
+            productionTags.appendChild(createBadge('Rebut', data.scrap.toLocaleString('fr-FR')));
+          }
+          productionTags.appendChild(createBadge('Arrêts', `${components.downtime} min`));
+
+          const causesTags = document.createElement('div');
+          causesTags.className = 'oee-card-tags';
+          if (data.causes.length) {
+            data.causes.forEach(cause => {
+              const label = cause.subcategory ? `${cause.category} › ${cause.subcategory}` : cause.category;
+              causesTags.appendChild(createBadge(label || 'Cause', `${cause.minutes} min`));
+            });
+          } else {
+            causesTags.appendChild(createBadge('Disponibilité', '0 min'));
+          }
+
+          body.append(metrics, productionTags, causesTags);
+
+          if (data.comment) {
+            const comment = document.createElement('div');
+            comment.className = 'oee-card-comment';
+            comment.textContent = `“${data.comment}”`;
+            body.appendChild(comment);
+          }
+        } else {
+          const placeholder = document.createElement('div');
+          placeholder.className = 'oee-card-comment';
+          placeholder.textContent = 'Cliquez pour saisir cette heure.';
+          body.appendChild(placeholder);
+        }
+
+        card.appendChild(body);
+        card.addEventListener('click', () => openHourModal(hour));
         grid.appendChild(card);
+      });
+    }
+
+    function createBadge(label, value) {
+      const badge = document.createElement('div');
+      badge.className = 'oee-badge';
+      badge.innerHTML = `<strong>${label}</strong> ${value}`;
+      return badge;
+    }
+
+    function toggleMenu(wrapper, panel) {
+      if (openMenuCard && openMenuCard !== wrapper) {
+        closeOpenMenu();
+      }
+
+      const isHidden = panel.classList.contains('oee-hidden');
+      if (isHidden) {
+        panel.classList.remove('oee-hidden');
+        openMenuCard = wrapper;
+      } else {
+        panel.classList.add('oee-hidden');
+        openMenuCard = null;
       }
     }
 
-    function getTRSClass(data) {
-      if (!data.validated) return '';
-      const trs = calculateTRS(data);
-      if (trs >= TRS_THRESHOLDS.excellent) return 'trs-excellent';
-      if (trs >= TRS_THRESHOLDS.good) return 'trs-good';
-      return 'trs-low';
+    function closeOpenMenu() {
+      if (!openMenuCard) return;
+      const panel = openMenuCard.querySelector('.oee-card-menu-panel');
+      if (panel) {
+        panel.classList.add('oee-hidden');
+      }
+      openMenuCard = null;
     }
 
-    function calculateTRS(data) {
-      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-      const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
-      const availability = Math.max(0, (60 - downtime) / 60);
+    function renderMenuPanel(panel, data, hour) {
+      panel.innerHTML = '';
+
+      const historyTitle = document.createElement('div');
+      historyTitle.style.fontWeight = '700';
+      historyTitle.style.marginBottom = '0.35rem';
+      historyTitle.textContent = 'Historique';
+      panel.appendChild(historyTitle);
+
+      const historyList = document.createElement('div');
+      historyList.className = 'oee-history-list';
+      if (data.edits && data.edits.length) {
+        data.edits.slice(0, 8).forEach(edit => {
+          const item = document.createElement('div');
+          item.className = 'oee-history-item';
+          const timestamp = new Date(edit.timestampISO).toLocaleString('fr-FR');
+          const details = formatFieldChanges(edit.fieldChanges);
+          item.innerHTML = `<strong>${timestamp}</strong><br>${details}`;
+          historyList.appendChild(item);
+        });
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'oee-history-item';
+        empty.textContent = 'Aucune modification pour le moment.';
+        historyList.appendChild(empty);
+      }
+      panel.appendChild(historyList);
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.textContent = '🗑️ Supprimer cette heure';
+      deleteButton.classList.add('oee-danger');
+      deleteButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (confirm('Confirmer la suppression de cette saisie ?')) {
+          hourlyData[hour] = createEmptyHour(hour);
+          closeOpenMenu();
+          refreshDisplay();
+          showToast('🧹 Heure réinitialisée', 'success');
+        }
+      });
+      panel.appendChild(deleteButton);
+    }
+
+    function formatFieldChanges(fieldChanges) {
+      return Object.entries(fieldChanges).map(([field, change]) => {
+        if (change && typeof change === 'object' && 'from' in change && 'to' in change) {
+          const fromValue = change.from === undefined || change.from === null || change.from === '' ? '—' : change.from;
+          const toValue = change.to === undefined || change.to === null || change.to === '' ? '—' : change.to;
+          return `${field}: ${fromValue} → ${toValue}`;
+        }
+        return `${field}: ${change}`;
+      }).join('<br>');
+    }
+
+    function handleInlineEdit(hour) {
+      const data = hourlyData[hour];
+      if (!data || !data.validated) {
+        openHourModal(hour);
+        return;
+      }
+
+      const userInput = prompt('Nouvelle production bonne (unités)', data.good);
+      if (userInput === null) return;
+
+      const newValue = parseInt(userInput, 10);
+      if (!Number.isFinite(newValue) || newValue < 0) {
+        showToast('Valeur invalide', 'error');
+        return;
+      }
+
+      if (newValue === data.good) return;
+
+      const previousGood = data.good;
+      data.good = newValue;
+      data.updatedAt = new Date().toISOString();
+      recordEdit(hour, {
+        'Production bonne': { from: previousGood, to: newValue }
+      });
+
+      refreshDisplay();
+      showToast('✏️ Production mise à jour', 'success');
+    }
+
+    function openHourModal(hour) {
+      const modal = document.getElementById('hour-modal');
+      if (!modal) return;
+
+      const data = hourlyData[hour];
+      modalState = createInitialModalState();
+      modalState.hour = hour;
+      modalState.isEditing = !!data.validated;
+      modalState.selectedCategory = data.causes.length ? data.causes[0].category : getDefaultCategory();
+      modalState.causes = data.causes.map(cause => ({ ...cause }));
+
+      document.getElementById('hour-index').value = hour;
+      document.getElementById('modal-title').textContent = `Saisie ${String(hour).padStart(2, '0')}:00 — ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+      document.getElementById('modal-subtitle').textContent = TEAM_ASSIGNMENTS[hour];
+
+      const goodInput = document.getElementById('good-input');
+      const scrapInput = document.getElementById('scrap-input');
+      const commentInput = document.getElementById('comment-input');
+
+      goodInput.value = data.validated ? data.good : '';
+      scrapInput.value = data.validated ? data.scrap : '';
+      commentInput.value = data.comment || '';
+
+      renderModal();
+      modal.showModal();
+      goodInput.focus();
+    }
+
+    function closeHourModal() {
+      const modal = document.getElementById('hour-modal');
+      if (modal && modal.open) {
+        modal.close();
+      }
+    }
+
+    function renderModal() {
+      const scrapField = document.getElementById('oee-scrap-field');
+      const scrapInput = document.getElementById('scrap-input');
+      const warningMessage = document.getElementById('oee-quality-disabled-message');
+
+      if (QUALITY_TRACKING) {
+        scrapField.classList.remove('oee-hidden');
+        scrapInput.disabled = false;
+        warningMessage.classList.add('oee-hidden');
+      } else {
+        scrapField.classList.add('oee-hidden');
+        scrapInput.disabled = true;
+        if ((parseInt(scrapInput.value, 10) || 0) > 0) {
+          warningMessage.classList.remove('oee-hidden');
+        } else {
+          warningMessage.classList.add('oee-hidden');
+        }
+      }
+
+      buildCategorySelectors();
+      renderCausesList();
+      updateProgress();
+      renderOEEPreview();
+
+      const submitButton = document.getElementById('oee-submit-button');
+      submitButton.textContent = modalState.isEditing ? '💾 Enregistrer' : '✅ Valider';
+      submitButton.disabled = getModalDowntime() > MAX_HOUR_MINUTES;
+    }
+
+    function buildCategorySelectors() {
+      const categoryContainer = document.getElementById('oee-category-chips');
+      const subcategoryContainer = document.getElementById('oee-subcategory-panel');
+      if (!categoryContainer || !subcategoryContainer) return;
+
+      categoryContainer.innerHTML = '';
+      subcategoryContainer.innerHTML = '';
+
+      const uniqueCategories = Array.from(new Set(CATEGORY_DATA.map(item => (item.category || '').trim()).filter(Boolean)));
+      if (!uniqueCategories.length) {
+        uniqueCategories.push('Autre');
+      }
+
+      if (!modalState.selectedCategory || !uniqueCategories.includes(modalState.selectedCategory)) {
+        modalState.selectedCategory = uniqueCategories[0];
+      }
+
+      uniqueCategories.forEach(category => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'oee-chip';
+        if (modalState.selectedCategory === category) {
+          button.classList.add('oee-chip-active');
+        }
+        button.textContent = category;
+        button.dataset.category = category;
+        categoryContainer.appendChild(button);
+      });
+
+      const relatedSubcategories = CATEGORY_DATA
+        .filter(item => (item.category || '').trim() === modalState.selectedCategory)
+        .map(item => (item.subcategory || '').trim())
+        .filter(Boolean);
+
+      const subcategoriesToDisplay = relatedSubcategories.length ? relatedSubcategories : ['Sans sous-catégorie'];
+      subcategoriesToDisplay.forEach(subcategory => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'oee-chip';
+        button.textContent = subcategory;
+        button.dataset.subcategory = subcategory === 'Sans sous-catégorie' ? '' : subcategory;
+        button.dataset.category = modalState.selectedCategory;
+        subcategoryContainer.appendChild(button);
+      });
+    }
+
+    function renderCausesList() {
+      const container = document.getElementById('oee-causes-list');
+      if (!container) return;
+
+      container.innerHTML = '';
+      if (!modalState.causes.length) {
+        const empty = document.createElement('div');
+        empty.className = 'oee-causes-empty';
+        empty.textContent = 'Aucune cause ajoutée pour l’instant.';
+        container.appendChild(empty);
+        return;
+      }
+
+      modalState.causes.forEach(cause => {
+        const item = document.createElement('div');
+        item.className = 'oee-cause-item';
+
+        const details = document.createElement('div');
+        details.className = 'oee-cause-details';
+        const label = document.createElement('strong');
+        label.textContent = cause.subcategory ? `${cause.category} › ${cause.subcategory}` : cause.category;
+        const minutes = document.createElement('span');
+        minutes.textContent = `${cause.minutes} min`;
+        details.append(label, minutes);
+
+        const actions = document.createElement('div');
+        actions.className = 'oee-cause-actions';
+
+        const minusBtn = document.createElement('button');
+        minusBtn.type = 'button';
+        minusBtn.dataset.action = 'decrement';
+        minusBtn.dataset.id = String(cause.id);
+        minusBtn.textContent = '−5';
+
+        const plusBtn = document.createElement('button');
+        plusBtn.type = 'button';
+        plusBtn.dataset.action = 'increment';
+        plusBtn.dataset.id = String(cause.id);
+        plusBtn.textContent = '+5';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.dataset.action = 'remove';
+        removeBtn.dataset.id = String(cause.id);
+        removeBtn.textContent = '✖';
+
+        actions.append(minusBtn, plusBtn, removeBtn);
+        item.append(details, actions);
+        container.appendChild(item);
+      });
+    }
+
+    function updateProgress() {
+      const totalMinutes = getModalDowntime();
+      const progressValue = document.getElementById('oee-progress-value');
+      const progressBar = document.getElementById('oee-progress-bar');
+      const overflowAlert = document.getElementById('oee-overflow-alert');
+
+      if (progressValue) {
+        progressValue.textContent = `${totalMinutes} min / ${MAX_HOUR_MINUTES}`;
+      }
+
+      if (progressBar) {
+        const ratio = Math.min(1, totalMinutes / MAX_HOUR_MINUTES);
+        progressBar.style.width = `${ratio * 100}%`;
+        if (totalMinutes <= 15) {
+          progressBar.style.background = 'var(--success)';
+        } else if (totalMinutes <= 30) {
+          progressBar.style.background = 'var(--warning)';
+        } else {
+          progressBar.style.background = 'var(--danger)';
+        }
+      }
+
+      if (overflowAlert) {
+        overflowAlert.classList.toggle('oee-hidden', totalMinutes <= MAX_HOUR_MINUTES);
+      }
+
+      const submitButton = document.getElementById('oee-submit-button');
+      if (submitButton) {
+        submitButton.disabled = totalMinutes > MAX_HOUR_MINUTES;
+      }
+    }
+
+    function renderOEEPreview() {
+      const previewData = {
+        hour: modalState.hour,
+        good: parseInt(document.getElementById('good-input').value, 10) || 0,
+        scrap: QUALITY_TRACKING ? (parseInt(document.getElementById('scrap-input').value, 10) || 0) : 0,
+        causes: modalState.causes.map(cause => ({ ...cause })),
+        comment: '',
+        validated: true
+      };
+
+      const { availability, performance, quality, oee } = calculateComponents(previewData);
+      document.getElementById('oee-modal-value').textContent = `${Math.round(oee)}%`;
+      document.getElementById('oee-availability-label').textContent = `D ${Math.round(availability * 100)}%`;
+      document.getElementById('oee-performance-label').textContent = `P ${Math.round(performance * 100)}%`;
+      document.getElementById('oee-quality-label').textContent = `Q ${Math.round(quality * 100)}%`;
+
+      const warningAlert = document.getElementById('oee-warning-alert');
+      if (warningAlert) {
+        const hasOverflow = [availability, performance, quality].some(value => value > 1) || oee > 100;
+        warningAlert.classList.toggle('oee-hidden', !hasOverflow);
+      }
+    }
+
+    function getModalDowntime() {
+      return modalState.causes.reduce((sum, cause) => sum + (cause.minutes || 0), 0);
+    }
+
+    function handleCategoryClick(event) {
+      const button = event.target.closest('button');
+      if (!button || !button.dataset.category) return;
+      modalState.selectedCategory = button.dataset.category;
+      renderModal();
+    }
+
+    function handleSubcategoryClick(event) {
+      const button = event.target.closest('button');
+      if (!button || !button.dataset.category) return;
+      const category = button.dataset.category;
+      const subcategory = button.dataset.subcategory || '';
+      addOrIncrementCause(category, subcategory, 5);
+    }
+
+    function handleQuickCauseClick(event) {
+      const button = event.target.closest('button');
+      if (!button || !button.dataset.category) return;
+      const category = button.dataset.category;
+      const subcategory = button.dataset.subcategory || '';
+      addOrIncrementCause(category, subcategory, 5);
+      button.classList.add('oee-chip-active');
+      setTimeout(() => button.classList.remove('oee-chip-active'), 300);
+    }
+
+    function handleCauseListClick(event) {
+      const button = event.target.closest('button');
+      if (!button || !button.dataset.id) return;
+      const action = button.dataset.action;
+      const id = button.dataset.id;
+      if (action === 'increment') {
+        incrementCauseMinutes(id, 5);
+      } else if (action === 'decrement') {
+        incrementCauseMinutes(id, -5);
+      } else if (action === 'remove') {
+        removeCause(id);
+      }
+    }
+
+    function addOrIncrementCause(category, subcategory, minutes) {
+      const existing = modalState.causes.find(cause => cause.category === category && cause.subcategory === subcategory);
+      if (existing) {
+        incrementCauseMinutes(existing.id, minutes);
+        return;
+      }
+
+      const potentialTotal = getModalDowntime() + minutes;
+      if (potentialTotal > MAX_HOUR_MINUTES) {
+        updateProgress();
+        return;
+      }
+
+      modalState.causes.push({
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        category,
+        subcategory,
+        minutes
+      });
+      renderModal();
+    }
+
+    function incrementCauseMinutes(id, delta) {
+      const cause = modalState.causes.find(item => String(item.id) === String(id));
+      if (!cause) return;
+
+      const newMinutes = cause.minutes + delta;
+      if (newMinutes <= 0) {
+        modalState.causes = modalState.causes.filter(item => String(item.id) !== String(id));
+      } else {
+        const potentialTotal = getModalDowntime() - cause.minutes + newMinutes;
+        if (potentialTotal > MAX_HOUR_MINUTES) {
+          updateProgress();
+          return;
+        }
+        cause.minutes = Math.min(MAX_HOUR_MINUTES, newMinutes);
+      }
+      renderModal();
+    }
+
+    function removeCause(id) {
+      modalState.causes = modalState.causes.filter(item => String(item.id) !== String(id));
+      renderModal();
+    }
+
+    function getDefaultCategory() {
+      const firstCategory = CATEGORY_DATA.find(item => (item.category || '').trim());
+      return firstCategory ? firstCategory.category : 'Autre';
+    }
+
+    document.getElementById('oee-category-chips').addEventListener('click', handleCategoryClick);
+    document.getElementById('oee-subcategory-panel').addEventListener('click', handleSubcategoryClick);
+    document.getElementById('quick-causes').addEventListener('click', handleQuickCauseClick);
+    document.getElementById('oee-causes-list').addEventListener('click', handleCauseListClick);
+
+    function attachModalEvents() {
+      const goodInput = document.getElementById('good-input');
+      const scrapInput = document.getElementById('scrap-input');
+      const form = document.getElementById('hour-form');
+      const cancelBtn = document.getElementById('cancel-btn');
+      const modal = document.getElementById('hour-modal');
+
+      goodInput?.addEventListener('input', renderModal);
+      scrapInput?.addEventListener('input', renderModal);
+
+      form?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        submitHourForm();
+      });
+
+      cancelBtn?.addEventListener('click', () => {
+        closeHourModal();
+      });
+
+      if (modal) {
+        modal.addEventListener('close', () => {
+          modalState = createInitialModalState();
+        });
+
+        modal.addEventListener('cancel', (event) => {
+          event.preventDefault();
+          modal.close();
+        });
+      }
+    }
+
+    function submitHourForm() {
+      const hour = modalState.hour;
+      if (hour === null || hour === undefined) return;
+
+      const good = parseInt(document.getElementById('good-input').value, 10) || 0;
+      const scrapInputValue = parseInt(document.getElementById('scrap-input').value, 10) || 0;
+      const scrap = QUALITY_TRACKING ? scrapInputValue : 0;
+      const comment = document.getElementById('comment-input').value.trim();
+      const downtime = getModalDowntime();
+
+      if (downtime > MAX_HOUR_MINUTES) {
+        showToast('Temps d’arrêt supérieur à 60 minutes', 'error');
+        return;
+      }
+
+      const previousData = hourlyData[hour];
+      const isEditing = modalState.isEditing && previousData.validated;
+      const nowISO = new Date().toISOString();
+
+      const newEntry = {
+        hour,
+        good,
+        scrap,
+        comment,
+        causes: modalState.causes.map(cause => ({
+          category: cause.category,
+          subcategory: cause.subcategory,
+          minutes: cause.minutes,
+          id: cause.id
+        })),
+        validated: true,
+        createdAt: isEditing ? (previousData.createdAt || nowISO) : nowISO,
+        updatedAt: nowISO,
+        edits: isEditing ? [...(previousData.edits || [])] : []
+      };
+
+      hourlyData[hour] = newEntry;
+
+      const fieldChanges = {};
+      if (isEditing) {
+        if (previousData.good !== good) {
+          fieldChanges['Production bonne'] = { from: previousData.good, to: good };
+        }
+        if (previousData.scrap !== scrap) {
+          fieldChanges['Rebut'] = { from: previousData.scrap, to: scrap };
+        }
+        if ((previousData.comment || '') !== comment) {
+          fieldChanges['Commentaire'] = { from: previousData.comment || '—', to: comment || '—' };
+        }
+        if (JSON.stringify(previousData.causes) !== JSON.stringify(newEntry.causes)) {
+          fieldChanges['Arrêts'] = {
+            from: summarizeCauses(previousData.causes),
+            to: summarizeCauses(newEntry.causes)
+          };
+        }
+      } else {
+        fieldChanges['Création'] = {
+          to: `Bonne ${good} u, Arrêts ${downtime} min`
+        };
+      }
+
+      if (Object.keys(fieldChanges).length) {
+        recordEdit(hour, fieldChanges);
+      }
+
+      closeHourModal();
+      refreshDisplay();
+      celebrate(calculateComponents(newEntry).oee >= 100);
+      checkBadges();
+      showToast(isEditing ? '💾 Heure mise à jour' : '✅ Production enregistrée', 'success');
+    }
+
+    function summarizeCauses(causes) {
+      if (!causes || !causes.length) return '0 min';
+      return causes.map(cause => {
+        const label = cause.subcategory ? `${cause.category} › ${cause.subcategory}` : cause.category;
+        return `${label}: ${cause.minutes} min`;
+      }).join(', ');
+    }
+
+    function recordEdit(hour, fieldChanges) {
+      const entry = hourlyData[hour];
+      if (!entry) return;
+      entry.edits = entry.edits || [];
+      entry.edits.unshift({
+        timestampISO: new Date().toISOString(),
+        fieldChanges
+      });
+      entry.edits = entry.edits.slice(0, 10);
+    }
+
+    function refreshDisplay() {
+      buildHoursGrid();
+      updateKPIs();
+      updateChart();
+    }
+
+    function updateKPIs() {
+      const validatedData = hourlyData.filter(data => data.validated);
+
+      if (!validatedData.length) {
+        document.getElementById('kpi-oee').textContent = '0%';
+        document.getElementById('kpi-availability').textContent = '0%';
+        document.getElementById('kpi-performance').textContent = '0%';
+        document.getElementById('kpi-quality').textContent = '0%';
+        document.getElementById('kpi-total').textContent = '0';
+        return;
+      }
+
+      let sumAvailability = 0;
+      let sumPerformance = 0;
+      let sumQuality = 0;
+      let totalProduction = 0;
+
+      validatedData.forEach(data => {
+        const components = calculateComponents(data);
+        sumAvailability += components.availability;
+        sumPerformance += components.performance;
+        sumQuality += components.quality;
+        totalProduction += data.good;
+      });
+
+      const avgAvailability = sumAvailability / validatedData.length;
+      const avgPerformance = sumPerformance / validatedData.length;
+      const avgQuality = sumQuality / validatedData.length;
+      const avgOEE = avgAvailability * avgPerformance * avgQuality;
+
+      document.getElementById('kpi-oee').textContent = `${Math.round(avgOEE * 100)}%`;
+      document.getElementById('kpi-availability').textContent = `${Math.round(avgAvailability * 100)}%`;
+      document.getElementById('kpi-performance').textContent = `${Math.round(avgPerformance * 100)}%`;
+      document.getElementById('kpi-quality').textContent = `${Math.round(avgQuality * 100)}%`;
+      document.getElementById('kpi-total').textContent = totalProduction.toLocaleString('fr-FR');
+
+      const targetDaily = 24 * getTargetRate();
+      const trendElement = document.getElementById('target-trend');
+      if (trendElement) {
+        trendElement.innerHTML = `
+          <span>${totalProduction >= targetDaily ? '↗' : '→'}</span>
+          Objectif: ${(targetDaily / 1000).toFixed(0)}k
+        `;
+      }
+
+      const oeeTrend = document.getElementById('oee-trend');
+      if (oeeTrend) {
+        oeeTrend.innerHTML = `<span>${avgOEE >= 0.95 ? '↗' : '→'}</span> ${avgOEE >= 0.95 ? 'En hausse' : 'Suivi'}`;
+      }
+    }
+
+    function calculateComponents(data) {
+      const targetRate = getTargetRate();
+      const downtime = data.causes.reduce((sum, cause) => sum + (cause.minutes || 0), 0);
+      const availability = Math.max(0, (MAX_HOUR_MINUTES - downtime) / MAX_HOUR_MINUTES);
       const performance = targetRate > 0 ? Math.min(1, data.good / targetRate) : 0;
-      return Math.round(availability * performance * 100);
+
+      let quality = 1;
+      if (QUALITY_TRACKING) {
+        const totalPieces = data.good + data.scrap;
+        quality = totalPieces > 0 ? Math.min(1, data.good / totalPieces) : 1;
+      }
+
+      const oee = availability * performance * quality * 100;
+      return { availability, performance, quality, oee, downtime };
+    }
+
+    function getTargetRate() {
+      const value = parseInt(document.getElementById('target-rate')?.value, 10);
+      return Number.isFinite(value) && value > 0 ? value : 16000;
     }
 
     function highlightCurrentHour() {
       const currentHour = new Date().getHours();
       document.querySelectorAll('.hour-card').forEach(card => {
-        const hour = parseInt(card.dataset.hour);
+        const hour = parseInt(card.dataset.hour, 10);
         if (hour === currentHour) {
           card.classList.add('active');
         } else {
@@ -1320,151 +2583,17 @@
       });
     }
 
-    // Modal de saisie
-    function openHourModal(hour) {
-      const modal = document.getElementById('hour-modal');
-      const data = hourlyData[hour];
-      
-      document.getElementById('hour-index').value = hour;
-      document.getElementById('modal-title').textContent = `Saisie ${String(hour).padStart(2, '0')}:00 — ${String((hour + 1) % 24).padStart(2, '0')}:00`;
-      document.getElementById('modal-subtitle').textContent = TEAM_ASSIGNMENTS[hour];
-      
-      document.getElementById('good-input').value = data.validated ? data.good : '';
-      document.getElementById('comment-input').value = data.comment || '';
-      
-      updateJustifyDisplay();
-      
-      modal.showModal();
-      document.getElementById('good-input').focus();
-    }
-
-    document.getElementById('good-input').addEventListener('input', updateJustifyDisplay);
-
-    function updateJustifyDisplay() {
-      const good = parseInt(document.getElementById('good-input').value) || 0;
-      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-      const used = targetRate > 0 ? (good / targetRate) * 60 : 60;
-      const toJustify = Math.max(0, Math.round((60 - used) / 5) * 5);
-      
-      document.getElementById('justify-value').textContent = `${toJustify} min`;
-    }
-
-    // Gestion des causes rapides
-    document.getElementById('quick-causes').addEventListener('click', (e) => {
-      if (e.target.classList.contains('cause-chip')) {
-        const cause = e.target.dataset.cause;
-        e.target.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-          e.target.style.transform = '';
-        }, 200);
-        
-        showToast(`Cause "${cause}" ajoutée`, 'success');
-      }
-    });
-
-    // Soumission du formulaire
-    document.getElementById('hour-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const hour = parseInt(document.getElementById('hour-index').value);
-      const good = parseInt(document.getElementById('good-input').value) || 0;
-      const comment = document.getElementById('comment-input').value.trim();
-      
-      // Calcul automatique des causes
-      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-      const used = targetRate > 0 ? (good / targetRate) * 60 : 60;
-      const toJustify = Math.max(0, Math.round((60 - used) / 5) * 5);
-      
-      const causes = toJustify > 0 ? [
-        { name: 'Production nominale', minutes: 60 - toJustify },
-        { name: 'Micro-arrêts cumulés', minutes: toJustify }
-      ] : [{ name: 'Production nominale', minutes: 60 }];
-      
-      hourlyData[hour] = {
-        hour,
-        good,
-        causes: causes.filter(c => c.minutes > 0),
-        comment,
-        validated: true,
-        timestamp: new Date().toISOString()
-      };
-      
-      document.getElementById('hour-modal').close();
-      
-      refreshDisplay();
-      celebrate(good >= targetRate);
-      checkBadges();
-      
-      showToast('✓ Production enregistrée avec succès', 'success');
-    });
-
-    document.getElementById('cancel-btn').addEventListener('click', () => {
-      document.getElementById('hour-modal').close();
-    });
-
-    // Actualisation de l'affichage
-    function refreshDisplay() {
-      const grid = document.getElementById('hours-grid');
-      grid.innerHTML = '';
-      buildHoursGrid();
-      updateKPIs();
-      updateChart();
-    }
-
-    // KPIs
-    function updateKPIs() {
-      const validatedData = hourlyData.filter(d => d.validated);
-      
-      if (validatedData.length === 0) {
-        document.getElementById('kpi-trs').textContent = '0%';
-        document.getElementById('kpi-availability').textContent = '0%';
-        document.getElementById('kpi-performance').textContent = '0%';
-        document.getElementById('kpi-total').textContent = '0';
-        return;
-      }
-      
-      let totalAvail = 0, totalPerf = 0;
-      let totalProduction = 0;
-      
-      validatedData.forEach(data => {
-        const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
-        const availability = Math.max(0, (60 - downtime) / 60);
-        const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-        const performance = targetRate > 0 ? Math.min(1, data.good / targetRate) : 0;
-        
-        totalAvail += availability;
-        totalPerf += performance;
-        totalProduction += data.good;
-      });
-      
-      const avgAvail = totalAvail / validatedData.length;
-      const avgPerf = totalPerf / validatedData.length;
-      const trs = avgAvail * avgPerf;
-      
-      document.getElementById('kpi-trs').textContent = `${Math.round(trs * 100)}%`;
-      document.getElementById('kpi-availability').textContent = `${Math.round(avgAvail * 100)}%`;
-      document.getElementById('kpi-performance').textContent = `${Math.round(avgPerf * 100)}%`;
-      document.getElementById('kpi-total').textContent = totalProduction.toLocaleString('fr-FR');
-      
-      // Mise à jour de la tendance
-      const targetDaily = 24 * (parseInt(document.getElementById('target-rate').value) || 16000);
-      document.getElementById('target-trend').innerHTML = `
-        <span>${totalProduction >= targetDaily ? '↗' : '→'}</span> 
-        Objectif: ${(targetDaily / 1000).toFixed(0)}k
-      `;
-    }
-
-    // Graphique Chart.js
     function initChart() {
-      const ctx = document.getElementById('production-chart').getContext('2d');
-      
-      currentChart = new Chart(ctx, {
+      const ctx = document.getElementById('production-chart');
+      if (!ctx) return;
+
+      currentChart = new Chart(ctx.getContext('2d'), {
         type: 'bar',
         data: {
-          labels: Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}h`),
+          labels: Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}h`),
           datasets: [
             {
-              label: 'Production Réelle',
+              label: 'Production réelle',
               data: Array(24).fill(0),
               backgroundColor: 'rgba(99, 102, 241, 0.6)',
               borderColor: 'rgba(99, 102, 241, 1)',
@@ -1473,7 +2602,7 @@
             },
             {
               label: 'Cible',
-              data: Array(24).fill(16000),
+              data: Array(24).fill(getTargetRate()),
               type: 'line',
               borderColor: 'rgba(245, 158, 11, 1)',
               backgroundColor: 'rgba(245, 158, 11, 0.1)',
@@ -1506,20 +2635,12 @@
           scales: {
             y: {
               beginAtZero: true,
-              grid: {
-                color: 'rgba(148, 163, 184, 0.1)'
-              },
-              ticks: {
-                color: '#94a3b8'
-              }
+              grid: { color: 'rgba(148, 163, 184, 0.1)' },
+              ticks: { color: '#94a3b8' }
             },
             x: {
-              grid: {
-                display: false
-              },
-              ticks: {
-                color: '#94a3b8'
-              }
+              grid: { display: false },
+              ticks: { color: '#94a3b8' }
             }
           },
           animation: {
@@ -1532,43 +2653,28 @@
 
     function updateChart() {
       if (!currentChart) return;
-
-      try {
-        const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-        const productionData = hourlyData.map(d => d.validated ? d.good : 0);
-
-        currentChart.data.datasets[0].data = productionData;
-        currentChart.data.datasets[1].data = Array(24).fill(targetRate);
-        currentChart.update();
-      } catch (error) {
-        console.error('Erreur mise à jour graphique', error);
-      }
+      const productionData = hourlyData.map(data => (data.validated ? data.good : 0));
+      currentChart.data.datasets[0].data = productionData;
+      currentChart.data.datasets[1].data = Array(24).fill(getTargetRate());
+      currentChart.update();
     }
 
-    // Système de badges
     function checkBadges() {
-      const validatedData = hourlyData.filter(d => d.validated);
-      
-      // Badge: Heure Parfaite (TRS >= 100%)
-      validatedData.forEach(data => {
-        if (calculateTRS(data) >= 100) {
+      const validated = hourlyData.filter(data => data.validated);
+      validated.forEach(data => {
+        const components = calculateComponents(data);
+        if (components.oee >= 100) {
           unlockBadge('perfect-hour');
         }
-      });
-      
-      // Badge: Zéro Arrêt
-      validatedData.forEach(data => {
-        const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
-        if (downtime === 0) {
+        if (components.downtime === 0) {
           unlockBadge('zero-downtime');
         }
       });
-      
-      // Badge: Streak (3 heures consécutives >= 90%)
+
       let streak = 0;
-      for (let i = 0; i < 24; i++) {
-        if (hourlyData[i].validated && calculateTRS(hourlyData[i]) >= 90) {
-          streak++;
+      for (let i = 0; i < hourlyData.length; i++) {
+        if (hourlyData[i].validated && calculateComponents(hourlyData[i]).oee >= 90) {
+          streak += 1;
           if (streak >= 3) {
             unlockBadge('streak-3');
             break;
@@ -1577,29 +2683,26 @@
           streak = 0;
         }
       }
-      
-      // Badge: Champion Équipe (moyenne équipe > 95%)
+
       const teams = {};
-      validatedData.forEach(data => {
+      validated.forEach(data => {
         const team = TEAM_ASSIGNMENTS[data.hour];
         if (!teams[team]) teams[team] = [];
-        teams[team].push(calculateTRS(data));
+        teams[team].push(calculateComponents(data).oee);
       });
-      
-      Object.values(teams).forEach(trsList => {
-        const avg = trsList.reduce((a, b) => a + b, 0) / trsList.length;
+
+      Object.values(teams).forEach(values => {
+        const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
         if (avg >= 95) {
           unlockBadge('team-champion');
         }
       });
-      
-      // Badge: Régularité (écart-type faible)
-      if (validatedData.length >= 8) {
-        const trsList = validatedData.map(d => calculateTRS(d));
-        const avg = trsList.reduce((a, b) => a + b, 0) / trsList.length;
-        const variance = trsList.reduce((sum, trs) => sum + Math.pow(trs - avg, 2), 0) / trsList.length;
+
+      if (validated.length >= 8) {
+        const oees = validated.map(data => calculateComponents(data).oee);
+        const average = oees.reduce((sum, value) => sum + value, 0) / oees.length;
+        const variance = oees.reduce((sum, value) => sum + Math.pow(value - average, 2), 0) / oees.length;
         const stdDev = Math.sqrt(variance);
-        
         if (stdDev < 5) {
           unlockBadge('consistency');
         }
@@ -1608,7 +2711,6 @@
 
     function unlockBadge(badgeId) {
       if (unlockedBadges.has(badgeId)) return;
-      
       unlockedBadges.add(badgeId);
       const badge = document.querySelector(`[data-badge="${badgeId}"]`);
       if (badge) {
@@ -1617,14 +2719,10 @@
       }
     }
 
-    // Célébration
     function celebrate(isExcellent) {
       if (!isExcellent) return;
-      
       for (let i = 0; i < 50; i++) {
-        setTimeout(() => {
-          createConfetti();
-        }, i * 30);
+        setTimeout(() => createConfetti(), i * 30);
       }
     }
 
@@ -1636,81 +2734,163 @@
       confetti.style.background = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][Math.floor(Math.random() * 5)];
       confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
       document.body.appendChild(confetti);
-      
       setTimeout(() => confetti.remove(), 3000);
     }
 
-    // Toast notifications
     function showToast(message, type = 'success') {
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
       toast.textContent = message;
       document.body.appendChild(toast);
-
       setTimeout(() => {
         toast.style.animation = 'slideIn 0.3s ease reverse';
         setTimeout(() => toast.remove(), 300);
       }, 3000);
     }
 
-    document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
-    document.getElementById('import-config-btn').addEventListener('click', () => {
-      document.getElementById('config-import-input').click();
-    });
-
-    document.getElementById('config-import-input').addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      importConfig(file);
-      event.target.value = '';
-    });
-
-    document.getElementById('export-config-btn').addEventListener('click', exportConfig);
-    document.getElementById('reset-day-btn').addEventListener('click', resetDay);
-    document.getElementById('add-category-row-btn').addEventListener('click', addCategoryRow);
-    document.getElementById('save-categories-btn').addEventListener('click', saveCategoriesList);
-    document.getElementById('export-categories-btn').addEventListener('click', exportCategories);
-    document.getElementById('import-categories-btn').addEventListener('click', () => {
-      document.getElementById('categories-import-input').click();
-    });
-    document.getElementById('categories-import-input').addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      importCategories(file);
-      event.target.value = '';
-    });
-
-    // Boutons d'action
-    document.getElementById('refresh-btn').addEventListener('click', () => {
-      refreshDisplay();
-      showToast('🔄 Données actualisées', 'success');
-    });
-
-    document.getElementById('export-btn').addEventListener('click', () => {
-      const csvData = generateCSV();
-      downloadCSV(csvData, getCSVFilename());
-      showToast('📊 Export réussi', 'success');
-    });
-
-    function generateCSV() {
-      const rows = [['Heure', 'Équipe', 'Production', 'TRS%', 'Commentaire']];
-
-      hourlyData.forEach(data => {
-        if (data.validated) {
-          rows.push([
-            `${String(data.hour).padStart(2, '0')}:00`,
-            TEAM_ASSIGNMENTS[data.hour],
-            data.good,
-            calculateTRS(data),
-            data.comment || ''
-          ]);
-        }
-      });
-      
-      return rows.map(row => row.join(';')).join('\n');
+    function buildTeamAssignmentsTable() {
+      const tbody = document.getElementById('team-assignments-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      for (let hour = 0; hour < 24; hour++) {
+        const row = document.createElement('tr');
+        const hourCell = document.createElement('td');
+        hourCell.textContent = `${String(hour).padStart(2, '0')}h`;
+        const teamCell = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = TEAM_ASSIGNMENTS[hour] || '';
+        input.dataset.teamHour = hour;
+        input.placeholder = 'Équipe';
+        teamCell.appendChild(input);
+        row.append(hourCell, teamCell);
+        tbody.appendChild(row);
+      }
     }
 
-    function getCSVFilename() {
+    function populateParameters() {
+      const targetRateInput = document.getElementById('target-rate');
+      if (targetRateInput) {
+        const value = parseInt(targetRateInput.value, 10) || 16000;
+        targetRateInput.value = value;
+      }
+
+      document.getElementById('threshold-excellent').value = OEE_THRESHOLDS.excellent;
+      document.getElementById('threshold-good').value = OEE_THRESHOLDS.good;
+      document.getElementById('threshold-low').value = Math.max(0, OEE_THRESHOLDS.good - 1);
+
+      const qualityToggle = document.getElementById('oee-quality-toggle');
+      if (qualityToggle) {
+        qualityToggle.checked = QUALITY_TRACKING;
+      }
+
+      buildTeamAssignmentsTable();
+      buildCategoryTable();
+    }
+
+    function saveSettings() {
+      const targetRateInput = document.getElementById('target-rate');
+      if (targetRateInput) {
+        let rateValue = parseInt(targetRateInput.value, 10);
+        if (!Number.isFinite(rateValue) || rateValue <= 0) {
+          rateValue = 16000;
+        }
+        targetRateInput.value = rateValue;
+        targetRateInput.dispatchEvent(new Event('change'));
+      }
+
+      document.querySelectorAll('#team-assignments-body input').forEach(input => {
+        const hour = parseInt(input.dataset.teamHour, 10);
+        if (Number.isInteger(hour)) {
+          const value = input.value.trim();
+          TEAM_ASSIGNMENTS[hour] = value || DEFAULT_TEAM_ASSIGNMENTS[hour];
+          input.value = TEAM_ASSIGNMENTS[hour];
+        }
+      });
+
+      let excellent = parseInt(document.getElementById('threshold-excellent').value, 10);
+      let good = parseInt(document.getElementById('threshold-good').value, 10);
+      if (!Number.isFinite(excellent)) excellent = OEE_THRESHOLDS.excellent;
+      if (!Number.isFinite(good)) good = OEE_THRESHOLDS.good;
+      excellent = Math.max(0, Math.min(100, excellent));
+      good = Math.max(0, Math.min(100, good));
+      if (excellent < good) {
+        excellent = good;
+      }
+      OEE_THRESHOLDS.excellent = excellent;
+      OEE_THRESHOLDS.good = Math.min(excellent, good);
+      document.getElementById('threshold-excellent').value = OEE_THRESHOLDS.excellent;
+      document.getElementById('threshold-good').value = OEE_THRESHOLDS.good;
+      document.getElementById('threshold-low').value = Math.max(0, OEE_THRESHOLDS.good - 1);
+
+      const qualityToggle = document.getElementById('oee-quality-toggle');
+      if (qualityToggle) {
+        QUALITY_TRACKING = !!qualityToggle.checked;
+      }
+
+      refreshDisplay();
+      checkBadges();
+      showToast('💾 Paramètres appliqués', 'success');
+    }
+
+    function exportConfig() {
+      const config = {
+        targetRate: getTargetRate(),
+        teamAssignments: [...TEAM_ASSIGNMENTS],
+        thresholds: { ...OEE_THRESHOLDS },
+        categories: CATEGORY_DATA.map(item => ({ category: item.category, subcategory: item.subcategory })),
+        qualityTracking: QUALITY_TRACKING
+      };
       const dateStr = new Date().toISOString().split('T')[0];
-      return `production-${dateStr}.csv`;
+      downloadJSON(config, `config-${dateStr}.json`);
+      showToast('📤 Config exportée', 'success');
+    }
+
+    function importConfig(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = event => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (parsed.targetRate) {
+            document.getElementById('target-rate').value = parsed.targetRate;
+          }
+          if (Array.isArray(parsed.teamAssignments)) {
+            TEAM_ASSIGNMENTS = parsed.teamAssignments.map((team, index) => team || DEFAULT_TEAM_ASSIGNMENTS[index]);
+          }
+          if (parsed.thresholds) {
+            OEE_THRESHOLDS = {
+              excellent: parsed.thresholds.excellent ?? OEE_THRESHOLDS.excellent,
+              good: parsed.thresholds.good ?? OEE_THRESHOLDS.good
+            };
+          }
+          if (Array.isArray(parsed.categories)) {
+            CATEGORY_DATA = parsed.categories.map(item => ({
+              category: typeof item.category === 'string' ? item.category.trim() : '',
+              subcategory: typeof item.subcategory === 'string' ? item.subcategory.trim() : ''
+            }));
+          }
+          if (typeof parsed.qualityTracking === 'boolean') {
+            QUALITY_TRACKING = parsed.qualityTracking;
+          }
+          populateParameters();
+          rebuildQuickCauses();
+          refreshDisplay();
+          showToast('📥 Config importée', 'success');
+        } catch (error) {
+          console.error('Erreur import config', error);
+          showToast('❌ Import impossible', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetDay() {
+      if (!confirm('Réinitialiser toutes les heures ?')) return;
+      hourlyData = createEmptyHourlyData();
+      modalState = createInitialModalState();
+      refreshDisplay();
+      showToast('🧹 Journée réinitialisée', 'success');
     }
 
     function downloadCSV(content, filename) {
@@ -1731,29 +2911,50 @@
       setTimeout(() => URL.revokeObjectURL(link.href), 100);
     }
 
+    function generateCSV() {
+      const rows = [['Heure', 'Équipe', 'Production bonne', 'Rebut', 'Disponibilité %', 'Performance %', 'Qualité %', 'OEE %', 'Commentaire']];
+      hourlyData.forEach(data => {
+        if (data.validated) {
+          const components = calculateComponents(data);
+          rows.push([
+            `${String(data.hour).padStart(2, '0')}:00`,
+            TEAM_ASSIGNMENTS[data.hour],
+            data.good,
+            data.scrap,
+            Math.round(components.availability * 100),
+            Math.round(components.performance * 100),
+            Math.round(components.quality * 100),
+            Math.round(components.oee),
+            data.comment || ''
+          ]);
+        }
+      });
+      return rows.map(row => row.join(';')).join('\n');
+    }
+
+    function getCSVFilename() {
+      const dateStr = new Date().toISOString().split('T')[0];
+      return `production-${dateStr}.csv`;
+    }
+
     function buildCategoryTable() {
       const tbody = document.getElementById('categories-table-body');
       if (!tbody) return;
-
       tbody.innerHTML = '';
-
       CATEGORY_DATA.forEach((item, index) => {
         const row = document.createElement('tr');
-
         const categoryCell = document.createElement('td');
         const categoryInput = document.createElement('input');
         categoryInput.type = 'text';
         categoryInput.value = item.category || '';
         categoryInput.dataset.field = 'category';
         categoryCell.appendChild(categoryInput);
-
         const subcategoryCell = document.createElement('td');
         const subcategoryInput = document.createElement('input');
         subcategoryInput.type = 'text';
         subcategoryInput.value = item.subcategory || '';
         subcategoryInput.dataset.field = 'subcategory';
         subcategoryCell.appendChild(subcategoryInput);
-
         const actionsCell = document.createElement('td');
         actionsCell.style.whiteSpace = 'nowrap';
         const deleteBtn = document.createElement('button');
@@ -1762,11 +2963,7 @@
         deleteBtn.textContent = '🗑️ Supprimer';
         deleteBtn.addEventListener('click', () => removeCategoryRow(index));
         actionsCell.appendChild(deleteBtn);
-
-        row.appendChild(categoryCell);
-        row.appendChild(subcategoryCell);
-        row.appendChild(actionsCell);
-
+        row.append(categoryCell, subcategoryCell, actionsCell);
         tbody.appendChild(row);
       });
     }
@@ -1776,7 +2973,6 @@
       if (!rows.length) {
         return [...CATEGORY_DATA];
       }
-
       return Array.from(rows).map(row => {
         const categoryInput = row.querySelector('input[data-field="category"]');
         const subcategoryInput = row.querySelector('input[data-field="subcategory"]');
@@ -1818,24 +3014,20 @@
 
     function importCategories(file) {
       if (!file) return;
-
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = event => {
         try {
           const parsed = JSON.parse(event.target.result);
           const categories = Array.isArray(parsed)
             ? parsed
             : (Array.isArray(parsed.categories) ? parsed.categories : null);
-
           if (!categories) {
             throw new Error('Format catégories invalide');
           }
-
           CATEGORY_DATA = categories.map(item => ({
             category: typeof item.category === 'string' ? item.category.trim() : '',
             subcategory: typeof item.subcategory === 'string' ? item.subcategory.trim() : ''
           }));
-
           buildCategoryTable();
           rebuildQuickCauses();
           showToast('📥 Catégories importées', 'success');
@@ -1844,38 +3036,26 @@
           showToast('❌ Import catégories impossible', 'error');
         }
       };
-
       reader.readAsText(file);
     }
 
     function rebuildQuickCauses() {
       const container = document.getElementById('quick-causes');
       if (!container) return;
-
       container.innerHTML = '';
-
       CATEGORY_DATA.forEach(({ category, subcategory }) => {
         const cleanCategory = (category || '').trim();
         const cleanSubcategory = (subcategory || '').trim();
         if (!cleanCategory && !cleanSubcategory) return;
-
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'cause-chip';
-        const label = cleanSubcategory ? `${cleanCategory} > ${cleanSubcategory}` : cleanCategory;
-        const datasetValue = cleanSubcategory ? `${cleanCategory} - ${cleanSubcategory}` : cleanCategory;
-        btn.dataset.cause = datasetValue;
-        btn.textContent = label;
-        container.appendChild(btn);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cause-chip';
+        button.dataset.category = cleanCategory || 'Autre';
+        button.dataset.subcategory = cleanSubcategory;
+        button.textContent = cleanSubcategory ? `${cleanCategory} > ${cleanSubcategory}` : cleanCategory || 'Autre';
+        container.appendChild(button);
       });
     }
-
-    // Mise à jour cadence cible
-    document.getElementById('target-rate').addEventListener('change', () => {
-      updateKPIs();
-      updateChart();
-      updateJustifyDisplay();
-    });
   </script>
 </body>
 </html>
