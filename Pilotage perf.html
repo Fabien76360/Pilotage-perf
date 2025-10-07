@@ -284,114 +284,560 @@
       color: var(--success);
     }
 
-    /* Grille d'heures en cartes */
-    .hours-grid {
+    /* Vue opérateur 3 colonnes */
+    .operator-layout {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+
+    .team-column {
+      background: linear-gradient(155deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.75) 100%);
+      border-radius: 1.5rem;
+      border: 1px solid var(--border);
+      backdrop-filter: blur(24px);
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 220px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .team-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: inherit;
+      backdrop-filter: inherit;
+    }
+
+    .team-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+
+    .team-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .team-metrics strong {
+      display: block;
+      color: var(--text);
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .team-progress {
+      height: 8px;
+      background: rgba(148, 163, 184, 0.2);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .team-progress span {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      border-radius: inherit;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+      transition: width 0.4s ease;
+    }
+
+    .team-hours {
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
       gap: 1rem;
     }
 
-    .hour-card {
-      background: var(--card);
-      backdrop-filter: blur(20px);
-      border-radius: 1rem;
-      padding: 1.25rem;
-      border: 2px solid var(--border);
-      cursor: pointer;
-      transition: all 0.3s ease;
+    .hour-tile {
+      background: radial-gradient(circle at top, rgba(99, 102, 241, 0.16), rgba(15, 23, 42, 0.55));
+      border-radius: 1.25rem;
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      padding: 1rem 1.25rem;
       position: relative;
-      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+      cursor: pointer;
     }
 
-    .hour-card::after {
+    .hour-tile::after {
       content: '';
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: var(--text-muted);
-      opacity: 0.2;
+      inset: 0;
+      border-radius: inherit;
+      border: 2px solid transparent;
+      pointer-events: none;
+      transition: border-color 0.25s ease;
     }
 
-    .hour-card.active {
-      border-color: var(--primary);
-      box-shadow: 0 0 30px var(--glow);
-      transform: scale(1.05);
-    }
-
-    .hour-card.validated::after {
-      background: var(--success);
-      opacity: 1;
-    }
-
-    .hour-card.low-trs::after {
-      background: var(--danger);
-      opacity: 1;
-    }
-
-    .hour-card:hover {
+    .hour-tile:hover {
       transform: translateY(-4px);
+      box-shadow: 0 15px 35px rgba(15, 23, 42, 0.45);
+    }
+
+    .hour-tile.is-empty {
+      border-style: dashed;
+      border-color: rgba(148, 163, 184, 0.4);
+      background: rgba(30, 41, 59, 0.35);
+    }
+
+    .hour-tile.is-empty .tile-placeholder {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .hour-tile.is-editing::after {
       border-color: var(--primary);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
     }
 
-    .hour-time {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 0.5rem;
+    .hour-tile.is-current::after {
+      border-color: rgba(129, 140, 248, 0.8);
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
     }
 
-    .hour-team {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 1rem;
+    .hour-tile.is-validated::after {
+      border-color: rgba(16, 185, 129, 0.6);
     }
 
-    .hour-value {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--primary);
-      margin-bottom: 0.25rem;
+    .hour-tile[data-oee-zone="warning"]::after {
+      border-color: rgba(245, 158, 11, 0.6);
     }
 
-    .hour-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
+    .hour-tile[data-oee-zone="danger"]::after {
+      border-color: rgba(239, 68, 68, 0.6);
     }
 
-    .hour-trs {
-      margin-top: 0.75rem;
-      padding-top: 0.75rem;
-      border-top: 1px solid var(--border);
+    .tile-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 0.75rem;
     }
 
-    .trs-badge {
-      padding: 0.25rem 0.6rem;
-      border-radius: 0.5rem;
-      font-size: 0.8rem;
+    .tile-time {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .tile-team {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .tile-oee {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .tile-oee small {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .tile-micro-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .tile-badge {
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
       font-weight: 600;
     }
 
-    .trs-excellent {
-      background: rgba(16, 185, 129, 0.2);
-      color: var(--success);
+    .tile-causes {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
     }
 
-    .trs-good {
-      background: rgba(245, 158, 11, 0.2);
-      color: var(--warning);
+    .tile-actions {
+      display: flex;
+      gap: 0.35rem;
+      margin-left: auto;
     }
 
-    .trs-low {
-      background: rgba(239, 68, 68, 0.2);
+    .tile-icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(15, 23, 42, 0.55);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tile-icon-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .hour-editor {
+      background: rgba(15, 23, 42, 0.75);
+      border-radius: 1rem;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      padding: 1rem 1.25rem;
+      display: none;
+      flex-direction: column;
+      gap: 1.25rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .hour-tile.is-editing .hour-editor {
+      display: flex;
+    }
+
+    .editor-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .editor-header h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .editor-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .editor-metrics span {
+      background: rgba(148, 163, 184, 0.15);
+      border-radius: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      font-weight: 600;
+    }
+
+    .editor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+
+    .editor-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .editor-block label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .editor-input {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 0.85rem;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .editor-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+    }
+
+    .availability-bar {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.2);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .availability-bar span {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      border-radius: inherit;
+      transition: width 0.3s ease;
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.8), rgba(99, 102, 241, 0.8));
+    }
+
+    .availability-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .cause-accordions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .cause-accordion {
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 0.85rem;
+      overflow: hidden;
+      background: rgba(30, 41, 59, 0.4);
+    }
+
+    .accordion-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      background: rgba(99, 102, 241, 0.15);
+      border: none;
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .accordion-header span {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .accordion-content.open {
+      padding: 0.75rem 1rem 1rem;
+      max-height: 700px;
+      gap: 0.75rem;
+    }
+
+    .cause-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+
+    .cause-controls {
+      display: inline-flex;
+      gap: 0.4rem;
+      align-items: center;
+    }
+
+    .cause-button {
+      width: 36px;
+      height: 36px;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(15, 23, 42, 0.55);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .cause-button:hover {
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .cause-counter {
+      min-width: 42px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .quick-picks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .quick-pick {
+      padding: 0.45rem 0.8rem;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.15);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .quick-pick:hover {
+      background: rgba(99, 102, 241, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .comment-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .comment-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .comment-toggle span {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .comment-area {
+      display: none;
+      background: rgba(15, 23, 42, 0.65);
+      border-radius: 0.85rem;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      color: var(--text);
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    .comment-area.open {
+      display: block;
+    }
+
+    .editor-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    .editor-actions .btn {
+      flex: 1 1 140px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .history-panel {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      width: min(280px, 90vw);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 0.85rem;
+      padding: 0.75rem 1rem;
+      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.6);
+      display: none;
+      z-index: 5;
+    }
+
+    .history-panel.open {
+      display: block;
+    }
+
+    .history-panel h4 {
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+    }
+
+    .history-entry {
+      padding: 0.55rem 0.65rem;
+      border-radius: 0.75rem;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    .history-actions {
+      margin-top: 0.75rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .history-actions button {
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.5);
       color: var(--danger);
+      border-radius: 0.65rem;
+      padding: 0.35rem 0.75rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .downtime-warning {
+      font-size: 0.8rem;
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     /* Chart section */
@@ -417,116 +863,6 @@
 
     canvas {
       max-height: 350px;
-    }
-
-    /* Modal moderne */
-    dialog {
-      background: var(--card);
-      backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
-      border-radius: 1.5rem;
-      padding: 2rem;
-      max-width: 600px;
-      width: 90vw;
-      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-    }
-
-    dialog::backdrop {
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(8px);
-    }
-
-    .modal-header {
-      margin-bottom: 1.5rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .modal-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .form-label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-      color: var(--text);
-      font-size: 0.9rem;
-    }
-
-    .form-input {
-      width: 100%;
-      padding: 0.75rem 1rem;
-      background: var(--card-light);
-      border: 2px solid var(--border);
-      border-radius: 0.75rem;
-      color: var(--text);
-      font-size: 1rem;
-      transition: all 0.3s ease;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--glow);
-    }
-
-    .justify-display {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(192, 132, 252, 0.2) 100%);
-      border-radius: 1rem;
-      padding: 1.5rem;
-      text-align: center;
-      margin: 1.5rem 0;
-      border: 2px solid var(--primary);
-    }
-
-    .justify-value {
-      font-size: 2.5rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .quick-causes {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      margin-top: 0.75rem;
-    }
-
-    .cause-chip {
-      padding: 0.5rem 1rem;
-      background: var(--card-light);
-      border: 2px solid var(--border);
-      border-radius: 0.75rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .cause-chip:hover {
-      background: var(--primary);
-      border-color: var(--primary);
-      transform: translateY(-2px);
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 1rem;
-      margin-top: 2rem;
-      justify-content: flex-end;
     }
 
     /* Confetti celebration */
@@ -586,8 +922,8 @@
         grid-template-columns: 1fr;
       }
       
-      .hours-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      .operator-layout {
+        grid-template-columns: 1fr;
       }
       
       .badges-grid {
@@ -763,50 +1099,8 @@
     <div data-view="operateur">
       <section>
         <h2 class="section-title">📅 Production Horaire</h2>
-        <div class="hours-grid" id="hours-grid"></div>
+        <div class="operator-layout" id="operator-columns"></div>
       </section>
-
-      <!-- Modal -->
-      <dialog id="hour-modal">
-        <div class="modal-header">
-          <h2 class="modal-title" id="modal-title">Saisie Production</h2>
-          <p style="color: var(--text-muted); margin-top: 0.5rem;" id="modal-subtitle"></p>
-        </div>
-        <form id="hour-form">
-          <input type="hidden" id="hour-index" />
-
-          <div class="form-group">
-            <label class="form-label">Production Bonne (unités)</label>
-            <input type="number" id="good-input" class="form-input" min="0" step="1" required />
-          </div>
-
-          <div class="justify-display">
-            <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">À Justifier</div>
-            <div class="justify-value" id="justify-value">0 min</div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Causes d'Arrêt (sélection rapide)</label>
-            <div class="quick-causes" id="quick-causes">
-              <button type="button" class="cause-chip" data-cause="Production nominale">✅ Nominale</button>
-              <button type="button" class="cause-chip" data-cause="Micro-arrêts">⏱️ Micro-arrêts</button>
-              <button type="button" class="cause-chip" data-cause="Panne machine">🔧 Panne</button>
-              <button type="button" class="cause-chip" data-cause="Changement format">🔄 Format</button>
-              <button type="button" class="cause-chip" data-cause="Approvisionnement">📦 Appro</button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Commentaire</label>
-            <textarea id="comment-input" class="form-input" rows="3" placeholder="Observations, actions..."></textarea>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" id="cancel-btn">Annuler</button>
-            <button type="submit" class="btn btn-primary">✓ Valider</button>
-          </div>
-        </form>
-      </dialog>
     </div>
 
     <div data-view="analyse">
@@ -997,18 +1291,44 @@
       { category: 'Machine', subcategory: 'MASS' }
     ];
 
+    const TEAM_ORDER = ['Equipe Nuit', 'Equipe Jour', 'Equipe Soir'];
+    const QUALITY_TRACKING = true;
+    const MAX_HISTORY_ENTRIES = 10;
+    const CAUSE_STEP = 5;
+    const CAUSE_LONG_STEP = 10;
+    const CAUSE_LONG_DELAY = 600;
+
     // État global en mémoire (PAS de localStorage)
     function createEmptyHourlyData() {
       return new Array(24).fill(null).map((_, i) => ({
         hour: i,
         good: 0,
+        scrap: 0,
         causes: [],
         comment: '',
-        validated: false
+        validated: false,
+        history: []
       }));
     }
 
     let hourlyData = createEmptyHourlyData();
+
+    const CHANGELOG = [];
+
+    function bump(level, messages) {
+      const entry = {
+        level,
+        messages: Array.isArray(messages) ? messages : [messages],
+        timestamp: new Date().toISOString()
+      };
+      CHANGELOG.push(entry);
+      console.info('[CHANGELOG]', entry);
+      return entry;
+    }
+
+    let edits = [];
+    let recentSubcategories = [];
+    const openTileByTeam = new Map();
 
     let currentChart = null;
     let unlockedBadges = new Set();
@@ -1025,6 +1345,8 @@
       rebuildQuickCauses();
       populateParameters();
       setupNavigation();
+
+      document.addEventListener('click', handleDocumentClick);
 
       setInterval(highlightCurrentHour, 60000);
 
@@ -1048,6 +1370,10 @@
       }
 
       setActiveTab(normalized);
+
+      if (normalized === 'operateur') {
+        refreshDisplay();
+      }
 
       if (normalized === 'analyse') {
         refreshDisplay();
@@ -1232,7 +1558,6 @@
           populateParameters();
           refreshDisplay();
           checkBadges();
-          updateJustifyDisplay();
           showToast('📥 Configuration importée', 'success');
         } catch (error) {
           console.error('Erreur import configuration', error);
@@ -1252,161 +1577,1033 @@
       showToast('🧹 Journée réinitialisée', 'success');
     }
 
-    // Construction de la grille d'heures
+    // Construction de la grille opérateur
     function buildHoursGrid() {
-      const grid = document.getElementById('hours-grid');
+      const container = document.getElementById('operator-columns');
+      if (!container) return;
+
+      container.innerHTML = '';
+      openTileByTeam.clear();
+
+      const teams = getOrderedTeams();
       const currentHour = new Date().getHours();
-      
-      for (let i = 0; i < 24; i++) {
-        const card = document.createElement('div');
-        card.className = 'hour-card';
-        card.dataset.hour = i;
-        
-        if (i === currentHour) {
-          card.classList.add('active');
+
+      teams.forEach(team => {
+        const column = createTeamColumn(team, currentHour);
+        container.appendChild(column);
+      });
+    }
+
+    function getOrderedTeams() {
+      const ordered = [];
+      const seen = new Set();
+
+      TEAM_ORDER.forEach(team => {
+        if (team && !seen.has(team)) {
+          seen.add(team);
+          ordered.push(team);
         }
-        
-        const data = hourlyData[i];
-        const trsClass = getTRSClass(data);
-        
-        card.innerHTML = `
-          <div class="hour-time">${String(i).padStart(2, '0')}:00</div>
-          <div class="hour-team">${TEAM_ASSIGNMENTS[i] || ''}</div>
-          <div class="hour-value">${data.validated ? data.good.toLocaleString('fr-FR') : '—'}</div>
-          <div class="hour-label">unités</div>
-          <div class="hour-trs">
-            <span style="font-size: 0.75rem; color: var(--text-muted);">TRS</span>
-            <span class="trs-badge ${trsClass}">${data.validated ? calculateTRS(data) + '%' : '—'}</span>
+      });
+
+      TEAM_ASSIGNMENTS.forEach(team => {
+        const clean = team || '';
+        if (clean && !seen.has(clean)) {
+          seen.add(clean);
+          ordered.push(clean);
+        }
+      });
+
+      return ordered;
+    }
+
+    function createTeamColumn(team, currentHour) {
+      const column = document.createElement('div');
+      column.className = 'team-column';
+      column.dataset.team = team;
+
+      const teamHours = getTeamHours(team);
+      const stats = calculateTeamStats(team, teamHours);
+
+      const header = document.createElement('div');
+      header.className = 'team-header';
+
+      const title = document.createElement('div');
+      title.className = 'team-title';
+      title.innerHTML = `<span>${team}</span><span>${stats.oeeText}</span>`;
+
+      const metrics = document.createElement('div');
+      metrics.className = 'team-metrics';
+      metrics.innerHTML = `
+        <div>
+          <span>OEE équipe</span>
+          <strong>${stats.oeeText}</strong>
+        </div>
+        <div>
+          <span>Heures validées</span>
+          <strong>${stats.validated}/${stats.total}</strong>
+        </div>
+      `;
+
+      const progress = document.createElement('div');
+      progress.className = 'team-progress';
+      const bar = document.createElement('span');
+      bar.style.width = `${Math.min(100, Math.round(stats.ratio * 100))}%`;
+      progress.appendChild(bar);
+
+      header.appendChild(title);
+      header.appendChild(metrics);
+      header.appendChild(progress);
+
+      const hoursWrapper = document.createElement('div');
+      hoursWrapper.className = 'team-hours';
+      hoursWrapper.dataset.teamHours = team;
+
+      if (teamHours.length === 0) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'hour-tile is-empty';
+        placeholder.innerHTML = '<div class="tile-placeholder">Aucune heure assignée</div>';
+        hoursWrapper.appendChild(placeholder);
+      } else {
+        teamHours.forEach(hour => {
+          const tile = createHourTile(hour, team, currentHour);
+          hoursWrapper.appendChild(tile);
+        });
+      }
+
+      column.appendChild(header);
+      column.appendChild(hoursWrapper);
+      return column;
+    }
+
+    function getTeamHours(team) {
+      return TEAM_ASSIGNMENTS
+        .map((assignment, index) => ({ assignment, index }))
+        .filter(item => item.assignment === team)
+        .map(item => item.index);
+    }
+
+    function calculateTeamStats(team, teamHours) {
+      const hours = teamHours.length ? teamHours : Array.from({ length: 24 }, (_, i) => i);
+      const validatedData = hours
+        .map(hour => hourlyData[hour])
+        .filter(data => data && data.validated);
+
+      const validated = validatedData.length;
+      const total = hours.length || 24;
+      const ratio = total > 0 ? validated / total : 0;
+
+      const oeeAverage = validated > 0
+        ? Math.round(validatedData.reduce((sum, data) => sum + calculateComponents(data).oee, 0) / validated)
+        : null;
+
+      return {
+        validated,
+        total,
+        ratio,
+        oee: oeeAverage,
+        oeeText: Number.isFinite(oeeAverage) ? `${oeeAverage}%` : '—'
+      };
+    }
+
+    function createHourTile(hour, team, currentHour) {
+      if (!hourlyData[hour]) {
+        hourlyData[hour] = createEmptyHour(hour);
+      }
+
+      const tile = document.createElement('div');
+      tile.className = 'hour-tile';
+      tile.dataset.hour = hour;
+      tile.dataset.team = team;
+
+      if (hour === currentHour) {
+        tile.classList.add('is-current');
+      }
+
+      const data = hourlyData[hour];
+
+      const summary = document.createElement('div');
+      summary.className = 'tile-summary';
+      tile.appendChild(summary);
+
+      const historyPanel = renderHistoryPanel(tile);
+      tile.appendChild(historyPanel);
+
+      const editor = renderTileEditor(tile, data, team);
+      tile.appendChild(editor);
+
+      tile.__summary = summary;
+      tile.__historyPanel = historyPanel;
+      tile.__team = team;
+
+      updateTileSummary(tile, data, team);
+
+      tile.addEventListener('click', (event) => {
+        if (tile.classList.contains('is-editing')) return;
+        if (event.target.closest('.tile-actions')) return;
+        openTileEditor(tile);
+      });
+
+      tile.addEventListener('dblclick', () => {
+        openTileEditor(tile, { prefillCadence: true });
+      });
+
+      return tile;
+    }
+
+    function createEmptyHour(hour) {
+      return {
+        hour,
+        good: 0,
+        scrap: 0,
+        causes: [],
+        comment: '',
+        validated: false,
+        history: []
+      };
+    }
+
+    function updateTileSummary(tile, data, team) {
+      const summary = tile.__summary;
+      if (!summary) return;
+
+      if (!data.validated) {
+        tile.classList.add('is-empty');
+        tile.classList.remove('is-validated');
+        tile.dataset.oeeZone = '';
+        summary.innerHTML = `
+          <div class="tile-header">
+            <div>
+              <div class="tile-time">${formatHourRange(data.hour)}</div>
+              <div class="tile-team">${team}</div>
+            </div>
           </div>
+          <div class="tile-placeholder">Cliquez pour saisir</div>
         `;
-        
-        if (data.validated) {
-          card.classList.add('validated');
-          if (calculateTRS(data) < TRS_THRESHOLDS.good) {
-            card.classList.add('low-trs');
-          }
-        }
-        
-        card.addEventListener('click', () => openHourModal(i));
-        grid.appendChild(card);
+        return;
+      }
+
+      tile.classList.remove('is-empty');
+      tile.classList.add('is-validated');
+
+      const components = calculateComponents(data);
+      const oee = Math.round(components.oee);
+      const availability = Math.round(components.availability * 100);
+      const performance = Math.round(components.performance * 100);
+      const quality = Math.round(components.quality * 100);
+      const downtime = Math.round(components.downtime);
+
+      const zone = getOeeZone(oee);
+      tile.dataset.oeeZone = zone || '';
+
+      const badges = [
+        `<span class="tile-badge" data-summary-badge="good">Bonne <strong>${(data.good || 0).toLocaleString('fr-FR')}</strong></span>`
+      ];
+
+      if (QUALITY_TRACKING) {
+        badges.push(`<span class="tile-badge" data-summary-badge="scrap">Rebut <strong>${(data.scrap || 0).toLocaleString('fr-FR')}</strong></span>`);
+      }
+
+      badges.push(`<span class="tile-badge" data-summary-badge="downtime">Arrêts <strong>${downtime} min</strong></span>`);
+
+      const causes = data.causes && data.causes.length
+        ? data.causes.map(cause => {
+            const label = [cause.category, cause.subcategory].filter(Boolean).join(' › ') || 'Cause';
+            return `<span>${label} • ${cause.minutes} min</span>`;
+          }).join('')
+        : '<span>Aucune cause renseignée</span>';
+
+      summary.innerHTML = `
+        <div class="tile-header">
+          <div>
+            <div class="tile-time">${formatHourRange(data.hour)}</div>
+            <div class="tile-team">${team}</div>
+          </div>
+          <div class="tile-oee">
+            ${oee}%
+            <small>D${availability} · P${performance} · Q${quality}</small>
+          </div>
+        </div>
+        <div class="tile-micro-metrics">${badges.join('')}</div>
+        <div class="tile-causes">${causes}</div>
+        <div class="tile-actions">
+          <button type="button" class="tile-icon-btn" data-action="edit" title="Modifier">✏️</button>
+          <button type="button" class="tile-icon-btn" data-action="history" title="Historique">⋯</button>
+        </div>
+      `;
+
+      summary.querySelector('[data-action="edit"]').addEventListener('click', (event) => {
+        event.stopPropagation();
+        openTileEditor(tile);
+      });
+
+      summary.querySelector('[data-action="history"]').addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleHistoryPanel(tile);
+      });
+
+      const quickGood = summary.querySelector('[data-summary-badge="good"]');
+      if (quickGood) {
+        quickGood.style.cursor = 'pointer';
+        quickGood.title = 'Modifier rapidement la production';
+        quickGood.addEventListener('click', (event) => {
+          event.stopPropagation();
+          quickEditGood(tile);
+        });
       }
     }
 
-    function getTRSClass(data) {
-      if (!data.validated) return '';
-      const trs = calculateTRS(data);
-      if (trs >= TRS_THRESHOLDS.excellent) return 'trs-excellent';
-      if (trs >= TRS_THRESHOLDS.good) return 'trs-good';
-      return 'trs-low';
+    function getOeeZone(oee) {
+      if (!Number.isFinite(oee)) return '';
+      if (oee >= TRS_THRESHOLDS.excellent) return 'success';
+      if (oee >= TRS_THRESHOLDS.good) return 'warning';
+      return 'danger';
     }
 
-    function calculateTRS(data) {
-      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-      const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
-      const availability = Math.max(0, (60 - downtime) / 60);
-      const performance = targetRate > 0 ? Math.min(1, data.good / targetRate) : 0;
-      return Math.round(availability * performance * 100);
+    function renderHistoryPanel(tile) {
+      const panel = document.createElement('div');
+      panel.className = 'history-panel';
+      panel.innerHTML = `
+        <h4>Historique des modifications</h4>
+        <div class="history-list"></div>
+        <div class="history-actions">
+          <button type="button" data-action="delete-hour">Supprimer cette heure</button>
+        </div>
+      `;
+
+      panel.querySelector('[data-action="delete-hour"]').addEventListener('click', (event) => {
+        event.stopPropagation();
+        const hour = parseInt(tile.dataset.hour);
+        if (confirm('Supprimer définitivement la saisie de cette heure ?')) {
+          deleteHour(hour);
+          showToast('🗑️ Heure supprimée', 'success');
+        }
+      });
+
+      updateHistoryPanel(tile, panel);
+      return panel;
     }
 
-    function highlightCurrentHour() {
-      const currentHour = new Date().getHours();
-      document.querySelectorAll('.hour-card').forEach(card => {
-        const hour = parseInt(card.dataset.hour);
-        if (hour === currentHour) {
-          card.classList.add('active');
-        } else {
-          card.classList.remove('active');
+    function updateHistoryPanel(tile, panel = tile.__historyPanel) {
+      if (!panel) return;
+      const list = panel.querySelector('.history-list');
+      const hour = parseInt(tile.dataset.hour);
+      const history = (hourlyData[hour] && hourlyData[hour].history) || [];
+
+      list.innerHTML = '';
+
+      if (!history.length) {
+        const empty = document.createElement('div');
+        empty.className = 'tile-placeholder';
+        empty.textContent = 'Aucune modification enregistrée';
+        list.appendChild(empty);
+        return;
+      }
+
+      history.slice(0, MAX_HISTORY_ENTRIES).forEach(entry => {
+        const item = document.createElement('div');
+        item.className = 'history-entry';
+        const date = new Date(entry.timestamp);
+        const details = [`OEE ${entry.oee}%`];
+        if (Number.isFinite(entry.good)) {
+          details.push(`Bonne ${entry.good.toLocaleString('fr-FR')}`);
+        }
+        if (QUALITY_TRACKING && Number.isFinite(entry.scrap)) {
+          details.push(`Rebut ${entry.scrap.toLocaleString('fr-FR')}`);
+        }
+        details.push(`Arrêts ${entry.downtime} min`);
+
+        item.innerHTML = `
+          <div style="font-weight:600;">${date.toLocaleString('fr-FR')}</div>
+          <div style="color: var(--text-muted); font-size:0.8rem;">${details.join(' • ')}</div>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    function toggleHistoryPanel(tile) {
+      const panel = tile.__historyPanel;
+      if (!panel) return;
+
+      const isOpen = panel.classList.contains('open');
+      document.querySelectorAll('.history-panel.open').forEach(p => p.classList.remove('open'));
+
+      if (!isOpen) {
+        updateHistoryPanel(tile, panel);
+        panel.classList.add('open');
+      }
+    }
+
+    function renderTileEditor(tile, data, team) {
+      const editor = document.createElement('div');
+      editor.className = 'hour-editor';
+      editor.dataset.team = team;
+
+      const header = document.createElement('div');
+      header.className = 'editor-header';
+      header.innerHTML = `
+        <h3>${formatHourRange(data.hour)} • ${team}</h3>
+        <div class="editor-metrics" data-editor-metrics></div>
+      `;
+
+      const grid = document.createElement('div');
+      grid.className = 'editor-grid';
+
+      const productionBlock = document.createElement('div');
+      productionBlock.className = 'editor-block';
+      productionBlock.innerHTML = `
+        <label>Production bonne (unités)</label>
+        <input type="number" min="0" step="100" class="editor-input" data-field="good" />
+      `;
+
+      const scrapBlock = document.createElement('div');
+      scrapBlock.className = 'editor-block';
+      if (QUALITY_TRACKING) {
+        scrapBlock.innerHTML = `
+          <label>Rebut (unités)</label>
+          <input type="number" min="0" step="10" class="editor-input" data-field="scrap" />
+        `;
+      }
+
+      const availabilityBlock = document.createElement('div');
+      availabilityBlock.className = 'editor-block';
+      availabilityBlock.innerHTML = `
+        <label>Disponibilité</label>
+        <div class="availability-info" data-availability-info>0 / 60 min</div>
+        <div class="availability-bar"><span data-availability-bar></span></div>
+        <div class="downtime-warning" data-downtime-warning style="display:none;"></div>
+      `;
+
+      grid.appendChild(productionBlock);
+      if (QUALITY_TRACKING) {
+        grid.appendChild(scrapBlock);
+      }
+      grid.appendChild(availabilityBlock);
+
+      const causesBlock = document.createElement('div');
+      causesBlock.className = 'editor-block';
+      causesBlock.innerHTML = `
+        <label>Causes d'arrêt</label>
+        <div class="quick-picks" data-quick-picks></div>
+        <div class="cause-accordions" data-cause-accordions></div>
+      `;
+
+      const commentBlock = document.createElement('div');
+      commentBlock.className = 'comment-block';
+      commentBlock.innerHTML = `
+        <div class="comment-toggle" data-comment-toggle>
+          <span>Commentaire</span>
+          <small>(cliquer pour dérouler)</small>
+        </div>
+        <textarea class="comment-area" data-comment-area placeholder="Observations, actions..."></textarea>
+      `;
+
+      const actions = document.createElement('div');
+      actions.className = 'editor-actions';
+      actions.innerHTML = `
+        <button type="button" class="btn btn-secondary" data-action="cancel">Annuler</button>
+        <button type="button" class="btn btn-secondary" data-action="save">💾 Enregistrer</button>
+        <button type="button" class="btn btn-primary" data-action="validate">✅ Valider</button>
+      `;
+
+      editor.appendChild(header);
+      editor.appendChild(grid);
+      editor.appendChild(causesBlock);
+      editor.appendChild(commentBlock);
+      editor.appendChild(actions);
+
+      tile.__editor = editor;
+      tile.__refs = {
+        metrics: editor.querySelector('[data-editor-metrics]'),
+        goodInput: editor.querySelector('input[data-field="good"]'),
+        scrapInput: QUALITY_TRACKING ? editor.querySelector('input[data-field="scrap"]') : null,
+        availabilityInfo: editor.querySelector('[data-availability-info]'),
+        availabilityBar: editor.querySelector('[data-availability-bar]'),
+        downtimeWarning: editor.querySelector('[data-downtime-warning]'),
+        quickPicks: editor.querySelector('[data-quick-picks]'),
+        causeContainer: editor.querySelector('[data-cause-accordions]'),
+        commentToggle: editor.querySelector('[data-comment-toggle]'),
+        commentArea: editor.querySelector('[data-comment-area]'),
+        actions,
+        header
+      };
+
+      setupEditorInteractions(tile, data);
+
+      return editor;
+    }
+
+    function setupEditorInteractions(tile, data) {
+      const refs = tile.__refs;
+      const state = cloneHourData(data);
+      tile.__state = state;
+      tile.__original = cloneHourData(data);
+
+      refs.goodInput.value = state.good || 0;
+      refs.goodInput.addEventListener('input', () => {
+        state.good = Math.max(0, parseInt(refs.goodInput.value, 10) || 0);
+        updateEditorFromState(tile);
+      });
+
+      if (refs.scrapInput) {
+        refs.scrapInput.value = state.scrap || 0;
+        refs.scrapInput.addEventListener('input', () => {
+          state.scrap = Math.max(0, parseInt(refs.scrapInput.value, 10) || 0);
+          updateEditorFromState(tile);
+        });
+      }
+
+      refs.commentArea.value = state.comment || '';
+      refs.commentToggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        refs.commentArea.classList.toggle('open');
+      });
+
+      refs.commentArea.addEventListener('input', () => {
+        state.comment = refs.commentArea.value;
+      });
+
+      refs.actions.querySelector('[data-action="cancel"]').addEventListener('click', (event) => {
+        event.stopPropagation();
+        closeTileEditor(tile, true);
+      });
+
+      refs.actions.querySelector('[data-action="save"]').addEventListener('click', (event) => {
+        event.stopPropagation();
+        persistTileState(tile, { validate: false });
+      });
+
+      refs.actions.querySelector('[data-action="validate"]').addEventListener('click', (event) => {
+        event.stopPropagation();
+        persistTileState(tile, { validate: true });
+      });
+
+      buildCauseAccordions(tile);
+      populateQuickPicks(refs.quickPicks, tile, state);
+      updateEditorFromState(tile);
+
+      refs.causeContainer.addEventListener('keydown', (event) => {
+        if (!tile.classList.contains('is-editing')) return;
+        const row = event.target.closest('.cause-row');
+        if (!row) return;
+        const category = row.dataset.category;
+        const subcategory = row.dataset.subcategory;
+
+        if (event.key === '+' || event.key === '=' || event.key === 'Add') {
+          event.preventDefault();
+          updateCauseMinutes(tile, state, category, subcategory, CAUSE_STEP);
+        }
+        if (event.key === '-' || event.key === '_' || event.key === 'Subtract') {
+          event.preventDefault();
+          updateCauseMinutes(tile, state, category, subcategory, -CAUSE_STEP);
         }
       });
     }
 
-    // Modal de saisie
-    function openHourModal(hour) {
-      const modal = document.getElementById('hour-modal');
-      const data = hourlyData[hour];
-      
-      document.getElementById('hour-index').value = hour;
-      document.getElementById('modal-title').textContent = `Saisie ${String(hour).padStart(2, '0')}:00 — ${String((hour + 1) % 24).padStart(2, '0')}:00`;
-      document.getElementById('modal-subtitle').textContent = TEAM_ASSIGNMENTS[hour];
-      
-      document.getElementById('good-input').value = data.validated ? data.good : '';
-      document.getElementById('comment-input').value = data.comment || '';
-      
-      updateJustifyDisplay();
-      
-      modal.showModal();
-      document.getElementById('good-input').focus();
+    function buildCauseAccordions(tile) {
+      const refs = tile.__refs;
+      const state = tile.__state;
+      const container = refs.causeContainer;
+      container.innerHTML = '';
+
+      const grouped = CATEGORY_DATA.reduce((acc, item) => {
+        const category = item.category || 'Autres';
+        if (!acc[category]) acc[category] = [];
+        if (item.subcategory && !acc[category].includes(item.subcategory)) {
+          acc[category].push(item.subcategory);
+        }
+        if (!item.subcategory && !acc[category].length) {
+          acc[category].push('');
+        }
+        return acc;
+      }, {});
+
+      Object.keys(grouped).forEach(category => {
+        const accordion = document.createElement('div');
+        accordion.className = 'cause-accordion';
+
+        const header = document.createElement('button');
+        header.type = 'button';
+        header.className = 'accordion-header';
+        header.innerHTML = `<span>${category}</span><span>${grouped[category].length} sous-catégories</span>`;
+
+        const content = document.createElement('div');
+        content.className = 'accordion-content';
+
+        header.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const isOpen = content.classList.contains('open');
+          container.querySelectorAll('.accordion-content.open').forEach(el => el.classList.remove('open'));
+          if (!isOpen) {
+            content.classList.add('open');
+          }
+        });
+
+        grouped[category].forEach(subcategory => {
+          const row = document.createElement('div');
+          row.className = 'cause-row';
+          row.dataset.category = category;
+          row.dataset.subcategory = subcategory;
+
+          const label = [category, subcategory].filter(Boolean).join(' › ') || category;
+          const existing = state.causes.find(c => c.category === category && c.subcategory === subcategory);
+          const minutes = existing ? existing.minutes : 0;
+
+          row.innerHTML = `
+            <span>${label}</span>
+            <div class="cause-controls">
+              <button type="button" class="cause-button" data-action="decrement">−5</button>
+              <div class="cause-counter" tabindex="0">${minutes}</div>
+              <button type="button" class="cause-button" data-action="increment">+5</button>
+            </div>
+          `;
+
+          const minusBtn = row.querySelector('[data-action="decrement"]');
+          const plusBtn = row.querySelector('[data-action="increment"]');
+
+          minusBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (minusBtn.dataset.longPressTriggered === 'true') {
+              minusBtn.dataset.longPressTriggered = 'false';
+              return;
+            }
+            updateCauseMinutes(tile, state, category, subcategory, -CAUSE_STEP);
+          });
+
+          plusBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (plusBtn.dataset.longPressTriggered === 'true') {
+              plusBtn.dataset.longPressTriggered = 'false';
+              return;
+            }
+            updateCauseMinutes(tile, state, category, subcategory, CAUSE_STEP);
+          });
+
+          attachLongPress(minusBtn, () => updateCauseMinutes(tile, state, category, subcategory, -CAUSE_LONG_STEP));
+          attachLongPress(plusBtn, () => updateCauseMinutes(tile, state, category, subcategory, CAUSE_LONG_STEP));
+
+          content.appendChild(row);
+        });
+
+        accordion.appendChild(header);
+        accordion.appendChild(content);
+        container.appendChild(accordion);
+      });
     }
 
-    document.getElementById('good-input').addEventListener('input', updateJustifyDisplay);
+    function attachLongPress(button, callback) {
+      let timer = null;
 
-    function updateJustifyDisplay() {
-      const good = parseInt(document.getElementById('good-input').value) || 0;
-      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-      const used = targetRate > 0 ? (good / targetRate) * 60 : 60;
-      const toJustify = Math.max(0, Math.round((60 - used) / 5) * 5);
-      
-      document.getElementById('justify-value').textContent = `${toJustify} min`;
+      const start = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          button.dataset.longPressTriggered = 'true';
+          callback();
+        }, CAUSE_LONG_DELAY);
+      };
+
+      const clear = () => {
+        clearTimeout(timer);
+        timer = null;
+      };
+
+      button.addEventListener('mousedown', start);
+      button.addEventListener('touchstart', start, { passive: true });
+      button.addEventListener('mouseup', clear);
+      button.addEventListener('mouseleave', clear);
+      button.addEventListener('touchend', clear);
+      button.addEventListener('touchcancel', clear);
     }
 
-    // Gestion des causes rapides
-    document.getElementById('quick-causes').addEventListener('click', (e) => {
-      if (e.target.classList.contains('cause-chip')) {
-        const cause = e.target.dataset.cause;
-        e.target.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-          e.target.style.transform = '';
-        }, 200);
-        
-        showToast(`Cause "${cause}" ajoutée`, 'success');
+    function populateQuickPicks(container, tile, state) {
+      if (!container) return;
+      container.innerHTML = '';
+
+      const filtered = recentSubcategories.filter(entry =>
+        CATEGORY_DATA.some(item => item.category === entry.category && item.subcategory === entry.subcategory)
+      );
+
+      if (!filtered.length) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'tile-placeholder';
+        placeholder.textContent = 'Aucune sélection récente';
+        container.appendChild(placeholder);
+        return;
       }
-    });
 
-    // Soumission du formulaire
-    document.getElementById('hour-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const hour = parseInt(document.getElementById('hour-index').value);
-      const good = parseInt(document.getElementById('good-input').value) || 0;
-      const comment = document.getElementById('comment-input').value.trim();
-      
-      // Calcul automatique des causes
-      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-      const used = targetRate > 0 ? (good / targetRate) * 60 : 60;
-      const toJustify = Math.max(0, Math.round((60 - used) / 5) * 5);
-      
-      const causes = toJustify > 0 ? [
-        { name: 'Production nominale', minutes: 60 - toJustify },
-        { name: 'Micro-arrêts cumulés', minutes: toJustify }
-      ] : [{ name: 'Production nominale', minutes: 60 }];
-      
-      hourlyData[hour] = {
+      filtered.forEach(entry => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'quick-pick';
+        const label = [entry.category, entry.subcategory].filter(Boolean).join(' › ');
+        btn.textContent = label;
+        btn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          updateCauseMinutes(tile, state, entry.category, entry.subcategory, CAUSE_STEP);
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function updateRecentSubcategories(category, subcategory) {
+      if (!subcategory) return;
+      const key = `${category}|||${subcategory}`;
+      recentSubcategories = [
+        { category, subcategory, key },
+        ...recentSubcategories.filter(item => item.key !== key)
+      ].slice(0, 8);
+      rebuildQuickCauses();
+    }
+
+    function updateCauseMinutes(tile, state, category, subcategory, delta) {
+      const existing = state.causes.find(cause => cause.category === category && cause.subcategory === subcategory);
+      const currentMinutes = existing ? existing.minutes : 0;
+      const proposed = Math.max(0, currentMinutes + delta);
+
+      const totalWithout = state.causes.reduce((sum, cause) => sum + (cause.minutes || 0), 0) - currentMinutes + proposed;
+
+      if (totalWithout > 60) {
+        showToast('⏱️ Maximum 60 minutes d\'arrêt', 'error');
+        return false;
+      }
+
+      if (proposed === 0) {
+        state.causes = state.causes.filter(cause => !(cause.category === category && cause.subcategory === subcategory));
+      } else if (existing) {
+        existing.minutes = proposed;
+      } else {
+        state.causes.push({
+          id: `${category}-${subcategory}`,
+          category,
+          subcategory,
+          minutes: proposed
+        });
+      }
+
+      if (proposed > 0 && delta > 0) {
+        updateRecentSubcategories(category, subcategory);
+      }
+
+      updateEditorFromState(tile);
+      return true;
+    }
+
+    function updateEditorFromState(tile) {
+      const refs = tile.__refs;
+      const state = tile.__state;
+      if (!refs || !state) return;
+
+      const totalDowntime = state.causes.reduce((sum, cause) => sum + (cause.minutes || 0), 0);
+      const components = calculateComponents(state);
+
+      refs.metrics.innerHTML = `
+        <span>OEE ${Math.round(components.oee)}%</span>
+        <span>D ${Math.round(components.availability * 100)}%</span>
+        <span>P ${Math.round(components.performance * 100)}%</span>
+        <span>Q ${Math.round(components.quality * 100)}%</span>
+      `;
+
+      refs.availabilityInfo.textContent = `${Math.round(totalDowntime)} min / 60`;
+
+      const barWidth = Math.max(0, Math.min(100, ((60 - totalDowntime) / 60) * 100));
+      refs.availabilityBar.style.width = `${barWidth}%`;
+      refs.availabilityBar.style.background = getDowntimeColor(totalDowntime);
+
+      const validateBtn = refs.actions.querySelector('[data-action="validate"]');
+      const saveBtn = refs.actions.querySelector('[data-action="save"]');
+      const exceeds = totalDowntime > 60;
+
+      refs.downtimeWarning.style.display = exceeds ? '' : 'none';
+      refs.downtimeWarning.textContent = exceeds ? 'Limite de 60 minutes dépassée' : '';
+
+      if (validateBtn) validateBtn.disabled = exceeds;
+      if (saveBtn) saveBtn.disabled = exceeds;
+
+      refs.causeContainer.querySelectorAll('.cause-row').forEach(row => {
+        const minutes = state.causes.find(cause => cause.category === row.dataset.category && cause.subcategory === row.dataset.subcategory);
+        const counter = row.querySelector('.cause-counter');
+        if (counter) {
+          counter.textContent = minutes ? minutes.minutes : 0;
+        }
+      });
+
+      populateQuickPicks(refs.quickPicks, tile, state);
+      updateTileSummaryFromState(tile);
+    }
+
+    function getDowntimeColor(minutes) {
+      if (minutes < 15) return 'linear-gradient(90deg, rgba(16,185,129,0.8), rgba(56,189,248,0.8))';
+      if (minutes < 30) return 'linear-gradient(90deg, rgba(245,158,11,0.8), rgba(249,115,22,0.8))';
+      return 'linear-gradient(90deg, rgba(239,68,68,0.8), rgba(248,113,113,0.8))';
+    }
+
+    function updateTileSummaryFromState(tile) {
+      const state = tile.__state;
+      if (!state || !tile.classList.contains('is-editing')) return;
+      const preview = cloneHourData(state);
+      preview.validated = true;
+      updateTileSummary(tile, preview, tile.__team);
+    }
+
+    function formatHourRange(hour) {
+      const start = String(hour).padStart(2, '0');
+      const end = String((hour + 1) % 24).padStart(2, '0');
+      return `${start}h-${end}h`;
+    }
+
+    function openTileEditor(tile, options = {}) {
+      if (!tile || tile.classList.contains('is-editing')) return;
+      const team = tile.dataset.team;
+      const currentlyOpen = openTileByTeam.get(team);
+      if (currentlyOpen && currentlyOpen !== tile) {
+        const closed = closeTileEditor(currentlyOpen);
+        if (!closed) {
+          return;
+        }
+      }
+
+      openTileByTeam.set(team, tile);
+      tile.classList.add('is-editing');
+      tile.classList.remove('is-empty');
+
+      const state = tile.__state || cloneHourData(hourlyData[parseInt(tile.dataset.hour)] || createEmptyHour(parseInt(tile.dataset.hour)));
+      tile.__state = state;
+      tile.__original = cloneHourData(hourlyData[parseInt(tile.dataset.hour)] || createEmptyHour(parseInt(tile.dataset.hour)));
+
+      if (options.prefillCadence) {
+        const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+        if (!state.good) {
+          state.good = targetRate;
+        }
+      }
+
+      updateEditorFromState(tile);
+      const refs = tile.__refs;
+      if (refs && refs.goodInput) {
+        setTimeout(() => refs.goodInput.focus(), 0);
+      }
+
+      document.querySelectorAll('.history-panel.open').forEach(panel => panel.classList.remove('open'));
+    }
+
+    function closeTileEditor(tile, force = false) {
+      if (!tile || !tile.classList.contains('is-editing')) return true;
+
+      const stateChanged = hasStateChanged(tile);
+      if (stateChanged && !force) {
+        const shouldSave = confirm('Des modifications non enregistrées. Voulez-vous les enregistrer ?');
+        if (shouldSave) {
+          const saved = persistTileState(tile, { validate: false, stayOpen: false });
+          return saved;
+        }
+      }
+
+      tile.classList.remove('is-editing');
+      const team = tile.dataset.team;
+      if (openTileByTeam.get(team) === tile) {
+        openTileByTeam.delete(team);
+      }
+
+      const original = tile.__original || cloneHourData(hourlyData[parseInt(tile.dataset.hour)] || createEmptyHour(parseInt(tile.dataset.hour)));
+      tile.__state = cloneHourData(original);
+      updateTileSummary(tile, original, tile.__team);
+
+      if (tile.__refs) {
+        tile.__refs.downtimeWarning.style.display = 'none';
+      }
+
+      return true;
+    }
+
+    function hasStateChanged(tile) {
+      const state = tile.__state;
+      const original = tile.__original;
+      if (!state || !original) return false;
+
+      const normalize = (entry) => ({
+        good: entry.good || 0,
+        scrap: entry.scrap || 0,
+        comment: entry.comment || '',
+        causes: (entry.causes || []).map(cause => ({
+          category: cause.category,
+          subcategory: cause.subcategory,
+          minutes: cause.minutes || 0
+        })).sort((a, b) => (a.category + a.subcategory).localeCompare(b.category + b.subcategory))
+      });
+
+      const a = normalize(state);
+      const b = normalize(original);
+
+      if (a.good !== b.good || a.scrap !== b.scrap || a.comment !== b.comment) return true;
+      if (a.causes.length !== b.causes.length) return true;
+      for (let i = 0; i < a.causes.length; i++) {
+        if (a.causes[i].category !== b.causes[i].category || a.causes[i].subcategory !== b.causes[i].subcategory || a.causes[i].minutes !== b.causes[i].minutes) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    function cloneHourData(data) {
+      if (!data) return null;
+      return {
+        hour: data.hour,
+        good: data.good || 0,
+        scrap: data.scrap || 0,
+        causes: (data.causes || []).map(cause => ({
+          id: cause.id || `${cause.category}-${cause.subcategory}`,
+          category: cause.category || '',
+          subcategory: cause.subcategory || '',
+          minutes: cause.minutes || 0
+        })),
+        comment: data.comment || '',
+        validated: Boolean(data.validated),
+        history: Array.isArray(data.history) ? data.history.map(entry => ({ ...entry })) : []
+      };
+    }
+
+    function persistTileState(tile, { validate = false, stayOpen } = {}) {
+      const state = tile.__state;
+      if (!state) return false;
+
+      const totalDowntime = state.causes.reduce((sum, cause) => sum + (cause.minutes || 0), 0);
+      if (totalDowntime > 60) {
+        showToast('⏱️ Limite de 60 minutes dépassée', 'error');
+        return false;
+      }
+
+      const hour = parseInt(tile.dataset.hour);
+      const previous = cloneHourData(hourlyData[hour] || createEmptyHour(hour));
+
+      const newEntry = {
         hour,
+        good: Math.max(0, Math.round(state.good || 0)),
+        scrap: Math.max(0, Math.round(state.scrap || 0)),
+        causes: state.causes.filter(cause => cause.minutes > 0).map(cause => ({
+          id: cause.id || `${cause.category}-${cause.subcategory}`,
+          category: cause.category,
+          subcategory: cause.subcategory,
+          minutes: cause.minutes
+        })),
+        comment: state.comment || '',
+        validated: validate ? true : (state.validated || previous.validated || false),
+        history: Array.isArray(previous.history) ? [...previous.history] : [],
+        timestamp: new Date().toISOString()
+      };
+
+      const historyEntry = recordEdit(hour, previous, newEntry, validate ? 'validation' : 'save');
+      newEntry.history = [historyEntry, ...newEntry.history].slice(0, MAX_HISTORY_ENTRIES);
+
+      hourlyData[hour] = newEntry;
+      tile.__original = cloneHourData(newEntry);
+      tile.__state = cloneHourData(newEntry);
+
+      if (stayOpen === undefined) {
+        stayOpen = !validate;
+      }
+
+      updateKPIs();
+      updateChart();
+      checkBadges();
+
+      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+      celebrate(newEntry.good >= targetRate && validate);
+
+      if (stayOpen) {
+        updateEditorFromState(tile);
+        showToast(validate ? '✅ Heure validée' : '💾 Modifications enregistrées', 'success');
+        return true;
+      }
+
+      showToast(validate ? '✅ Heure validée' : '💾 Modifications enregistrées', 'success');
+      refreshDisplay();
+      return true;
+    }
+
+    function recordEdit(hour, previous, next, action = 'update') {
+      const components = calculateComponents(next);
+      const entry = {
+        hour,
+        action,
+        timestamp: new Date().toISOString(),
+        good: next.good || 0,
+        scrap: next.scrap || 0,
+        downtime: Math.round(components.downtime),
+        oee: Math.round(components.oee)
+      };
+
+      edits.unshift(entry);
+      if (edits.length > 200) {
+        edits.length = 200;
+      }
+
+      return entry;
+    }
+
+    function deleteHour(hour) {
+      const previous = cloneHourData(hourlyData[hour]);
+      hourlyData[hour] = createEmptyHour(hour);
+      recordEdit(hour, previous, hourlyData[hour], 'delete');
+      refreshDisplay();
+      updateKPIs();
+      updateChart();
+      checkBadges();
+    }
+
+    function highlightCurrentHour() {
+      const currentHour = new Date().getHours();
+      document.querySelectorAll('.hour-tile').forEach(tile => {
+        const hour = parseInt(tile.dataset.hour);
+        tile.classList.toggle('is-current', hour === currentHour);
+      });
+    }
+
+    function handleDocumentClick(event) {
+      const tile = event.target.closest('.hour-tile');
+      if (!tile) {
+        document.querySelectorAll('.history-panel.open').forEach(panel => panel.classList.remove('open'));
+        Array.from(openTileByTeam.values()).forEach(openTile => {
+          closeTileEditor(openTile);
+        });
+      }
+    }
+
+    function quickEditGood(tile) {
+      const hour = parseInt(tile.dataset.hour);
+      const current = cloneHourData(hourlyData[hour] || createEmptyHour(hour));
+      const input = prompt('Nouvelle production bonne ?', current.good || 0);
+      if (input === null) return;
+
+      const good = Math.max(0, parseInt(input, 10) || 0);
+      if (good === current.good) return;
+
+      const updated = {
+        ...current,
         good,
-        causes: causes.filter(c => c.minutes > 0),
-        comment,
         validated: true,
         timestamp: new Date().toISOString()
       };
-      
-      document.getElementById('hour-modal').close();
-      
-      refreshDisplay();
-      celebrate(good >= targetRate);
-      checkBadges();
-      
-      showToast('✓ Production enregistrée avec succès', 'success');
-    });
 
-    document.getElementById('cancel-btn').addEventListener('click', () => {
-      document.getElementById('hour-modal').close();
-    });
+      const historyEntry = recordEdit(hour, current, updated, 'inline-good');
+      updated.history = [historyEntry, ...(current.history || [])].slice(0, MAX_HISTORY_ENTRIES);
+
+      hourlyData[hour] = updated;
+
+      refreshDisplay();
+      updateKPIs();
+      updateChart();
+      checkBadges();
+
+      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+      celebrate(updated.good >= targetRate);
+      showToast('✏️ Production mise à jour', 'success');
+    }
+
 
     // Actualisation de l'affichage
     function refreshDisplay() {
-      const grid = document.getElementById('hours-grid');
-      grid.innerHTML = '';
       buildHoursGrid();
+      highlightCurrentHour();
       updateKPIs();
       updateChart();
     }
@@ -1414,7 +2611,7 @@
     // KPIs
     function updateKPIs() {
       const validatedData = hourlyData.filter(d => d.validated);
-      
+
       if (validatedData.length === 0) {
         document.getElementById('kpi-trs').textContent = '0%';
         document.getElementById('kpi-availability').textContent = '0%';
@@ -1422,36 +2619,53 @@
         document.getElementById('kpi-total').textContent = '0';
         return;
       }
-      
-      let totalAvail = 0, totalPerf = 0;
+
+      let totalAvail = 0, totalPerf = 0, totalQuality = 0;
       let totalProduction = 0;
-      
+
       validatedData.forEach(data => {
-        const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
-        const availability = Math.max(0, (60 - downtime) / 60);
-        const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-        const performance = targetRate > 0 ? Math.min(1, data.good / targetRate) : 0;
-        
-        totalAvail += availability;
-        totalPerf += performance;
-        totalProduction += data.good;
+        const components = calculateComponents(data);
+        totalAvail += components.availability;
+        totalPerf += components.performance;
+        totalQuality += components.quality;
+        totalProduction += data.good || 0;
       });
-      
+
       const avgAvail = totalAvail / validatedData.length;
       const avgPerf = totalPerf / validatedData.length;
-      const trs = avgAvail * avgPerf;
-      
+      const avgQuality = totalQuality / validatedData.length;
+      const trs = avgAvail * avgPerf * avgQuality;
+
       document.getElementById('kpi-trs').textContent = `${Math.round(trs * 100)}%`;
       document.getElementById('kpi-availability').textContent = `${Math.round(avgAvail * 100)}%`;
       document.getElementById('kpi-performance').textContent = `${Math.round(avgPerf * 100)}%`;
       document.getElementById('kpi-total').textContent = totalProduction.toLocaleString('fr-FR');
-      
+
       // Mise à jour de la tendance
       const targetDaily = 24 * (parseInt(document.getElementById('target-rate').value) || 16000);
       document.getElementById('target-trend').innerHTML = `
-        <span>${totalProduction >= targetDaily ? '↗' : '→'}</span> 
+        <span>${totalProduction >= targetDaily ? '↗' : '→'}</span>
         Objectif: ${(targetDaily / 1000).toFixed(0)}k
       `;
+    }
+
+    function calculateComponents(data) {
+      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+      const good = data.good || 0;
+      const scrap = QUALITY_TRACKING ? (data.scrap || 0) : 0;
+      const produced = good + scrap;
+      const downtime = (data.causes || []).reduce((sum, cause) => sum + (cause.minutes || 0), 0);
+
+      const availability = Math.max(0, Math.min(1, (60 - downtime) / 60));
+      const performance = targetRate > 0 ? Math.min(1, good / targetRate) : 0;
+      const quality = QUALITY_TRACKING ? (produced > 0 ? good / produced : 1) : 1;
+      const oee = availability * performance * quality * 100;
+
+      return { availability, performance, quality, oee, downtime };
+    }
+
+    function calculateTRS(data) {
+      return Math.round(calculateComponents(data).oee);
     }
 
     // Graphique Chart.js
@@ -1849,33 +3063,24 @@
     }
 
     function rebuildQuickCauses() {
-      const container = document.getElementById('quick-causes');
-      if (!container) return;
+      recentSubcategories = recentSubcategories.filter(entry =>
+        CATEGORY_DATA.some(item => item.category === entry.category && item.subcategory === entry.subcategory)
+      );
 
-      container.innerHTML = '';
-
-      CATEGORY_DATA.forEach(({ category, subcategory }) => {
-        const cleanCategory = (category || '').trim();
-        const cleanSubcategory = (subcategory || '').trim();
-        if (!cleanCategory && !cleanSubcategory) return;
-
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'cause-chip';
-        const label = cleanSubcategory ? `${cleanCategory} > ${cleanSubcategory}` : cleanCategory;
-        const datasetValue = cleanSubcategory ? `${cleanCategory} - ${cleanSubcategory}` : cleanCategory;
-        btn.dataset.cause = datasetValue;
-        btn.textContent = label;
-        container.appendChild(btn);
+      document.querySelectorAll('.hour-tile .quick-picks').forEach(container => {
+        const tile = container.closest('.hour-tile');
+        if (tile && tile.__state) {
+          populateQuickPicks(container, tile, tile.__state);
+        }
       });
     }
 
     // Mise à jour cadence cible
     document.getElementById('target-rate').addEventListener('change', () => {
-      updateKPIs();
-      updateChart();
-      updateJustifyDisplay();
+      refreshDisplay();
     });
+
+    bump('minor', ['Nouvelle interface opérateur 3 colonnes + accordéons multi-causes']);
   </script>
 </body>
 </html>
