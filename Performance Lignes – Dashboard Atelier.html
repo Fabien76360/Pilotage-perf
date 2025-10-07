@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Performance Lignes – Dashboard Atelier</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --border: #d2d6dc;
+      --primary: #2563eb;
+      --primary-light: #dbeafe;
+      --success: #d1fae5;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --warning: #fee2e2;
+      --danger: #dc2626;
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--card);
+      padding: 1.25rem 2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    header h1 {
+      flex: 1;
+      margin: 0;
+      font-size: 1.75rem;
+      letter-spacing: 0.02em;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 1.5rem 2rem 3rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar label {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .toolbar input[type="number"] {
+      width: 5.5rem;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 0.35rem;
+      font-size: 0.95rem;
+    }
+
+    .toolbar button,
+    .toolbar .tab-button,
+    dialog button {
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.95rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .toolbar button.secondary,
+    .toolbar .tab-button.secondary {
+      background: #374151;
+    }
+
+    .toolbar button.export {
+      background: #047857;
+    }
+
+    .toolbar button:hover,
+    .toolbar .tab-button:hover,
+    dialog button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px -15px rgba(37, 99, 235, 0.8);
+    }
+
+    .toolbar .toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .toolbar .toggle input {
+      margin: 0;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      box-shadow: 0 15px 35px -25px rgba(15, 23, 42, 0.4);
+      overflow: hidden;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem 1.25rem 0.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+
+    .tab-button {
+      background: transparent;
+      color: var(--text-muted);
+      padding: 0.5rem 0.85rem;
+      border: none;
+      border-bottom: 3px solid transparent;
+      border-radius: 0;
+    }
+
+    .tab-button.active {
+      color: var(--primary);
+      border-color: var(--primary);
+      font-weight: 700;
+      background: var(--primary-light);
+    }
+
+    .tab-panels {
+      padding: 1.25rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    thead {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    th,
+    td {
+      padding: 0.75rem 0.65rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    tbody tr {
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    tbody tr:hover {
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    tbody tr.row-active {
+      background: rgba(37, 99, 235, 0.18);
+      position: relative;
+    }
+
+    tbody tr.row-active::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-left: 4px solid var(--primary);
+    }
+
+    tbody tr.row-validated {
+      background: var(--success);
+    }
+
+    tbody tr.low-trs {
+      box-shadow: inset 0 0 0 2px rgba(220, 38, 38, 0.4);
+    }
+
+    tbody tr td:last-child {
+      font-style: italic;
+      color: var(--text-muted);
+    }
+
+    .log-container {
+      margin-top: 1.5rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .log-entry {
+      background: rgba(37, 99, 235, 0.08);
+      border-radius: 0.75rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--primary-light);
+    }
+
+    .kpi-grid {
+      display: grid;
+      gap: 1.25rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+      background: rgba(37, 99, 235, 0.07);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      border: 1px solid var(--primary-light);
+    }
+
+    .kpi-card h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    .kpi-card strong {
+      font-size: 1.75rem;
+      display: block;
+      margin-top: 0.25rem;
+    }
+
+    canvas {
+      width: 100%;
+      max-width: 960px;
+      height: 320px;
+      background: #fff;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+    }
+
+    dialog::backdrop {
+      background: rgba(15, 23, 42, 0.35);
+    }
+
+    dialog {
+      border: none;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 25px 45px -35px rgba(15, 23, 42, 0.8);
+      width: min(420px, 90vw);
+    }
+
+    dialog form {
+      display: grid;
+      gap: 0.95rem;
+    }
+
+    dialog label {
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.95rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    dialog input,
+    dialog select,
+    dialog textarea {
+      padding: 0.6rem 0.65rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      font-size: 1rem;
+    }
+
+    dialog textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    dialog .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    dialog .actions button.cancel {
+      background: #6b7280;
+      color: #fff;
+    }
+
+    @media (max-width: 900px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .toolbar {
+        width: 100%;
+      }
+
+      table {
+        font-size: 0.85rem;
+      }
+    }
+
+    body.operator-mode {
+      font-size: calc(1rem * 1.3);
+    }
+
+    body.operator-mode table {
+      font-size: calc(0.95rem * 1.3);
+    }
+
+    body.operator-mode .toolbar button,
+    body.operator-mode .toolbar .tab-button,
+    body.operator-mode dialog button {
+      transform: scale(1.15);
+    }
+
+    body.operator-mode tbody tr.row-active {
+      background: rgba(37, 99, 235, 0.3);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Performance Lignes – Dashboard Atelier</h1>
+    <div class="toolbar">
+      <label>
+        Cadence cible (u/h)
+        <input type="number" id="target-rate" min="0" step="1" value="16000" />
+      </label>
+      <label>
+        Temps cycle (min/u)
+        <input type="number" id="cycle-time" min="0" step="0.0001" value="0.00375" />
+      </label>
+      <button class="tab-button active" data-tab="entry">Journal horaire</button>
+      <button class="tab-button" data-tab="analysis">Analyse TRS</button>
+      <button class="export" id="export-csv">Exporter CSV</button>
+      <button class="export" id="export-html">Exporter Rapport HTML</button>
+      <label class="toggle">
+        <input type="checkbox" id="operator-mode" />
+        Mode opérateur
+      </label>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="tabs" aria-hidden="true">
+        <button class="tab-button active" data-tab="entry">Journal horaire</button>
+        <button class="tab-button" data-tab="analysis">Analyse TRS</button>
+      </div>
+      <div class="tab-panels">
+        <div class="tab-panel" id="tab-entry">
+          <div class="table-wrapper">
+            <table aria-describedby="table-caption">
+              <caption id="table-caption" class="sr-only">Journal horaire des productions</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Heure</th>
+                  <th scope="col">Équipe</th>
+                  <th scope="col">Bon</th>
+                  <th scope="col">Rebut</th>
+                  <th scope="col">Temps perdu (min)</th>
+                  <th scope="col">Cause</th>
+                </tr>
+              </thead>
+              <tbody id="hourly-table-body"></tbody>
+            </table>
+          </div>
+          <div class="log-container" id="journal-log" aria-live="polite"></div>
+        </div>
+        <div class="tab-panel" id="tab-analysis" hidden>
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <h3>TRS Global</h3>
+              <strong id="kpi-trs">0%</strong>
+            </article>
+            <article class="kpi-card">
+              <h3>Disponibilité</h3>
+              <strong id="kpi-availability">0%</strong>
+            </article>
+            <article class="kpi-card">
+              <h3>Performance</h3>
+              <strong id="kpi-performance">0%</strong>
+            </article>
+            <article class="kpi-card">
+              <h3>Qualité</h3>
+              <strong id="kpi-quality">0%</strong>
+            </article>
+          </div>
+          <canvas id="production-chart" width="960" height="320" role="img" aria-label="Comparatif production réelle versus cible"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="hour-edit">
+    <form method="dialog" id="hour-edit-form">
+      <h2 id="hour-edit-title">Saisie horaire</h2>
+      <p id="hour-edit-subtitle" class="sr-only"></p>
+      <input type="hidden" id="edit-hour-index" />
+      <label>
+        Quantité bonne
+        <input type="number" id="input-good" min="0" step="1" required />
+      </label>
+      <label>
+        Rebut
+        <input type="number" id="input-scrap" min="0" step="1" required />
+      </label>
+      <label>
+        Temps perdu (min)
+        <input type="number" id="input-downtime" min="0" step="0.1" required />
+      </label>
+      <label>
+        Cause
+        <select id="input-cause" required></select>
+      </label>
+      <label>
+        Commentaire
+        <textarea id="input-comment" placeholder="Observations, actions, etc."></textarea>
+      </label>
+      <div class="actions">
+        <button type="reset" class="cancel">Annuler</button>
+        <button type="submit">Valider</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="log-template">
+    <article class="log-entry"></article>
+  </template>
+
+  <script>
+    const STORAGE_KEY = 'pilotage.hourlyEntries';
+    const TEAM_ASSIGNMENTS = [
+      'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit',
+      'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour',
+      'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir'
+    ];
+    const STANDARD_EVENTS = [
+      'Production nominale',
+      'Micro-arrêts cumulés',
+      'Panne machine',
+      'Changement de format',
+      'Maintenance planifiée',
+      'Approvisionnement',
+      'Qualité - Retouche',
+      'Autre'
+    ];
+
+    const hourlyTableBody = document.getElementById('hourly-table-body');
+    const logContainer = document.getElementById('journal-log');
+    const hourEditDialog = document.getElementById('hour-edit');
+    const hourEditForm = document.getElementById('hour-edit-form');
+    const editHourIndexInput = document.getElementById('edit-hour-index');
+    const inputGood = document.getElementById('input-good');
+    const inputScrap = document.getElementById('input-scrap');
+    const inputDowntime = document.getElementById('input-downtime');
+    const inputCause = document.getElementById('input-cause');
+    const inputComment = document.getElementById('input-comment');
+    const targetRateInput = document.getElementById('target-rate');
+    const cycleTimeInput = document.getElementById('cycle-time');
+    const tabButtons = [...document.querySelectorAll('.tab-button')];
+    const tabEntry = document.getElementById('tab-entry');
+    const tabAnalysis = document.getElementById('tab-analysis');
+    const operatorModeCheckbox = document.getElementById('operator-mode');
+    const exportCsvButton = document.getElementById('export-csv');
+    const exportHtmlButton = document.getElementById('export-html');
+
+    const kpiTrs = document.getElementById('kpi-trs');
+    const kpiAvailability = document.getElementById('kpi-availability');
+    const kpiPerformance = document.getElementById('kpi-performance');
+    const kpiQuality = document.getElementById('kpi-quality');
+    const chartCanvas = document.getElementById('production-chart');
+    const chartCtx = chartCanvas.getContext('2d');
+
+    let hourlyEntries = new Array(24).fill(null);
+
+    const logTemplate = document.getElementById('log-template');
+
+    const now = new Date();
+    const activeHour = now.getHours();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      populateCauseOptions();
+      buildHourlyTable();
+      loadFromStorage();
+      applyOperatorMode();
+      updateKPI();
+      renderChart();
+      scheduleRowHighlighting();
+    });
+
+    function populateCauseOptions() {
+      inputCause.innerHTML = '';
+      for (const cause of STANDARD_EVENTS) {
+        const option = document.createElement('option');
+        option.value = cause;
+        option.textContent = cause;
+        inputCause.appendChild(option);
+      }
+    }
+
+    function buildHourlyTable() {
+      hourlyTableBody.innerHTML = '';
+      for (let hour = 0; hour < 24; hour++) {
+        const tr = document.createElement('tr');
+        tr.dataset.hourIndex = hour;
+
+        if (hour === activeHour) {
+          tr.classList.add('row-active');
+        }
+
+        const timeLabel = `${String(hour).padStart(2, '0')}:00 – ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+        const teamLabel = TEAM_ASSIGNMENTS[hour];
+
+        tr.innerHTML = `
+          <td>${timeLabel}</td>
+          <td>${teamLabel}</td>
+          <td data-field="good" data-value="0">–</td>
+          <td data-field="scrap" data-value="0">–</td>
+          <td data-field="downtime" data-value="0">–</td>
+          <td data-field="cause">–</td>
+        `;
+
+        tr.addEventListener('click', () => openHourEdit(hour));
+        hourlyTableBody.appendChild(tr);
+      }
+    }
+
+    // --- HOUR-EDIT MODAL
+    function openHourEdit(hourIndex) {
+      const entry = hourlyEntries[hourIndex];
+      editHourIndexInput.value = hourIndex;
+      const timeLabel = `${String(hourIndex).padStart(2, '0')}:00 – ${String((hourIndex + 1) % 24).padStart(2, '0')}:00`;
+      document.getElementById('hour-edit-title').textContent = `Saisie ${timeLabel}`;
+      document.getElementById('hour-edit-subtitle').textContent = `Equipe ${TEAM_ASSIGNMENTS[hourIndex]}`;
+
+      inputGood.value = entry ? entry.good : '';
+      inputScrap.value = entry ? entry.scrap : '';
+      inputDowntime.value = entry ? entry.downtime : '';
+      inputCause.value = entry ? entry.cause : STANDARD_EVENTS[0];
+      inputComment.value = entry ? entry.comment : '';
+
+      if (typeof hourEditDialog.showModal === 'function') {
+        hourEditDialog.showModal();
+      }
+    }
+
+    hourEditForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveHourlyEntry();
+      hourEditDialog.close();
+    });
+
+    hourEditForm.addEventListener('reset', (event) => {
+      event.preventDefault();
+      hourEditDialog.close();
+    });
+
+    function saveHourlyEntry() {
+      const hourIndex = Number.parseInt(editHourIndexInput.value, 10);
+      const good = Number.parseFloat(inputGood.value) || 0;
+      const scrap = Number.parseFloat(inputScrap.value) || 0;
+      const downtime = Math.max(0, Number.parseFloat(inputDowntime.value) || 0);
+      const cause = inputCause.value;
+      const comment = inputComment.value.trim();
+      const timestamp = new Date().toISOString();
+
+      const entry = { hourIndex, good, scrap, downtime, cause, comment, timestamp };
+      hourlyEntries[hourIndex] = entry;
+
+      updateTableRow(hourIndex, entry);
+      updateLog();
+      persistToStorage();
+      updateKPI();
+      renderChart();
+    }
+
+    function updateTableRow(hourIndex, entry) {
+      const row = hourlyTableBody.querySelector(`tr[data-hour-index="${hourIndex}"]`);
+      if (!row) return;
+
+      if (entry) {
+        row.querySelector('[data-field="good"]').textContent = entry.good.toLocaleString('fr-FR');
+        row.querySelector('[data-field="scrap"]').textContent = entry.scrap.toLocaleString('fr-FR');
+        row.querySelector('[data-field="downtime"]').textContent = entry.downtime.toLocaleString('fr-FR');
+        row.querySelector('[data-field="cause"]').textContent = entry.cause || '–';
+        row.classList.add('row-validated');
+      } else {
+        row.querySelector('[data-field="good"]').textContent = '–';
+        row.querySelector('[data-field="scrap"]').textContent = '–';
+        row.querySelector('[data-field="downtime"]').textContent = '–';
+        row.querySelector('[data-field="cause"]').textContent = '–';
+        row.classList.remove('row-validated', 'low-trs');
+      }
+    }
+
+    function updateLog() {
+      logContainer.innerHTML = '';
+      const entries = hourlyEntries
+        .filter(Boolean)
+        .sort((a, b) => a.hourIndex - b.hourIndex);
+
+      for (const entry of entries) {
+        const node = logTemplate.content.firstElementChild.cloneNode(true);
+        const timeLabel = `${String(entry.hourIndex).padStart(2, '0')}:00 – ${String((entry.hourIndex + 1) % 24).padStart(2, '0')}:00`;
+        const lines = [
+          `<strong>${timeLabel}</strong> (${TEAM_ASSIGNMENTS[entry.hourIndex]})`,
+          `Bon : <strong>${entry.good.toLocaleString('fr-FR')}</strong> u – Rebut : <strong>${entry.scrap.toLocaleString('fr-FR')}</strong> u`,
+          `Temps perdu : <strong>${entry.downtime.toLocaleString('fr-FR')}</strong> min – Cause : <em>${entry.cause}</em>`
+        ];
+        if (entry.comment) {
+          lines.push(`Commentaire : ${entry.comment}`);
+        }
+        lines.push(`<span style="font-size:0.85rem;color:var(--text-muted);">Enregistré le ${new Date(entry.timestamp).toLocaleString('fr-FR')}</span>`);
+        node.innerHTML = lines.join('<br />');
+        logContainer.appendChild(node);
+      }
+    }
+
+    function persistToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(hourlyEntries));
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return;
+        hourlyEntries = new Array(24).fill(null);
+        parsed.forEach((entry) => {
+          if (!entry) return;
+          const hour = Number.parseInt(entry.hourIndex, 10);
+          if (Number.isNaN(hour) || hour < 0 || hour > 23) return;
+          hourlyEntries[hour] = entry;
+        });
+        hourlyEntries.forEach((entry, hour) => updateTableRow(hour, entry));
+        updateLog();
+      } catch (error) {
+        console.error('Impossible de charger les données stockées', error);
+      }
+    }
+
+    // --- KPI CALCULATION
+    function updateKPI() {
+      const targetRate = Math.max(0, Number.parseFloat(targetRateInput.value) || 0);
+      const cycleTime = Math.max(0, Number.parseFloat(cycleTimeInput.value) || 0);
+
+      let sumAvailability = 0;
+      let sumPerformance = 0;
+      let sumQuality = 0;
+      let countedHours = 0;
+      let globalGood = 0;
+      let globalScrap = 0;
+      let globalDowntime = 0;
+
+      hourlyEntries.forEach((entry, hour) => {
+        const row = hourlyTableBody.querySelector(`tr[data-hour-index="${hour}"]`);
+        row?.classList.remove('low-trs');
+        if (!entry) return;
+
+        const downtime = Math.min(60, Math.max(0, entry.downtime));
+        const good = Math.max(0, entry.good);
+        const scrap = Math.max(0, entry.scrap);
+        const produced = good + scrap;
+        const availability = downtime >= 60 ? 0 : (60 - downtime) / 60;
+        const effectiveTarget = targetRate * availability;
+        const performance = effectiveTarget > 0 ? good / effectiveTarget : 0;
+        const quality = produced > 0 ? good / produced : 0;
+        const trs = availability * performance * quality;
+
+        if (row && trs < 0.9) {
+          row.classList.add('low-trs');
+        }
+
+        sumAvailability += availability;
+        sumPerformance += performance;
+        sumQuality += quality;
+        countedHours += 1;
+        globalGood += good;
+        globalScrap += scrap;
+        globalDowntime += downtime;
+      });
+
+      const availabilityAvg = countedHours ? sumAvailability / countedHours : 0;
+      const performanceAvg = countedHours ? sumPerformance / countedHours : 0;
+      const qualityAvg = countedHours ? sumQuality / countedHours : 0;
+      const trsGlobal = availabilityAvg * performanceAvg * qualityAvg;
+
+      kpiTrs.textContent = formatPercent(trsGlobal);
+      kpiAvailability.textContent = formatPercent(availabilityAvg);
+      kpiPerformance.textContent = formatPercent(performanceAvg);
+      kpiQuality.textContent = formatPercent(qualityAvg);
+    }
+
+    function formatPercent(value) {
+      return `${(value * 100).toFixed(1)}%`;
+    }
+
+    // --- ROW HIGHLIGHTING
+    function scheduleRowHighlighting() {
+      setInterval(() => {
+        const currentHour = new Date().getHours();
+        [...hourlyTableBody.querySelectorAll('tr')].forEach((row) => {
+          const hourIndex = Number.parseInt(row.dataset.hourIndex, 10);
+          if (hourIndex === currentHour) {
+            row.classList.add('row-active');
+          } else {
+            row.classList.remove('row-active');
+          }
+        });
+      }, 60 * 1000);
+    }
+
+    function renderChart() {
+      const targetRate = Math.max(0, Number.parseFloat(targetRateInput.value) || 0);
+      chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+      const padding = 40;
+      const width = chartCanvas.width;
+      const height = chartCanvas.height;
+      const availableWidth = width - padding * 2;
+      const availableHeight = height - padding * 2;
+
+      chartCtx.strokeStyle = '#9ca3af';
+      chartCtx.lineWidth = 1;
+      chartCtx.beginPath();
+      chartCtx.moveTo(padding, padding);
+      chartCtx.lineTo(padding, height - padding);
+      chartCtx.lineTo(width - padding, height - padding);
+      chartCtx.stroke();
+
+      const hourlyGood = hourlyEntries.map((entry) => (entry ? entry.good : 0));
+      const maxValue = Math.max(targetRate, ...hourlyGood) || 1;
+      const barWidth = availableWidth / 24 - 4;
+
+      hourlyGood.forEach((value, hour) => {
+        const x = padding + hour * ((availableWidth) / 24) + 2;
+        const barHeight = (value / maxValue) * availableHeight;
+        const y = height - padding - barHeight;
+        chartCtx.fillStyle = '#2563eb';
+        chartCtx.fillRect(x, y, barWidth, barHeight);
+      });
+
+      const targetHeight = (targetRate / maxValue) * availableHeight;
+      const targetY = height - padding - targetHeight;
+      chartCtx.strokeStyle = '#f97316';
+      chartCtx.lineWidth = 2;
+      chartCtx.beginPath();
+      chartCtx.moveTo(padding, targetY);
+      chartCtx.lineTo(width - padding, targetY);
+      chartCtx.stroke();
+
+      chartCtx.fillStyle = '#111827';
+      chartCtx.font = '12px "Segoe UI", sans-serif';
+      chartCtx.fillText('Production réelle (barres)', padding, padding - 10);
+      chartCtx.fillText(`Cible ${targetRate.toLocaleString('fr-FR')} u/h`, width - padding - 150, padding - 10);
+    }
+
+    targetRateInput.addEventListener('change', () => {
+      updateKPI();
+      renderChart();
+    });
+
+    cycleTimeInput.addEventListener('change', () => {
+      updateKPI();
+    });
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => switchTab(button.dataset.tab));
+    });
+
+    function switchTab(tab) {
+      tabButtons.forEach((button) => {
+        if (button.dataset.tab === tab) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+
+      if (tab === 'analysis') {
+        tabEntry.hidden = true;
+        tabAnalysis.hidden = false;
+        renderChart();
+      } else {
+        tabEntry.hidden = false;
+        tabAnalysis.hidden = true;
+      }
+    }
+
+    operatorModeCheckbox.addEventListener('change', applyOperatorMode);
+
+    function applyOperatorMode() {
+      document.body.classList.toggle('operator-mode', operatorModeCheckbox.checked);
+    }
+
+    exportCsvButton.addEventListener('click', () => {
+      const csvRows = [
+        ['Horodatage saisie', 'Heure', 'Equipe', 'Bon', 'Rebut', 'Temps perdu (min)', 'Cause', 'Commentaire']
+      ];
+
+      hourlyEntries.forEach((entry, hour) => {
+        if (!entry) return;
+        const timeLabel = `${String(hour).padStart(2, '0')}:00 – ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+        csvRows.push([
+          entry.timestamp,
+          timeLabel,
+          TEAM_ASSIGNMENTS[hour],
+          entry.good,
+          entry.scrap,
+          entry.downtime,
+          entry.cause,
+          entry.comment?.replace(/\n/g, ' ')
+        ]);
+      });
+
+      const csvContent = csvRows.map((row) => row.map(escapeCsv).join(';')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      downloadBlob(blob, 'journal-horaire.csv');
+    });
+
+    exportHtmlButton.addEventListener('click', () => {
+      const rowsHtml = hourlyEntries
+        .map((entry, hour) => {
+          if (!entry) return '';
+          const timeLabel = `${String(hour).padStart(2, '0')}:00 – ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+          return `
+            <tr>
+              <td>${entry.timestamp}</td>
+              <td>${timeLabel}</td>
+              <td>${TEAM_ASSIGNMENTS[hour]}</td>
+              <td>${entry.good}</td>
+              <td>${entry.scrap}</td>
+              <td>${entry.downtime}</td>
+              <td>${entry.cause}</td>
+              <td>${entry.comment || ''}</td>
+            </tr>
+          `;
+        })
+        .filter(Boolean)
+        .join('');
+
+      const html = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Rapport – Journal horaire</title>
+          <style>
+            body { font-family: "Segoe UI", sans-serif; padding: 2rem; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #d1d5db; padding: 0.5rem 0.65rem; }
+            thead { background: #e0f2fe; }
+          </style>
+        </head>
+        <body>
+          <h1>Rapport – Journal horaire</h1>
+          <p>Cadence cible : ${targetRateInput.value} u/h – Temps cycle : ${cycleTimeInput.value} min/u</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Horodatage saisie</th>
+                <th>Heure</th>
+                <th>Equipe</th>
+                <th>Bon</th>
+                <th>Rebut</th>
+                <th>Temps perdu (min)</th>
+                <th>Cause</th>
+                <th>Commentaire</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+      downloadBlob(blob, 'rapport-journal-horaire.html');
+    });
+
+    function escapeCsv(value) {
+      const str = value === undefined || value === null ? '' : String(value);
+      if (str.includes(';') || str.includes('\"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+  </script>
+</body>
+</html>
