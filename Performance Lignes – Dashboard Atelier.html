@@ -200,6 +200,15 @@
       background: var(--success);
     }
 
+    tbody tr.row-mismatch {
+      background: rgba(251, 191, 36, 0.25);
+    }
+
+    tbody tr.row-mismatch.row-active {
+      background: rgba(37, 99, 235, 0.18);
+      box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.6);
+    }
+
     tbody tr.low-trs {
       box-shadow: inset 0 0 0 2px rgba(220, 38, 38, 0.4);
     }
@@ -274,6 +283,23 @@
       gap: 0.95rem;
     }
 
+    dialog .good-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+
+    dialog .good-row label {
+      flex: 1;
+    }
+
+    dialog .justify-indicator {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--primary);
+    }
+
     dialog label {
       display: grid;
       gap: 0.35rem;
@@ -294,6 +320,96 @@
     dialog textarea {
       resize: vertical;
       min-height: 80px;
+    }
+
+    dialog button.secondary,
+    .toolbar button.secondary,
+    .toolbar .tab-button.secondary {
+      background: #374151;
+    }
+
+    dialog .cause-block {
+      display: grid;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    dialog .cause-block-header {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    dialog .cause-block-header h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    dialog .cause-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    dialog .cause-list {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    dialog .cause-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    dialog .cause-row select {
+      flex: 1 1 55%;
+    }
+
+    dialog .cause-row input[type="number"] {
+      width: 6rem;
+    }
+
+    dialog .cause-row button.remove {
+      background: #dc2626;
+    }
+
+    dialog .cause-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+    }
+
+    dialog .cause-summary span {
+      font-size: 0.95rem;
+    }
+
+    dialog .cause-summary span.state-ok {
+      color: #047857;
+    }
+
+    dialog .cause-summary span.state-low {
+      color: #b45309;
+    }
+
+    dialog .cause-summary span.state-high {
+      color: #dc2626;
+    }
+
+    dialog .override.hidden {
+      display: none;
+    }
+
+    dialog .override {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      color: #b45309;
     }
 
     dialog .actions {
@@ -393,9 +509,8 @@
                   <th scope="col">Heure</th>
                   <th scope="col">Équipe</th>
                   <th scope="col">Bon</th>
-                  <th scope="col">Rebut</th>
-                  <th scope="col">Temps perdu (min)</th>
-                  <th scope="col">Cause</th>
+                  <th scope="col">À justifier (min)</th>
+                  <th scope="col">Répartition causes</th>
                 </tr>
               </thead>
               <tbody id="hourly-table-body"></tbody>
@@ -417,10 +532,6 @@
               <h3>Performance</h3>
               <strong id="kpi-performance">0%</strong>
             </article>
-            <article class="kpi-card">
-              <h3>Qualité</h3>
-              <strong id="kpi-quality">0%</strong>
-            </article>
           </div>
           <canvas id="production-chart" width="960" height="320" role="img" aria-label="Comparatif production réelle versus cible"></canvas>
         </div>
@@ -433,29 +544,39 @@
       <h2 id="hour-edit-title">Saisie horaire</h2>
       <p id="hour-edit-subtitle" class="sr-only"></p>
       <input type="hidden" id="edit-hour-index" />
-      <label>
-        Quantité bonne
-        <input type="number" id="input-good" min="0" step="1" required />
-      </label>
-      <label>
-        Rebut
-        <input type="number" id="input-scrap" min="0" step="1" required />
-      </label>
-      <label>
-        Temps perdu (min)
-        <input type="number" id="input-downtime" min="0" step="0.1" required />
-      </label>
-      <label>
-        Cause
-        <select id="input-cause" required></select>
-      </label>
+      <div class="good-row">
+        <label>
+          Bon (u)
+          <input type="number" id="input-good" min="0" step="1" required />
+        </label>
+        <div class="justify-indicator">
+          À justifier : <strong id="justify-display">0 min</strong>
+        </div>
+      </div>
+      <section class="cause-block">
+        <header class="cause-block-header">
+          <h3>Répartition des causes (pas de 5 min)</h3>
+          <div class="cause-buttons">
+            <button type="button" id="add-cause" class="secondary">Ajouter une cause</button>
+            <button type="button" id="fill-remaining" class="secondary">Micro-arrêts cumulés (remplir le reste)</button>
+            <button type="button" id="auto-balance" class="secondary">Remplir automatiquement</button>
+          </div>
+        </header>
+        <div id="cause-list" class="cause-list"></div>
+        <footer class="cause-summary">
+          <span id="cause-total">Total causes : 0 min / À justifier : 0 min</span>
+          <label id="override-container" class="override hidden">
+            <input type="checkbox" id="override-checkbox" /> Valider quand même
+          </label>
+        </footer>
+      </section>
       <label>
         Commentaire
         <textarea id="input-comment" placeholder="Observations, actions, etc."></textarea>
       </label>
       <div class="actions">
         <button type="reset" class="cancel">Annuler</button>
-        <button type="submit">Valider</button>
+        <button type="submit" id="submit-hour">Valider</button>
       </div>
     </form>
   </dialog>
@@ -481,6 +602,7 @@
       'Qualité - Retouche',
       'Autre'
     ];
+    const ROUND_MODE = 'nearest';
 
     const hourlyTableBody = document.getElementById('hourly-table-body');
     const logContainer = document.getElementById('journal-log');
@@ -488,9 +610,15 @@
     const hourEditForm = document.getElementById('hour-edit-form');
     const editHourIndexInput = document.getElementById('edit-hour-index');
     const inputGood = document.getElementById('input-good');
-    const inputScrap = document.getElementById('input-scrap');
-    const inputDowntime = document.getElementById('input-downtime');
-    const inputCause = document.getElementById('input-cause');
+    const justifyDisplay = document.getElementById('justify-display');
+    const causeListContainer = document.getElementById('cause-list');
+    const addCauseButton = document.getElementById('add-cause');
+    const fillRemainingButton = document.getElementById('fill-remaining');
+    const autoBalanceButton = document.getElementById('auto-balance');
+    const causeTotalDisplay = document.getElementById('cause-total');
+    const overrideContainer = document.getElementById('override-container');
+    const overrideCheckbox = document.getElementById('override-checkbox');
+    const submitHourButton = document.getElementById('submit-hour');
     const inputComment = document.getElementById('input-comment');
     const targetRateInput = document.getElementById('target-rate');
     const cycleTimeInput = document.getElementById('cycle-time');
@@ -504,11 +632,14 @@
     const kpiTrs = document.getElementById('kpi-trs');
     const kpiAvailability = document.getElementById('kpi-availability');
     const kpiPerformance = document.getElementById('kpi-performance');
-    const kpiQuality = document.getElementById('kpi-quality');
     const chartCanvas = document.getElementById('production-chart');
     const chartCtx = chartCanvas.getContext('2d');
 
     let hourlyEntries = new Array(24).fill(null);
+    let currentMinutesToJustify = 0;
+    let lastCauseTotal = 0;
+    let lastMismatch = false;
+    let isInitializingModal = false;
 
     const logTemplate = document.getElementById('log-template');
 
@@ -516,7 +647,6 @@
     const activeHour = now.getHours();
 
     document.addEventListener('DOMContentLoaded', () => {
-      populateCauseOptions();
       buildHourlyTable();
       loadFromStorage();
       applyOperatorMode();
@@ -524,16 +654,6 @@
       renderChart();
       scheduleRowHighlighting();
     });
-
-    function populateCauseOptions() {
-      inputCause.innerHTML = '';
-      for (const cause of STANDARD_EVENTS) {
-        const option = document.createElement('option');
-        option.value = cause;
-        option.textContent = cause;
-        inputCause.appendChild(option);
-      }
-    }
 
     function buildHourlyTable() {
       hourlyTableBody.innerHTML = '';
@@ -552,14 +672,218 @@
           <td>${timeLabel}</td>
           <td>${teamLabel}</td>
           <td data-field="good" data-value="0">–</td>
-          <td data-field="scrap" data-value="0">–</td>
-          <td data-field="downtime" data-value="0">–</td>
-          <td data-field="cause">–</td>
+          <td data-field="justify" data-value="0">–</td>
+          <td data-field="causes">–</td>
         `;
 
         tr.addEventListener('click', () => openHourEdit(hour));
         hourlyTableBody.appendChild(tr);
       }
+    }
+
+    // JUSTIFY-TIME
+    function roundToNearest5(min) {
+      const value = Number.isFinite(min) ? min : Number.parseFloat(min);
+      if (!Number.isFinite(value)) return 0;
+      if (ROUND_MODE === 'ceil') {
+        return Math.ceil(value / 5) * 5;
+      }
+      return Math.round(value / 5) * 5;
+    }
+
+    function clampMinutes(min) {
+      return Math.max(0, Math.min(60, min));
+    }
+
+    function sanitizeCauseMinutes(value) {
+      const parsed = Number.parseFloat(value);
+      if (!Number.isFinite(parsed)) return 0;
+      return clampMinutes(roundToNearest5(parsed));
+    }
+
+    function minutesToJustify(good, targetRate) {
+      const safeGood = Math.max(0, Number.isFinite(good) ? good : Number.parseFloat(good) || 0);
+      const safeTarget = Math.max(0, Number.isFinite(targetRate) ? targetRate : Number.parseFloat(targetRate) || 0);
+      const used = safeTarget > 0 ? (safeGood / safeTarget) * 60 : 60;
+      const raw = Math.max(0, 60 - used);
+      return clampMinutes(roundToNearest5(raw));
+    }
+
+    function getTargetRate() {
+      return Math.max(0, Number.parseFloat(targetRateInput.value) || 0);
+    }
+
+    // MULTI-CAUSES
+    function createCauseRow(causeName = STANDARD_EVENTS[0], minutes = 0) {
+      const row = document.createElement('div');
+      row.className = 'cause-row';
+
+      const select = document.createElement('select');
+      for (const cause of STANDARD_EVENTS) {
+        const option = document.createElement('option');
+        option.value = cause;
+        option.textContent = cause;
+        select.appendChild(option);
+      }
+      if (!STANDARD_EVENTS.includes(causeName)) {
+        const option = document.createElement('option');
+        option.value = causeName;
+        option.textContent = causeName;
+        select.appendChild(option);
+      }
+      select.value = causeName;
+
+      const minutesInput = document.createElement('input');
+      minutesInput.type = 'number';
+      minutesInput.min = '0';
+      minutesInput.max = '60';
+      minutesInput.step = '5';
+      minutesInput.inputMode = 'numeric';
+      minutesInput.value = sanitizeCauseMinutes(minutes);
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'remove';
+      removeButton.textContent = 'Supprimer';
+
+      select.addEventListener('change', () => updateCauseSummary());
+      minutesInput.addEventListener('input', () => updateCauseSummary());
+      minutesInput.addEventListener('change', () => {
+        minutesInput.value = sanitizeCauseMinutes(minutesInput.value);
+        updateCauseSummary();
+      });
+      minutesInput.addEventListener('blur', () => {
+        minutesInput.value = sanitizeCauseMinutes(minutesInput.value);
+        updateCauseSummary();
+      });
+      removeButton.addEventListener('click', () => {
+        row.remove();
+        ensureAtLeastOneCauseRow();
+        updateCauseSummary();
+      });
+
+      row.appendChild(select);
+      row.appendChild(minutesInput);
+      row.appendChild(removeButton);
+      return row;
+    }
+
+    function addCauseRow(causeName = STANDARD_EVENTS[0], minutes = 0) {
+      const row = createCauseRow(causeName, minutes);
+      causeListContainer.appendChild(row);
+      if (!isInitializingModal) {
+        updateCauseSummary();
+      }
+      return row;
+    }
+
+    function ensureAtLeastOneCauseRow() {
+      if (!causeListContainer.children.length) {
+        addCauseRow('Production nominale', 0);
+      }
+    }
+
+    function computeCauseTotal() {
+      let sum = 0;
+      causeListContainer.querySelectorAll('.cause-row').forEach((row) => {
+        const input = row.querySelector('input[type="number"]');
+        sum += sanitizeCauseMinutes(input.value);
+      });
+      return Math.max(0, Math.round(sum));
+    }
+
+    function getCauseData() {
+      const data = [];
+      causeListContainer.querySelectorAll('.cause-row').forEach((row) => {
+        const select = row.querySelector('select');
+        const input = row.querySelector('input[type="number"]');
+        const minutes = sanitizeCauseMinutes(input.value);
+        const name = select.value || 'Non précisé';
+        if (minutes > 0) {
+          data.push({ name, minutes });
+        }
+      });
+      return data.sort((a, b) => b.minutes - a.minutes || a.name.localeCompare(b.name));
+    }
+
+    function updateCauseSummary() {
+      const total = computeCauseTotal();
+      lastCauseTotal = total;
+      const mismatch = total !== currentMinutesToJustify;
+      lastMismatch = mismatch;
+
+      causeTotalDisplay.textContent = `Total causes : ${total.toLocaleString('fr-FR')} min / À justifier : ${currentMinutesToJustify.toLocaleString('fr-FR')} min`;
+      causeTotalDisplay.classList.remove('state-ok', 'state-low', 'state-high');
+      if (!mismatch) {
+        causeTotalDisplay.classList.add('state-ok');
+      } else if (total < currentMinutesToJustify) {
+        causeTotalDisplay.classList.add('state-low');
+      } else {
+        causeTotalDisplay.classList.add('state-high');
+      }
+
+      overrideContainer.classList.toggle('hidden', !mismatch);
+      if (!mismatch) {
+        overrideCheckbox.checked = false;
+      }
+
+      updateSubmitAvailability();
+    }
+
+    // OVERRIDE
+    function updateSubmitAvailability() {
+      const mismatch = lastMismatch;
+      const commentText = inputComment.value.trim();
+      const disabled = mismatch && (!overrideCheckbox.checked || commentText.length === 0);
+      submitHourButton.disabled = disabled;
+
+      if (!mismatch) {
+        submitHourButton.title = '';
+      } else if (!overrideCheckbox.checked) {
+        submitHourButton.title = 'Répartissez les minutes ou activez le mode override.';
+      } else if (!commentText.length) {
+        submitHourButton.title = 'Un commentaire est requis pour valider en override.';
+      } else {
+        submitHourButton.title = '';
+      }
+    }
+
+    function fillRemainingMinutes() {
+      const rows = [...causeListContainer.querySelectorAll('.cause-row')];
+      let microRow = rows.find((row) => row.querySelector('select').value === 'Micro-arrêts cumulés');
+      let otherSum = 0;
+      rows.forEach((row) => {
+        if (row === microRow) return;
+        const input = row.querySelector('input[type="number"]');
+        otherSum += sanitizeCauseMinutes(input.value);
+      });
+      const remaining = clampMinutes(currentMinutesToJustify - otherSum);
+      const sanitized = sanitizeCauseMinutes(remaining);
+      if (!microRow) {
+        addCauseRow('Micro-arrêts cumulés', sanitized);
+      } else {
+        const input = microRow.querySelector('input[type="number"]');
+        input.value = sanitized;
+      }
+      updateCauseSummary();
+    }
+
+    function autoBalanceMinutes() {
+      const rows = [...causeListContainer.querySelectorAll('.cause-row')];
+      if (!rows.length) {
+        addCauseRow('Micro-arrêts cumulés', currentMinutesToJustify);
+        updateCauseSummary();
+        return;
+      }
+      const lastRow = rows[rows.length - 1];
+      const remaining = clampMinutes(
+        currentMinutesToJustify -
+          rows
+            .slice(0, -1)
+            .reduce((sum, row) => sum + sanitizeCauseMinutes(row.querySelector('input[type="number"]').value), 0)
+      );
+      lastRow.querySelector('input[type="number"]').value = sanitizeCauseMinutes(remaining);
+      updateCauseSummary();
     }
 
     // --- HOUR-EDIT MODAL
@@ -571,20 +895,51 @@
       document.getElementById('hour-edit-subtitle').textContent = `Equipe ${TEAM_ASSIGNMENTS[hourIndex]}`;
 
       inputGood.value = entry ? entry.good : '';
-      inputScrap.value = entry ? entry.scrap : '';
-      inputDowntime.value = entry ? entry.downtime : '';
-      inputCause.value = entry ? entry.cause : STANDARD_EVENTS[0];
-      inputComment.value = entry ? entry.comment : '';
+      inputComment.value = entry ? entry.comment || '' : '';
+      overrideCheckbox.checked = Boolean(entry?.override);
+
+      isInitializingModal = true;
+      causeListContainer.innerHTML = '';
+      const initialCauses =
+        entry && Array.isArray(entry.causes) && entry.causes.length
+          ? entry.causes
+          : [{ name: 'Production nominale', minutes: 0 }];
+      initialCauses.forEach((cause) => {
+        addCauseRow(cause.name, cause.minutes);
+      });
+      ensureAtLeastOneCauseRow();
+      isInitializingModal = false;
+
+      handleGoodChange();
+      updateCauseSummary();
+      updateSubmitAvailability();
 
       if (typeof hourEditDialog.showModal === 'function') {
         hourEditDialog.showModal();
       }
+      setTimeout(() => inputGood.focus(), 50);
     }
+
+    function handleGoodChange() {
+      const goodValue = Math.max(0, Number.parseFloat(inputGood.value) || 0);
+      currentMinutesToJustify = minutesToJustify(goodValue, getTargetRate());
+      justifyDisplay.textContent = `${currentMinutesToJustify.toLocaleString('fr-FR')} min`;
+      updateCauseSummary();
+    }
+
+    addCauseButton.addEventListener('click', () => addCauseRow());
+    fillRemainingButton.addEventListener('click', fillRemainingMinutes);
+    autoBalanceButton.addEventListener('click', autoBalanceMinutes);
+    inputGood.addEventListener('input', handleGoodChange);
+    inputGood.addEventListener('change', handleGoodChange);
+    inputComment.addEventListener('input', updateSubmitAvailability);
+    overrideCheckbox.addEventListener('change', updateSubmitAvailability);
 
     hourEditForm.addEventListener('submit', (event) => {
       event.preventDefault();
-      saveHourlyEntry();
-      hourEditDialog.close();
+      if (saveHourlyEntry()) {
+        hourEditDialog.close();
+      }
     });
 
     hourEditForm.addEventListener('reset', (event) => {
@@ -594,14 +949,34 @@
 
     function saveHourlyEntry() {
       const hourIndex = Number.parseInt(editHourIndexInput.value, 10);
-      const good = Number.parseFloat(inputGood.value) || 0;
-      const scrap = Number.parseFloat(inputScrap.value) || 0;
-      const downtime = Math.max(0, Number.parseFloat(inputDowntime.value) || 0);
-      const cause = inputCause.value;
+      const good = Math.max(0, Number.parseFloat(inputGood.value) || 0);
+      const targetRate = getTargetRate();
+      const computedJustify = minutesToJustify(good, targetRate);
+      currentMinutesToJustify = computedJustify;
+      updateCauseSummary();
+
+      const totalCauses = lastCauseTotal;
+      const mismatch = totalCauses !== computedJustify;
       const comment = inputComment.value.trim();
+
+      if (mismatch && (!overrideCheckbox.checked || comment.length === 0)) {
+        alert('Le total des causes doit correspondre à À justifier ou être validé avec commentaire.');
+        return false;
+      }
+
+      const causes = getCauseData();
       const timestamp = new Date().toISOString();
 
-      const entry = { hourIndex, good, scrap, downtime, cause, comment, timestamp };
+      const entry = {
+        hourIndex,
+        good,
+        causes,
+        minutesToJustify: computedJustify,
+        override: mismatch,
+        comment,
+        timestamp
+      };
+
       hourlyEntries[hourIndex] = entry;
 
       updateTableRow(hourIndex, entry);
@@ -609,25 +984,70 @@
       persistToStorage();
       updateKPI();
       renderChart();
+
+      return true;
     }
 
     function updateTableRow(hourIndex, entry) {
       const row = hourlyTableBody.querySelector(`tr[data-hour-index="${hourIndex}"]`);
       if (!row) return;
 
+      row.classList.remove('row-validated', 'row-mismatch', 'low-trs');
+
       if (entry) {
-        row.querySelector('[data-field="good"]').textContent = entry.good.toLocaleString('fr-FR');
-        row.querySelector('[data-field="scrap"]').textContent = entry.scrap.toLocaleString('fr-FR');
-        row.querySelector('[data-field="downtime"]').textContent = entry.downtime.toLocaleString('fr-FR');
-        row.querySelector('[data-field="cause"]').textContent = entry.cause || '–';
+        const targetRate = getTargetRate();
+        const computedJustify = minutesToJustify(entry.good, targetRate);
+        entry.minutesToJustify = computedJustify;
+
+        const goodCell = row.querySelector('[data-field="good"]');
+        const justifyCell = row.querySelector('[data-field="justify"]');
+        const causesCell = row.querySelector('[data-field="causes"]');
+
+        goodCell.textContent = entry.good.toLocaleString('fr-FR');
+        goodCell.dataset.value = entry.good;
+        justifyCell.textContent = computedJustify.toLocaleString('fr-FR');
+        justifyCell.dataset.value = computedJustify;
+        const summary = summarizeCauses(entry.causes);
+        causesCell.textContent = summary || '–';
+
         row.classList.add('row-validated');
+        if (entry.override) {
+          row.classList.add('row-mismatch');
+        }
       } else {
         row.querySelector('[data-field="good"]').textContent = '–';
-        row.querySelector('[data-field="scrap"]').textContent = '–';
-        row.querySelector('[data-field="downtime"]').textContent = '–';
-        row.querySelector('[data-field="cause"]').textContent = '–';
-        row.classList.remove('row-validated', 'low-trs');
+        row.querySelector('[data-field="good"]').dataset.value = '0';
+        row.querySelector('[data-field="justify"]').textContent = '–';
+        row.querySelector('[data-field="justify"]').dataset.value = '0';
+        row.querySelector('[data-field="causes"]').textContent = '–';
       }
+    }
+
+    function sortCausesDescending(causes = []) {
+      if (!Array.isArray(causes)) {
+        return [];
+      }
+      return [...causes].sort((a, b) => {
+        const minutesDiff = (b?.minutes || 0) - (a?.minutes || 0);
+        if (minutesDiff !== 0) return minutesDiff;
+        return (a?.name || '').localeCompare(b?.name || '');
+      });
+    }
+
+    function summarizeCauses(causes = []) {
+      const sorted = sortCausesDescending(causes);
+      if (!sorted.length) {
+        return '';
+      }
+      return sorted.map((cause) => `${cause.name}:${cause.minutes}`).join('; ');
+    }
+
+    function flattenCauses(causes = []) {
+      const sorted = sortCausesDescending(causes);
+      if (!sorted.length) {
+        return '';
+      }
+      return sorted.map((cause) => `${cause.name}:${cause.minutes}`).join(' | ');
     }
 
     function updateLog() {
@@ -641,9 +1061,14 @@
         const timeLabel = `${String(entry.hourIndex).padStart(2, '0')}:00 – ${String((entry.hourIndex + 1) % 24).padStart(2, '0')}:00`;
         const lines = [
           `<strong>${timeLabel}</strong> (${TEAM_ASSIGNMENTS[entry.hourIndex]})`,
-          `Bon : <strong>${entry.good.toLocaleString('fr-FR')}</strong> u – Rebut : <strong>${entry.scrap.toLocaleString('fr-FR')}</strong> u`,
-          `Temps perdu : <strong>${entry.downtime.toLocaleString('fr-FR')}</strong> min – Cause : <em>${entry.cause}</em>`
+          `Bon : <strong>${entry.good.toLocaleString('fr-FR')}</strong> u – À justifier : <strong>${entry.minutesToJustify.toLocaleString('fr-FR')}</strong> min`
         ];
+        const totalCauses = entry.causes?.reduce((sum, cause) => sum + (cause?.minutes || 0), 0) || 0;
+        const summary = summarizeCauses(entry.causes);
+        lines.push(`Causes (${totalCauses.toLocaleString('fr-FR')} min) : ${summary || '–'}`);
+        if (entry.override) {
+          lines.push('<strong style="color:#b45309;">Override validé</strong>');
+        }
         if (entry.comment) {
           lines.push(`Commentaire : ${entry.comment}`);
         }
@@ -657,6 +1082,59 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(hourlyEntries));
     }
 
+    function migrateEntry(entry) {
+      if (!entry) return null;
+      const targetRate = getTargetRate();
+      const hourIndex = Number.parseInt(entry.hourIndex, 10);
+      const good = Math.max(0, Number.parseFloat(entry.good) || 0);
+      const comment = entry.comment || '';
+      const timestamp = entry.timestamp || new Date().toISOString();
+      const overrideFlag =
+        typeof entry.override === 'string' ? entry.override === 'true' : Boolean(entry.override);
+
+      if (Array.isArray(entry.causes)) {
+        const causes = entry.causes
+          .map((cause) => ({
+            name: cause?.name || 'Non précisé',
+            minutes: sanitizeCauseMinutes(cause?.minutes)
+          }))
+          .filter((cause) => cause.minutes > 0);
+        const storedMinutes = Number.parseFloat(entry.minutesToJustify);
+        const minutesToJustifyValue = Number.isFinite(storedMinutes)
+          ? clampMinutes(roundToNearest5(storedMinutes))
+          : minutesToJustify(good, targetRate);
+        return {
+          hourIndex,
+          good,
+          causes,
+          minutesToJustify: minutesToJustifyValue,
+          override: overrideFlag,
+          comment,
+          timestamp
+        };
+      }
+
+      const downtime = Math.max(0, Number.parseFloat(entry.downtime) || 0);
+      const migratedCauses = downtime
+        ? [
+            {
+              name: entry.cause || 'Non précisé',
+              minutes: sanitizeCauseMinutes(downtime)
+            }
+          ]
+        : [];
+
+      return {
+        hourIndex,
+        good,
+        causes: migratedCauses,
+        minutesToJustify: minutesToJustify(good, targetRate),
+        override: false,
+        comment,
+        timestamp
+      };
+    }
+
     function loadFromStorage() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -664,46 +1142,48 @@
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed)) return;
         hourlyEntries = new Array(24).fill(null);
+        let migrated = false;
         parsed.forEach((entry) => {
           if (!entry) return;
           const hour = Number.parseInt(entry.hourIndex, 10);
           if (Number.isNaN(hour) || hour < 0 || hour > 23) return;
-          hourlyEntries[hour] = entry;
+          const migratedEntry = migrateEntry(entry);
+          if (migratedEntry) {
+            hourlyEntries[hour] = migratedEntry;
+            if (!Array.isArray(entry.causes)) {
+              migrated = true;
+            }
+          }
         });
         hourlyEntries.forEach((entry, hour) => updateTableRow(hour, entry));
         updateLog();
+        if (migrated) {
+          persistToStorage();
+        }
       } catch (error) {
         console.error('Impossible de charger les données stockées', error);
       }
     }
 
-    // --- KPI CALCULATION
+    // KPI-TRS
     function updateKPI() {
-      const targetRate = Math.max(0, Number.parseFloat(targetRateInput.value) || 0);
-      const cycleTime = Math.max(0, Number.parseFloat(cycleTimeInput.value) || 0);
+      const targetRate = getTargetRate();
 
       let sumAvailability = 0;
       let sumPerformance = 0;
-      let sumQuality = 0;
       let countedHours = 0;
-      let globalGood = 0;
-      let globalScrap = 0;
-      let globalDowntime = 0;
 
       hourlyEntries.forEach((entry, hour) => {
         const row = hourlyTableBody.querySelector(`tr[data-hour-index="${hour}"]`);
         row?.classList.remove('low-trs');
         if (!entry) return;
 
-        const downtime = Math.min(60, Math.max(0, entry.downtime));
-        const good = Math.max(0, entry.good);
-        const scrap = Math.max(0, entry.scrap);
-        const produced = good + scrap;
+        const downtime = entry.causes?.reduce((total, cause) => total + (cause?.minutes || 0), 0) || 0;
+        const good = Math.max(0, entry.good || 0);
         const availability = downtime >= 60 ? 0 : (60 - downtime) / 60;
         const effectiveTarget = targetRate * availability;
         const performance = effectiveTarget > 0 ? good / effectiveTarget : 0;
-        const quality = produced > 0 ? good / produced : 0;
-        const trs = availability * performance * quality;
+        const trs = availability * performance;
 
         if (row && trs < 0.9) {
           row.classList.add('low-trs');
@@ -711,22 +1191,16 @@
 
         sumAvailability += availability;
         sumPerformance += performance;
-        sumQuality += quality;
         countedHours += 1;
-        globalGood += good;
-        globalScrap += scrap;
-        globalDowntime += downtime;
       });
 
       const availabilityAvg = countedHours ? sumAvailability / countedHours : 0;
       const performanceAvg = countedHours ? sumPerformance / countedHours : 0;
-      const qualityAvg = countedHours ? sumQuality / countedHours : 0;
-      const trsGlobal = availabilityAvg * performanceAvg * qualityAvg;
+      const trsGlobal = availabilityAvg * performanceAvg;
 
       kpiTrs.textContent = formatPercent(trsGlobal);
       kpiAvailability.textContent = formatPercent(availabilityAvg);
       kpiPerformance.textContent = formatPercent(performanceAvg);
-      kpiQuality.textContent = formatPercent(qualityAvg);
     }
 
     function formatPercent(value) {
@@ -749,7 +1223,7 @@
     }
 
     function renderChart() {
-      const targetRate = Math.max(0, Number.parseFloat(targetRateInput.value) || 0);
+      const targetRate = getTargetRate();
       chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
       const padding = 40;
       const width = chartCanvas.width;
@@ -792,10 +1266,30 @@
       chartCtx.fillText(`Cible ${targetRate.toLocaleString('fr-FR')} u/h`, width - padding - 150, padding - 10);
     }
 
-    targetRateInput.addEventListener('change', () => {
+    function handleParameterChange() {
+      let hasChanges = false;
+      hourlyEntries.forEach((entry, hour) => {
+        if (!entry) return;
+        const recomputed = minutesToJustify(entry.good, getTargetRate());
+        if (entry.minutesToJustify !== recomputed) {
+          entry.minutesToJustify = recomputed;
+          hasChanges = true;
+        }
+        updateTableRow(hour, entry);
+      });
+      updateLog();
       updateKPI();
       renderChart();
-    });
+      if (hasChanges) {
+        persistToStorage();
+      }
+      if (hourEditDialog.open) {
+        handleGoodChange();
+      }
+    }
+
+    targetRateInput.addEventListener('change', handleParameterChange);
+    targetRateInput.addEventListener('input', handleParameterChange);
 
     cycleTimeInput.addEventListener('change', () => {
       updateKPI();
@@ -830,22 +1324,36 @@
       document.body.classList.toggle('operator-mode', operatorModeCheckbox.checked);
     }
 
+    // EXPORTS
     exportCsvButton.addEventListener('click', () => {
       const csvRows = [
-        ['Horodatage saisie', 'Heure', 'Equipe', 'Bon', 'Rebut', 'Temps perdu (min)', 'Cause', 'Commentaire']
+        [
+          'Horodatage saisie',
+          'Heure',
+          'Equipe',
+          'Bon',
+          'À justifier (min)',
+          'Total causes (min)',
+          'Causes',
+          'Override',
+          'Commentaire'
+        ]
       ];
 
       hourlyEntries.forEach((entry, hour) => {
         if (!entry) return;
         const timeLabel = `${String(hour).padStart(2, '0')}:00 – ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+        const totalCauses = entry.causes?.reduce((sum, cause) => sum + (cause?.minutes || 0), 0) || 0;
+        const flattened = flattenCauses(entry.causes);
         csvRows.push([
           entry.timestamp,
           timeLabel,
           TEAM_ASSIGNMENTS[hour],
           entry.good,
-          entry.scrap,
-          entry.downtime,
-          entry.cause,
+          entry.minutesToJustify,
+          totalCauses,
+          flattened,
+          entry.override ? 'Oui' : 'Non',
           entry.comment?.replace(/\n/g, ' ')
         ]);
       });
@@ -860,21 +1368,27 @@
         .map((entry, hour) => {
           if (!entry) return '';
           const timeLabel = `${String(hour).padStart(2, '0')}:00 – ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+          const totalCauses = entry.causes?.reduce((sum, cause) => sum + (cause?.minutes || 0), 0) || 0;
+          const flattened = flattenCauses(entry.causes);
+          const commentHtml = escapeHtml(entry.comment || '').replace(/\n/g, '<br />');
           return `
-            <tr>
-              <td>${entry.timestamp}</td>
-              <td>${timeLabel}</td>
-              <td>${TEAM_ASSIGNMENTS[hour]}</td>
-              <td>${entry.good}</td>
-              <td>${entry.scrap}</td>
-              <td>${entry.downtime}</td>
-              <td>${entry.cause}</td>
-              <td>${entry.comment || ''}</td>
+            <tr${entry.override ? ' class="override"' : ''}>
+              <td>${escapeHtml(entry.timestamp)}</td>
+              <td>${escapeHtml(timeLabel)}</td>
+              <td>${escapeHtml(TEAM_ASSIGNMENTS[hour])}</td>
+              <td>${entry.good.toLocaleString('fr-FR')}</td>
+              <td>${entry.minutesToJustify.toLocaleString('fr-FR')}</td>
+              <td>${totalCauses.toLocaleString('fr-FR')}</td>
+              <td>${escapeHtml(flattened)}</td>
+              <td>${entry.override ? 'Oui' : 'Non'}</td>
+              <td>${commentHtml}</td>
             </tr>
           `;
         })
         .filter(Boolean)
         .join('');
+
+      const hasOverride = hourlyEntries.some((entry) => entry?.override);
 
       const html = `
         <!DOCTYPE html>
@@ -887,11 +1401,12 @@
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #d1d5db; padding: 0.5rem 0.65rem; }
             thead { background: #e0f2fe; }
+            tr.override { background: #fef3c7; }
           </style>
         </head>
         <body>
           <h1>Rapport – Journal horaire</h1>
-          <p>Cadence cible : ${targetRateInput.value} u/h – Temps cycle : ${cycleTimeInput.value} min/u</p>
+          <p>Cadence cible : ${escapeHtml(targetRateInput.value)} u/h – Temps cycle : ${escapeHtml(cycleTimeInput.value)} min/u</p>
           <table>
             <thead>
               <tr>
@@ -899,9 +1414,10 @@
                 <th>Heure</th>
                 <th>Equipe</th>
                 <th>Bon</th>
-                <th>Rebut</th>
-                <th>Temps perdu (min)</th>
-                <th>Cause</th>
+                <th>À justifier (min)</th>
+                <th>Total causes (min)</th>
+                <th>Causes</th>
+                <th>Override</th>
                 <th>Commentaire</th>
               </tr>
             </thead>
@@ -909,6 +1425,7 @@
               ${rowsHtml}
             </tbody>
           </table>
+          ${hasOverride ? '<p><strong>Note :</strong> Les lignes surlignées indiquent une validation override avec commentaire associé.</p>' : ''}
         </body>
         </html>
       `;
@@ -919,10 +1436,20 @@
 
     function escapeCsv(value) {
       const str = value === undefined || value === null ? '' : String(value);
-      if (str.includes(';') || str.includes('\"') || str.includes('\n')) {
+      if (str.includes(';') || str.includes('"') || str.includes('\n')) {
         return '"' + str.replace(/"/g, '""') + '"';
       }
       return str;
+    }
+
+    function escapeHtml(value) {
+      if (value === undefined || value === null) {
+        return '';
+      }
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
     }
 
     function downloadBlob(blob, filename) {
