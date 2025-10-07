@@ -924,6 +924,30 @@
           </div>
 
           <div class="settings-card">
+            <div class="settings-title">Catégories &amp; Sous-catégories</div>
+            <div class="settings-description">Définissez les catégories et sous-catégories d’événements (ex : Machine &gt; Dépileuse). Ces éléments seront utilisés dans les causes d’arrêt.</div>
+            <div class="table-wrapper">
+              <table class="settings-table">
+                <thead>
+                  <tr>
+                    <th>Catégorie</th>
+                    <th>Sous-catégorie</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="categories-table-body"></tbody>
+              </table>
+            </div>
+            <div class="settings-actions">
+              <button class="btn btn-secondary" id="add-category-row-btn">➕ Ajouter une ligne</button>
+              <button class="btn btn-primary" id="save-categories-btn">💾 Sauvegarder</button>
+              <button class="btn btn-secondary" id="export-categories-btn">📤 Exporter</button>
+              <button class="btn btn-secondary" id="import-categories-btn">📥 Importer</button>
+              <input type="file" id="categories-import-input" accept="application/json" style="display: none;" />
+            </div>
+          </div>
+
+          <div class="settings-card">
             <div class="settings-title">Seuils TRS</div>
             <div class="settings-description">Personnalisez les seuils de performance utilisés pour colorer les cartes horaires.</div>
             <div class="threshold-fields">
@@ -968,6 +992,10 @@
 
     let TEAM_ASSIGNMENTS = [...DEFAULT_TEAM_ASSIGNMENTS];
     let TRS_THRESHOLDS = { excellent: 95, good: 85 };
+    let CATEGORY_DATA = [
+      { category: 'Machine', subcategory: 'Dépileuse' },
+      { category: 'Machine', subcategory: 'MASS' }
+    ];
 
     // État global en mémoire (PAS de localStorage)
     function createEmptyHourlyData() {
@@ -993,6 +1021,8 @@
       highlightCurrentHour();
       checkBadges();
       buildTeamAssignmentsTable();
+      buildCategoryTable();
+      rebuildQuickCauses();
       populateParameters();
       setupNavigation();
 
@@ -1087,6 +1117,7 @@
       if (lowInput) lowInput.value = Math.max(0, TRS_THRESHOLDS.good - 1);
 
       buildTeamAssignmentsTable();
+      buildCategoryTable();
     }
 
     function saveSettings() {
@@ -1139,7 +1170,11 @@
       const config = {
         targetRate: parseInt(document.getElementById('target-rate').value, 10) || 16000,
         teamAssignments: [...TEAM_ASSIGNMENTS],
-        thresholds: { ...TRS_THRESHOLDS }
+        thresholds: { ...TRS_THRESHOLDS },
+        categories: CATEGORY_DATA.map(item => ({
+          category: item.category,
+          subcategory: item.subcategory
+        }))
       };
 
       const dateStr = new Date().toISOString().split('T')[0];
@@ -1170,15 +1205,23 @@
             });
           }
 
-          if (config.thresholds) {
-            const excellent = parseInt(config.thresholds.excellent, 10);
-            const good = parseInt(config.thresholds.good, 10);
+          if (Array.isArray(config.categories)) {
+            CATEGORY_DATA = config.categories.map(item => ({
+              category: typeof item.category === 'string' ? item.category.trim() : '',
+              subcategory: typeof item.subcategory === 'string' ? item.subcategory.trim() : ''
+            }));
+            buildCategoryTable();
+            rebuildQuickCauses();
+          }
+
+          if (config.thresholds && typeof config.thresholds === 'object') {
+            const { excellent, good } = config.thresholds;
 
             if (Number.isFinite(excellent)) {
-              TRS_THRESHOLDS.excellent = Math.max(0, Math.min(100, excellent));
+              TRS_THRESHOLDS.excellent = Math.max(0, Math.min(100, Math.round(excellent)));
             }
             if (Number.isFinite(good)) {
-              TRS_THRESHOLDS.good = Math.max(0, Math.min(TRS_THRESHOLDS.excellent, good));
+              TRS_THRESHOLDS.good = Math.max(0, Math.min(TRS_THRESHOLDS.excellent, Math.round(good)));
             }
 
             if (TRS_THRESHOLDS.excellent < TRS_THRESHOLDS.good) {
@@ -1623,6 +1666,17 @@
 
     document.getElementById('export-config-btn').addEventListener('click', exportConfig);
     document.getElementById('reset-day-btn').addEventListener('click', resetDay);
+    document.getElementById('add-category-row-btn').addEventListener('click', addCategoryRow);
+    document.getElementById('save-categories-btn').addEventListener('click', saveCategoriesList);
+    document.getElementById('export-categories-btn').addEventListener('click', exportCategories);
+    document.getElementById('import-categories-btn').addEventListener('click', () => {
+      document.getElementById('categories-import-input').click();
+    });
+    document.getElementById('categories-import-input').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      importCategories(file);
+      event.target.value = '';
+    });
 
     // Boutons d'action
     document.getElementById('refresh-btn').addEventListener('click', () => {
@@ -1675,6 +1729,145 @@
       link.download = filename;
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 100);
+    }
+
+    function buildCategoryTable() {
+      const tbody = document.getElementById('categories-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+
+      CATEGORY_DATA.forEach((item, index) => {
+        const row = document.createElement('tr');
+
+        const categoryCell = document.createElement('td');
+        const categoryInput = document.createElement('input');
+        categoryInput.type = 'text';
+        categoryInput.value = item.category || '';
+        categoryInput.dataset.field = 'category';
+        categoryCell.appendChild(categoryInput);
+
+        const subcategoryCell = document.createElement('td');
+        const subcategoryInput = document.createElement('input');
+        subcategoryInput.type = 'text';
+        subcategoryInput.value = item.subcategory || '';
+        subcategoryInput.dataset.field = 'subcategory';
+        subcategoryCell.appendChild(subcategoryInput);
+
+        const actionsCell = document.createElement('td');
+        actionsCell.style.whiteSpace = 'nowrap';
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn btn-secondary';
+        deleteBtn.textContent = '🗑️ Supprimer';
+        deleteBtn.addEventListener('click', () => removeCategoryRow(index));
+        actionsCell.appendChild(deleteBtn);
+
+        row.appendChild(categoryCell);
+        row.appendChild(subcategoryCell);
+        row.appendChild(actionsCell);
+
+        tbody.appendChild(row);
+      });
+    }
+
+    function getCategoriesFromTable() {
+      const rows = document.querySelectorAll('#categories-table-body tr');
+      if (!rows.length) {
+        return [...CATEGORY_DATA];
+      }
+
+      return Array.from(rows).map(row => {
+        const categoryInput = row.querySelector('input[data-field="category"]');
+        const subcategoryInput = row.querySelector('input[data-field="subcategory"]');
+        return {
+          category: categoryInput ? categoryInput.value.trim() : '',
+          subcategory: subcategoryInput ? subcategoryInput.value.trim() : ''
+        };
+      });
+    }
+
+    function addCategoryRow() {
+      CATEGORY_DATA = getCategoriesFromTable();
+      CATEGORY_DATA.push({ category: '', subcategory: '' });
+      buildCategoryTable();
+    }
+
+    function removeCategoryRow(index) {
+      const current = getCategoriesFromTable();
+      CATEGORY_DATA = current.filter((_, idx) => idx !== index);
+      buildCategoryTable();
+      rebuildQuickCauses();
+    }
+
+    function saveCategoriesList() {
+      CATEGORY_DATA = getCategoriesFromTable().map(item => ({
+        category: item.category,
+        subcategory: item.subcategory
+      }));
+      buildCategoryTable();
+      rebuildQuickCauses();
+      showToast('💾 Catégories enregistrées', 'success');
+    }
+
+    function exportCategories() {
+      CATEGORY_DATA = getCategoriesFromTable();
+      downloadJSON({ categories: CATEGORY_DATA }, 'categories.json');
+      showToast('📤 Catégories exportées', 'success');
+    }
+
+    function importCategories(file) {
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          const categories = Array.isArray(parsed)
+            ? parsed
+            : (Array.isArray(parsed.categories) ? parsed.categories : null);
+
+          if (!categories) {
+            throw new Error('Format catégories invalide');
+          }
+
+          CATEGORY_DATA = categories.map(item => ({
+            category: typeof item.category === 'string' ? item.category.trim() : '',
+            subcategory: typeof item.subcategory === 'string' ? item.subcategory.trim() : ''
+          }));
+
+          buildCategoryTable();
+          rebuildQuickCauses();
+          showToast('📥 Catégories importées', 'success');
+        } catch (error) {
+          console.error('Erreur import catégories', error);
+          showToast('❌ Import catégories impossible', 'error');
+        }
+      };
+
+      reader.readAsText(file);
+    }
+
+    function rebuildQuickCauses() {
+      const container = document.getElementById('quick-causes');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      CATEGORY_DATA.forEach(({ category, subcategory }) => {
+        const cleanCategory = (category || '').trim();
+        const cleanSubcategory = (subcategory || '').trim();
+        if (!cleanCategory && !cleanSubcategory) return;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cause-chip';
+        const label = cleanSubcategory ? `${cleanCategory} > ${cleanSubcategory}` : cleanCategory;
+        const datasetValue = cleanSubcategory ? `${cleanCategory} - ${cleanSubcategory}` : cleanCategory;
+        btn.dataset.cause = datasetValue;
+        btn.textContent = label;
+        container.appendChild(btn);
+      });
     }
 
     // Mise à jour cadence cible
