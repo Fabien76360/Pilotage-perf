@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>PRS Next</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="app.js" type="module" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">PRS</span>
+      <span class="brand-sub">Next</span>
+    </div>
+    <nav class="tabs" aria-label="Navigation principale">
+      <button class="tab-button active" data-target="saisie">Saisie</button>
+      <button class="tab-button" data-target="analyse">Analyse</button>
+      <button class="tab-button" data-target="parametres">Paramètres</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="saisie" class="tab-panel active" aria-labelledby="Saisie">
+      <div class="grid">
+        <section class="card">
+          <header class="card-header">
+            <h2>Session</h2>
+            <button id="new-session-btn" class="btn accent">Nouvelle session</button>
+          </header>
+          <form id="session-form" class="form-grid">
+            <label>Site<input name="site" required></label>
+            <label>Ligne<input name="ligne" required></label>
+            <label>PO<input name="po" required></label>
+            <label>Produit<input name="produit" required></label>
+            <label>Équipe<input name="equipe" required></label>
+            <label>Shift<input name="shift"></label>
+            <label>Début<input type="time" name="debut" required></label>
+            <label>Fin<input type="time" name="fin" required></label>
+            <label>Objectif/h<input type="number" name="objectif_h" min="0"></label>
+            <label>Cadence cible<input type="number" name="cadence_cible" min="0"></label>
+          </form>
+          <div class="form-actions">
+            <select id="session-selector" aria-label="Sessions enregistrées"></select>
+            <button class="btn" id="duplicate-session-btn">Dupliquer session d'hier</button>
+            <button class="btn" id="save-session-meta">Enregistrer</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <header class="card-header">
+            <h2>Quantités hora par heure</h2>
+            <div>
+              <button id="add-hour-row" class="btn">Ajouter heure</button>
+            </div>
+          </header>
+          <table class="data-table" id="production-table">
+            <thead>
+              <tr>
+                <th>Heure</th>
+                <th>OK</th>
+                <th>KO</th>
+                <th>Commentaire</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <header class="card-header">
+            <h2>Arrêts & micro-arrêts</h2>
+            <button class="btn accent" id="open-stop-panel">Événement</button>
+          </header>
+          <table class="data-table" id="stops-table">
+            <thead>
+              <tr>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Durée</th>
+                <th>Catégorie</th>
+                <th>Cause</th>
+                <th>Sous-cause</th>
+                <th>Commentaire</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <header class="card-header">
+            <h2>Journal temps réel</h2>
+          </header>
+          <table class="data-table" id="journal-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Horodatage</th>
+                <th>Détails</th>
+                <th>Commentaire</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+      </div>
+
+      <footer class="actions">
+        <button class="btn" id="export-production">Exporter CSV Production</button>
+        <button class="btn" id="export-stops">Exporter CSV Arrêts</button>
+        <button class="btn" id="export-report">Exporter Rapport 1-page</button>
+        <button class="btn warn" id="reset-session">Reset session</button>
+      </footer>
+    </section>
+
+    <section id="analyse" class="tab-panel" aria-labelledby="Analyse">
+      <div class="filters card">
+        <div class="form-grid">
+          <label>Session<select id="analysis-session"></select></label>
+          <label>Équipe<select id="analysis-team-filter"><option value="all">Toutes</option></select></label>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="kpi-card" id="kpi-oee">
+          <h3>TRS / OEE</h3>
+          <p class="kpi-value">0%</p>
+          <p class="kpi-detail"></p>
+        </article>
+        <article class="kpi-card" id="kpi-reject">
+          <h3>Taux de rejet</h3>
+          <p class="kpi-value">0%</p>
+          <p class="kpi-detail"></p>
+        </article>
+        <article class="kpi-card" id="kpi-cadence">
+          <h3>Cadence vs cible</h3>
+          <p class="kpi-value">0%</p>
+          <p class="kpi-detail"></p>
+        </article>
+        <article class="kpi-card" id="kpi-mtbf">
+          <h3>MTBF</h3>
+          <p class="kpi-value">0 min</p>
+          <p class="kpi-detail"></p>
+        </article>
+        <article class="kpi-card" id="kpi-mttr">
+          <h3>MTTR</h3>
+          <p class="kpi-value">0 min</p>
+          <p class="kpi-detail"></p>
+        </article>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <header class="card-header"><h2>OK vs Cible</h2></header>
+          <canvas id="chart-ok-target" height="220"></canvas>
+        </section>
+        <section class="card">
+          <header class="card-header"><h2>Pareto Arrêts</h2></header>
+          <canvas id="chart-pareto" height="220"></canvas>
+        </section>
+        <section class="card">
+          <header class="card-header"><h2>Répartition par équipe</h2></header>
+          <canvas id="chart-team" height="220"></canvas>
+        </section>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <header class="card-header"><h2>Top 3 pertes</h2></header>
+          <ol id="top-losses" class="insight-list"></ol>
+        </section>
+        <section class="card">
+          <header class="card-header"><h2>Insights Kaizen</h2></header>
+          <ul id="insights" class="insight-list"></ul>
+        </section>
+      </div>
+    </section>
+
+    <section id="parametres" class="tab-panel" aria-labelledby="Paramètres">
+      <div class="grid">
+        <section class="card">
+          <header class="card-header">
+            <h2>Référentiels lignes & produits</h2>
+            <button class="btn" id="add-target">Ajouter</button>
+          </header>
+          <table class="data-table" id="targets-table">
+            <thead>
+              <tr>
+                <th>Ligne</th>
+                <th>Produit</th>
+                <th>Cadence cible</th>
+                <th>Objectif/h</th>
+                <th>Seuil perf</th>
+                <th>Seuil rejet</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <header class="card-header">
+            <h2>Taxonomie d'arrêts</h2>
+            <button class="btn" id="add-taxonomy">Ajouter</button>
+          </header>
+          <table class="data-table" id="taxonomy-table">
+            <thead>
+              <tr>
+                <th>Catégorie</th>
+                <th>Cause</th>
+                <th>Sous-cause</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <header class="card-header">
+            <h2>Utilisateurs / Badges</h2>
+            <button class="btn" id="add-user">Ajouter</button>
+          </header>
+          <table class="data-table" id="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Rôle</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+      </div>
+
+      <footer class="actions">
+        <input type="file" id="import-json" accept="application/json" hidden>
+        <input type="file" id="import-csv" accept=".csv" hidden>
+        <button class="btn" id="export-json">Export JSON</button>
+        <button class="btn" id="import-json-btn">Import JSON</button>
+        <button class="btn" id="import-csv-btn">Import CSV</button>
+        <button class="btn warn" id="reset-state">Réinitialiser tout</button>
+      </footer>
+    </section>
+  </main>
+
+  <dialog id="stop-dialog">
+    <form method="dialog" id="stop-form" class="stop-form">
+      <header>
+        <h2>Déclarer un arrêt</h2>
+      </header>
+      <label>Catégorie<select name="categorie" required></select></label>
+      <label>Cause<select name="cause" required></select></label>
+      <label>Sous-cause<select name="sous_cause" required></select></label>
+      <label>Criticité<select name="criticite">
+        <option value="Mineur">Mineur</option>
+        <option value="Majeur">Majeur</option>
+        <option value="Critique">Critique</option>
+      </select></label>
+      <label>Commentaire<textarea name="comment"></textarea></label>
+      <div class="timer-row">
+        <button type="button" class="btn" id="start-stop-btn">Start</button>
+        <button type="button" class="btn" id="stop-stop-btn">Stop</button>
+        <span id="stop-duration">00:00</span>
+      </div>
+      <menu>
+        <button value="cancel" class="btn">Annuler</button>
+        <button id="save-stop" value="default" class="btn accent">Enregistrer</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="report-dialog">
+    <article class="report">
+      <header>
+        <h2>Rapport 1-page</h2>
+        <button id="print-report" class="btn">Imprimer</button>
+      </header>
+      <section id="report-content"></section>
+      <footer>
+        <button id="close-report" class="btn">Fermer</button>
+      </footer>
+    </article>
+  </dialog>
+
+  <div class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- README
+  PRS Next est une application web locale permettant de suivre la performance d'une ligne de conditionnement.
+  Ouvrir index.html dans un navigateur Edge/Chromium récent. Les données sont stockées dans localStorage.
+  Utiliser les onglets pour saisir la production, analyser les KPIs et gérer les paramètres.
+  -->
+</body>
+</html>

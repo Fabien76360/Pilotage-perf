@@ -1,0 +1,418 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --panel: #181b22;
+  --fg: #f5f7ff;
+  --muted: #9aa0b5;
+  --accent: #3f8cff;
+  --accent-soft: rgba(63, 140, 255, 0.15);
+  --warn: #f7b733;
+  --danger: #ff5b6b;
+  --success: #40c463;
+  --radius: 22px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, rgba(63, 140, 255, 0.25), transparent 45%), var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: rgba(20, 23, 32, 0.9);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.brand-mark {
+  background: var(--accent);
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+}
+
+.brand-sub {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0.45rem 1.3rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button.active, .tab-button:focus-visible {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+  outline: none;
+}
+
+main {
+  padding: 1.5rem 2rem 3rem;
+  flex: 1;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.grid + .grid {
+  margin-top: 1.5rem;
+}
+
+.grid > .card {
+  min-width: 0;
+}
+
+.card {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: 0 18px 45px -25px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+input, select, textarea {
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  font-size: 0.95rem;
+}
+
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 0.55rem 1.2rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn.accent {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+}
+
+.btn.warn {
+  background: var(--danger);
+  border-color: transparent;
+  color: #fff;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th, .data-table td {
+  padding: 0.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: left;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.table-actions button {
+  padding: 0.35rem 0.7rem;
+  min-height: auto;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.kpi-card {
+  background: linear-gradient(135deg, rgba(63, 140, 255, 0.15), rgba(63, 140, 255, 0.05));
+  border-radius: var(--radius);
+  padding: 1.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.kpi-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.kpi-card:hover::after {
+  opacity: 1;
+}
+
+.kpi-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.kpi-detail {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+}
+
+.kpi-card.success {
+  box-shadow: 0 0 0 1px var(--success) inset;
+}
+
+.kpi-card.warning {
+  box-shadow: 0 0 0 1px var(--warn) inset;
+}
+
+.kpi-card.danger {
+  box-shadow: 0 0 0 1px var(--danger) inset;
+}
+
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: grid;
+  gap: 0.6rem;
+  z-index: 1000;
+}
+
+.toast {
+  background: rgba(24, 27, 34, 0.95);
+  border-left: 4px solid var(--accent);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  min-width: 240px;
+  box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.7);
+  animation: slideIn 0.3s ease;
+}
+
+.toast-danger {
+  border-left-color: var(--danger);
+}
+
+.toast-success {
+  border-left-color: var(--success);
+}
+
+.toast-warning {
+  border-left-color: var(--warn);
+}
+
+@keyframes slideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.dialog::backdrop, dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+#stop-dialog, #report-dialog {
+  border: none;
+  border-radius: 18px;
+  padding: 0;
+  background: transparent;
+}
+
+.stop-form, .report {
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 1.5rem;
+  min-width: 320px;
+  display: grid;
+  gap: 1rem;
+}
+
+.stop-form menu {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.timer-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#stop-duration {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.report header, .report footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.report section {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.insight-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.insight-list li {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.75rem;
+  border-radius: 12px;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  main {
+    padding: 1.5rem;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .topbar, .tabs, .actions, dialog, .toast-container {
+    display: none !important;
+  }
+
+  .report {
+    background: #fff;
+    color: #000;
+    box-shadow: none;
+  }
+}
