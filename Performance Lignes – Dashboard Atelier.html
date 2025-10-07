@@ -337,6 +337,33 @@
       background: rgba(37, 99, 235, 0.05);
     }
 
+    dialog .justify-indicator strong .badge,
+    dialog .justify-indicator .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 0.9rem;
+    }
+
+    dialog .justify-indicator .badge.state-ok {
+      background: #dcfce7;
+      color: #047857;
+    }
+
+    dialog .justify-indicator .badge.state-low {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    dialog .justify-indicator .badge.state-high {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
     dialog .cause-block-header {
       display: grid;
       gap: 0.5rem;
@@ -351,6 +378,62 @@
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
+    }
+
+    dialog .cause-quickbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    dialog .cause-shortcuts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    dialog .cause-shortcuts .cause-chip {
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--primary);
+      background: #fff;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    dialog .cause-shortcuts .cause-chip:hover,
+    dialog .cause-shortcuts .cause-chip:focus-visible {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    dialog .cause-increments {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-left: auto;
+    }
+
+    dialog .cause-increments .inc-btn {
+      padding: 0.3rem 0.55rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    dialog .cause-increments .inc-btn:hover,
+    dialog .cause-increments .inc-btn:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px -18px rgba(37, 99, 235, 0.8);
     }
 
     dialog .cause-list {
@@ -384,20 +467,36 @@
       font-weight: 600;
     }
 
-    dialog .cause-summary span {
-      font-size: 0.95rem;
-    }
-
-    dialog .cause-summary span.state-ok {
+    dialog .cause-summary .state-ok {
       color: #047857;
     }
 
-    dialog .cause-summary span.state-low {
+    dialog .cause-summary .state-low {
       color: #b45309;
     }
 
-    dialog .cause-summary span.state-high {
+    dialog .cause-summary .state-high {
       color: #dc2626;
+    }
+
+    dialog .comment-block {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    dialog .comment-block .comment-hint {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    dialog .comment-block.needs-comment textarea {
+      border-color: #b45309;
+      box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.15);
+    }
+
+    dialog .comment-block.needs-comment .comment-hint {
+      color: #b45309;
+      font-weight: 600;
     }
 
     dialog .override.hidden {
@@ -550,7 +649,8 @@
           <input type="number" id="input-good" min="0" step="1" required />
         </label>
         <div class="justify-indicator">
-          À justifier : <strong id="justify-display">0 min</strong>
+          À justifier :
+          <strong id="justify-display"><span id="to-justify-badge" class="badge">0 min</span></strong>
         </div>
       </div>
       <section class="cause-block">
@@ -562,18 +662,31 @@
             <button type="button" id="auto-balance" class="secondary">Remplir automatiquement</button>
           </div>
         </header>
+        <div class="cause-quickbar" aria-live="polite">
+          <div class="cause-shortcuts" id="cause-shortcuts" aria-label="Causes favorites"></div>
+          <div class="cause-increments" role="group" aria-label="Ajouter des minutes">
+            <button type="button" class="inc-btn" data-inc="5">+5</button>
+            <button type="button" class="inc-btn" data-inc="10">+10</button>
+            <button type="button" class="inc-btn" data-inc="15">+15</button>
+          </div>
+        </div>
         <div id="cause-list" class="cause-list"></div>
         <footer class="cause-summary">
-          <span id="cause-total">Total causes : 0 min / À justifier : 0 min</span>
+          <span id="cause-total">
+            Total causes : <strong id="sum-minutes">0 min</strong> / À justifier : <strong id="need-minutes">0 min</strong>
+          </span>
           <label id="override-container" class="override hidden">
             <input type="checkbox" id="override-checkbox" /> Valider quand même
           </label>
         </footer>
       </section>
-      <label>
-        Commentaire
-        <textarea id="input-comment" placeholder="Observations, actions, etc."></textarea>
-      </label>
+      <div id="comment-block" class="comment-block">
+        <label>
+          Commentaire
+          <span id="comment-hint" class="comment-hint" hidden>Motif requis pour override (min. 5 caractères)</span>
+          <textarea id="input-comment" placeholder="Observations, actions, etc."></textarea>
+        </label>
+      </div>
       <div class="actions">
         <button type="reset" class="cancel">Annuler</button>
         <button type="submit" id="submit-hour">Valider</button>
@@ -603,6 +716,7 @@
       'Autre'
     ];
     const ROUND_MODE = 'nearest';
+    const OVERRIDE_COMMENT_MIN_LENGTH = 5;
 
     const hourlyTableBody = document.getElementById('hourly-table-body');
     const logContainer = document.getElementById('journal-log');
@@ -616,10 +730,17 @@
     const fillRemainingButton = document.getElementById('fill-remaining');
     const autoBalanceButton = document.getElementById('auto-balance');
     const causeTotalDisplay = document.getElementById('cause-total');
+    const justifyBadge = document.getElementById('to-justify-badge');
+    const needMinutesDisplay = document.getElementById('need-minutes');
+    const sumMinutesDisplay = document.getElementById('sum-minutes');
+    const causeShortcutsBar = document.getElementById('cause-shortcuts');
     const overrideContainer = document.getElementById('override-container');
     const overrideCheckbox = document.getElementById('override-checkbox');
     const submitHourButton = document.getElementById('submit-hour');
+    const commentBlock = document.getElementById('comment-block');
+    const commentHint = document.getElementById('comment-hint');
     const inputComment = document.getElementById('input-comment');
+    const incrementButtons = [...document.querySelectorAll('.inc-btn[data-inc]')];
     const targetRateInput = document.getElementById('target-rate');
     const cycleTimeInput = document.getElementById('cycle-time');
     const tabButtons = [...document.querySelectorAll('.tab-button')];
@@ -647,6 +768,7 @@
     const activeHour = now.getHours();
 
     document.addEventListener('DOMContentLoaded', () => {
+      initCauseShortcuts();
       buildHourlyTable();
       loadFromStorage();
       applyOperatorMode();
@@ -713,19 +835,95 @@
       return Math.max(0, Number.parseFloat(targetRateInput.value) || 0);
     }
 
+    function getAvailableEvents() {
+      const events = [...STANDARD_EVENTS];
+      hourlyEntries
+        .filter(Boolean)
+        .forEach((entry) => {
+          entry.causes?.forEach((cause) => {
+            if (!cause?.name) return;
+            if (!events.includes(cause.name)) {
+              events.push(cause.name);
+            }
+          });
+        });
+      return events;
+    }
+
+    function getFavoriteCauses() {
+      const usage = new Map();
+      hourlyEntries
+        .filter(Boolean)
+        .forEach((entry) => {
+          entry.causes?.forEach((cause) => {
+            if (!cause?.name) return;
+            usage.set(cause.name, (usage.get(cause.name) || 0) + (cause.minutes || 0));
+          });
+        });
+      const fallback = STANDARD_EVENTS.filter((event) => event !== 'Production nominale');
+      const ordered = [...usage.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+      fallback.forEach((name) => {
+        if (!ordered.includes(name)) {
+          ordered.push(name);
+        }
+      });
+      return ordered.slice(0, 3);
+    }
+
+    function initCauseShortcuts() {
+      if (!causeShortcutsBar) return;
+      causeShortcutsBar.innerHTML = '';
+      const favorites = getFavoriteCauses();
+      favorites.forEach((label) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cause-chip';
+        button.textContent = label;
+        button.addEventListener('click', () => addCauseRow(label, 0));
+        causeShortcutsBar.appendChild(button);
+      });
+    }
+
+    function refreshNeedDisplays() {
+      const text = `${currentMinutesToJustify.toLocaleString('fr-FR')} min`;
+      if (justifyBadge) {
+        justifyBadge.textContent = text;
+      } else if (typeof justifyDisplay !== 'undefined' && justifyDisplay) {
+        justifyDisplay.textContent = text;
+      }
+      if (needMinutesDisplay) {
+        needMinutesDisplay.textContent = text;
+      }
+    }
+
+    function incrementLastCause(amount) {
+      if (!causeListContainer) return;
+      const rows = [...causeListContainer.querySelectorAll('.cause-row')];
+      if (!rows.length) {
+        addCauseRow();
+      }
+      const lastInput = causeListContainer.querySelector('.cause-row:last-child input[type="number"]');
+      if (!lastInput) return;
+      const current = sanitizeCauseMinutes(lastInput.value);
+      const updated = clampMinutes(roundToNearest5(current + amount));
+      lastInput.value = updated;
+      updateCauseSummary();
+    }
+
     // MULTI-CAUSES
     function createCauseRow(causeName = STANDARD_EVENTS[0], minutes = 0) {
       const row = document.createElement('div');
       row.className = 'cause-row';
 
       const select = document.createElement('select');
-      for (const cause of STANDARD_EVENTS) {
+      const availableEvents = getAvailableEvents();
+      availableEvents.forEach((cause) => {
         const option = document.createElement('option');
         option.value = cause;
         option.textContent = cause;
         select.appendChild(option);
-      }
-      if (!STANDARD_EVENTS.includes(causeName)) {
+      });
+      if (!availableEvents.includes(causeName)) {
         const option = document.createElement('option');
         option.value = causeName;
         option.textContent = causeName;
@@ -747,9 +945,11 @@
       removeButton.textContent = 'Supprimer';
 
       select.addEventListener('change', () => updateCauseSummary());
-      minutesInput.addEventListener('input', () => updateCauseSummary());
-      minutesInput.addEventListener('change', () => {
-        minutesInput.value = sanitizeCauseMinutes(minutesInput.value);
+      minutesInput.addEventListener('input', (event) => {
+        const sanitized = sanitizeCauseMinutes(event.target.value);
+        if (`${sanitized}` !== event.target.value) {
+          event.target.value = sanitized;
+        }
         updateCauseSummary();
       });
       minutesInput.addEventListener('blur', () => {
@@ -812,14 +1012,33 @@
       const mismatch = total !== currentMinutesToJustify;
       lastMismatch = mismatch;
 
-      causeTotalDisplay.textContent = `Total causes : ${total.toLocaleString('fr-FR')} min / À justifier : ${currentMinutesToJustify.toLocaleString('fr-FR')} min`;
-      causeTotalDisplay.classList.remove('state-ok', 'state-low', 'state-high');
+      const totalText = `${total.toLocaleString('fr-FR')} min`;
+      const needText = `${currentMinutesToJustify.toLocaleString('fr-FR')} min`;
+      if (sumMinutesDisplay) {
+        sumMinutesDisplay.textContent = totalText;
+      } else if (causeTotalDisplay) {
+        causeTotalDisplay.textContent = `Total causes : ${totalText} / À justifier : ${needText}`;
+      }
+      if (needMinutesDisplay) {
+        needMinutesDisplay.textContent = needText;
+      } else if (causeTotalDisplay && !sumMinutesDisplay) {
+        causeTotalDisplay.textContent = `Total causes : ${totalText} / À justifier : ${needText}`;
+      }
+      refreshNeedDisplays();
+
+      if (causeTotalDisplay) {
+        causeTotalDisplay.classList.remove('state-ok', 'state-low', 'state-high');
+      }
+      justifyBadge?.classList.remove('state-ok', 'state-low', 'state-high');
       if (!mismatch) {
-        causeTotalDisplay.classList.add('state-ok');
+        causeTotalDisplay?.classList.add('state-ok');
+        justifyBadge?.classList.add('state-ok');
       } else if (total < currentMinutesToJustify) {
-        causeTotalDisplay.classList.add('state-low');
+        causeTotalDisplay?.classList.add('state-low');
+        justifyBadge?.classList.add('state-low');
       } else {
-        causeTotalDisplay.classList.add('state-high');
+        causeTotalDisplay?.classList.add('state-high');
+        justifyBadge?.classList.add('state-high');
       }
 
       overrideContainer.classList.toggle('hidden', !mismatch);
@@ -834,15 +1053,26 @@
     function updateSubmitAvailability() {
       const mismatch = lastMismatch;
       const commentText = inputComment.value.trim();
-      const disabled = mismatch && (!overrideCheckbox.checked || commentText.length === 0);
+      const needsOverride = mismatch;
+      const overrideChecked = overrideCheckbox.checked;
+      const needsComment = needsOverride && overrideChecked;
+      const hasComment = commentText.length >= OVERRIDE_COMMENT_MIN_LENGTH;
+      const disabled = needsOverride && (!overrideChecked || !hasComment);
       submitHourButton.disabled = disabled;
+
+      if (commentHint) {
+        commentHint.hidden = !(needsComment);
+      }
+      if (commentBlock) {
+        commentBlock.classList.toggle('needs-comment', needsComment && !hasComment);
+      }
 
       if (!mismatch) {
         submitHourButton.title = '';
       } else if (!overrideCheckbox.checked) {
         submitHourButton.title = 'Répartissez les minutes ou activez le mode override.';
-      } else if (!commentText.length) {
-        submitHourButton.title = 'Un commentaire est requis pour valider en override.';
+      } else if (!hasComment) {
+        submitHourButton.title = `Un commentaire (${OVERRIDE_COMMENT_MIN_LENGTH} caractères minimum) est requis pour valider en override.`;
       } else {
         submitHourButton.title = '';
       }
@@ -923,13 +1153,20 @@
     function handleGoodChange() {
       const goodValue = Math.max(0, Number.parseFloat(inputGood.value) || 0);
       currentMinutesToJustify = minutesToJustify(goodValue, getTargetRate());
-      justifyDisplay.textContent = `${currentMinutesToJustify.toLocaleString('fr-FR')} min`;
+      refreshNeedDisplays();
       updateCauseSummary();
     }
 
     addCauseButton.addEventListener('click', () => addCauseRow());
     fillRemainingButton.addEventListener('click', fillRemainingMinutes);
     autoBalanceButton.addEventListener('click', autoBalanceMinutes);
+    incrementButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const increment = Number.parseInt(button.dataset.inc, 10);
+        if (Number.isNaN(increment)) return;
+        incrementLastCause(increment);
+      });
+    });
     inputGood.addEventListener('input', handleGoodChange);
     inputGood.addEventListener('change', handleGoodChange);
     inputComment.addEventListener('input', updateSubmitAvailability);
@@ -959,8 +1196,8 @@
       const mismatch = totalCauses !== computedJustify;
       const comment = inputComment.value.trim();
 
-      if (mismatch && (!overrideCheckbox.checked || comment.length === 0)) {
-        alert('Le total des causes doit correspondre à À justifier ou être validé avec commentaire.');
+      if (mismatch && (!overrideCheckbox.checked || comment.length < OVERRIDE_COMMENT_MIN_LENGTH)) {
+        alert(`Le total des causes doit correspondre à À justifier ou être validé avec un commentaire de ${OVERRIDE_COMMENT_MIN_LENGTH} caractères minimum.`);
         return false;
       }
 
@@ -982,6 +1219,7 @@
       updateTableRow(hourIndex, entry);
       updateLog();
       persistToStorage();
+      initCauseShortcuts();
       updateKPI();
       renderChart();
 
@@ -1157,6 +1395,7 @@
         });
         hourlyEntries.forEach((entry, hour) => updateTableRow(hour, entry));
         updateLog();
+        initCauseShortcuts();
         if (migrated) {
           persistToStorage();
         }
