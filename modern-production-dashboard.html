@@ -479,28 +479,35 @@
       background-clip: text;
     }
 
-    .quick-causes {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      margin-top: 0.75rem;
-    }
-
     .cause-chip {
-      padding: 0.5rem 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
       background: var(--card-light);
       border: 2px solid var(--border);
       border-radius: 0.75rem;
       font-size: 0.85rem;
       font-weight: 600;
-      cursor: pointer;
+      cursor: default;
       transition: all 0.3s ease;
     }
 
     .cause-chip:hover {
-      background: var(--primary);
       border-color: var(--primary);
       transform: translateY(-2px);
+    }
+
+    .cause-chip span {
+      display: inline-block;
+    }
+
+    .cause-chip button {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      border-radius: 0.5rem;
+      min-width: unset;
+      line-height: 1.2;
     }
 
     .modal-actions {
@@ -730,13 +737,21 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Causes d'Arrêt (sélection rapide)</label>
-        <div class="quick-causes" id="quick-causes">
-          <button type="button" class="cause-chip" data-cause="Production nominale">✅ Nominale</button>
-          <button type="button" class="cause-chip" data-cause="Micro-arrêts">⏱️ Micro-arrêts</button>
-          <button type="button" class="cause-chip" data-cause="Panne machine">🔧 Panne</button>
-          <button type="button" class="cause-chip" data-cause="Changement format">🔄 Format</button>
-          <button type="button" class="cause-chip" data-cause="Approvisionnement">📦 Appro</button>
+        <label class="form-label">Causes d'arrêt</label>
+        <div style="display:grid; gap:0.75rem;">
+          <div style="display:grid; grid-template-columns: 1fr 1fr 140px 140px; gap:0.5rem;">
+            <select id="cause-category" class="form-input"></select>
+            <select id="cause-subcategory" class="form-input" disabled></select>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <button type="button" id="minus-5" class="btn btn-secondary">− 5 min</button>
+              <span id="alloc-min" style="min-width:48px; text-align:center; font-weight:700;">5</span>
+              <button type="button" id="plus-5" class="btn btn-secondary">+ 5 min</button>
+            </div>
+            <button type="button" id="add-cause" class="btn btn-primary">➕ Ajouter</button>
+          </div>
+          <small style="color:var(--text-muted);">Répartis les minutes jusqu’à épuiser “À justifier”. Pas de dépassement, pas de magie.</small>
+          <div id="selected-causes" style="display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
+          <div id="allocation-hint" style="color:var(--text-muted); font-size:0.9rem;"></div>
         </div>
       </div>
 
@@ -759,6 +774,13 @@
       'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir'
     ];
 
+    let CATEGORY_DATA = typeof CATEGORY_DATA !== 'undefined' ? CATEGORY_DATA : [
+      { category: "Machine", subcategory: "Dépileuse" },
+      { category: "Machine", subcategory: "MASS" },
+      { category: "qualité", subcategory: "ctrl" },
+      { category: "orga", subcategory: "pause" }
+    ];
+
     // État global en mémoire (PAS de localStorage)
     let hourlyData = new Array(24).fill(null).map((_, i) => ({
       hour: i,
@@ -767,9 +789,11 @@
       comment: '',
       validated: false
     }));
-    
+
     let currentChart = null;
     let unlockedBadges = new Set();
+    let modalCausesBackup = null;
+    let modalHourIndex = null;
 
     // Initialisation
     document.addEventListener('DOMContentLoaded', () => {
@@ -832,7 +856,7 @@
 
     function calculateTRS(data) {
       const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-      const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
+      const downtime = (data.causes || []).reduce((sum, c) => sum + (c.minutes || 0), 0);
       const availability = Math.max(0, (60 - downtime) / 60);
       const performance = targetRate > 0 ? Math.min(1, data.good / targetRate) : 0;
       return Math.round(availability * performance * 100);
@@ -854,16 +878,42 @@
     function openHourModal(hour) {
       const modal = document.getElementById('hour-modal');
       const data = hourlyData[hour];
-      
+
       document.getElementById('hour-index').value = hour;
       document.getElementById('modal-title').textContent = `Saisie ${String(hour).padStart(2, '0')}:00 — ${String((hour + 1) % 24).padStart(2, '0')}:00`;
       document.getElementById('modal-subtitle').textContent = TEAM_ASSIGNMENTS[hour];
-      
+
       document.getElementById('good-input').value = data.validated ? data.good : '';
       document.getElementById('comment-input').value = data.comment || '';
-      
+
+      modalHourIndex = hour;
+
+      const normalizedCauses = Array.isArray(hourlyData[hour].causes) ? hourlyData[hour].causes.map(c => {
+        if (c.name && !c.category) {
+          const name = String(c.name).trim();
+          if (/^production\s+nominale$/i.test(name)) {
+            return { category: 'Production', subcategory: 'Nominale', minutes: c.minutes || 0 };
+          }
+          const parts = name.split('>').map(s => s.trim()).filter(Boolean);
+          return parts.length === 2
+            ? { category: parts[0], subcategory: parts[1], minutes: c.minutes || 0 }
+            : { category: 'Autre', subcategory: name, minutes: c.minutes || 0 };
+        }
+        return {
+          category: c.category || 'Autre',
+          subcategory: c.subcategory || 'Non défini',
+          minutes: c.minutes || 0
+        };
+      }) : [];
+
+      modalCausesBackup = JSON.parse(JSON.stringify(normalizedCauses));
+      hourlyData[hour].causes = normalizedCauses.filter(c => !(c.category === 'Production' && c.subcategory === 'Nominale'));
+
       updateJustifyDisplay();
-      
+      initCauseSelectors();
+      rebuildSelectedCauses(hour);
+      updateAllocationHint();
+
       modal.showModal();
       document.getElementById('good-input').focus();
     }
@@ -871,65 +921,244 @@
     document.getElementById('good-input').addEventListener('input', updateJustifyDisplay);
 
     function updateJustifyDisplay() {
+      const toJustify = getMinutesToJustify();
+      document.getElementById('justify-value').textContent = `${toJustify} min`;
+      updateAllocationHint();
+    }
+
+    function getUniqueCategories() {
+      return [...new Set(CATEGORY_DATA.map(c => c.category))].sort();
+    }
+
+    function getSubcategories(cat) {
+      return CATEGORY_DATA.filter(c => c.category === cat).map(c => c.subcategory).sort();
+    }
+
+    function initCauseSelectors() {
+      const catSel = document.getElementById('cause-category');
+      const subSel = document.getElementById('cause-subcategory');
+      const minus = document.getElementById('minus-5');
+      const plus = document.getElementById('plus-5');
+      const alloc = document.getElementById('alloc-min');
+      const addBtn = document.getElementById('add-cause');
+
+      if (!catSel || !subSel || !minus || !plus || !alloc || !addBtn) return;
+
+      catSel.innerHTML = '<option value="">Catégorie...</option>' + getUniqueCategories().map(c => `<option value="${c}">${c}</option>`).join('');
+      subSel.innerHTML = '<option value="">Sous-catégorie...</option>';
+      subSel.disabled = true;
+
+      let allocValue = 5;
+      alloc.textContent = allocValue;
+
+      catSel.onchange = () => {
+        if (!catSel.value) {
+          subSel.innerHTML = '<option value="">Sous-catégorie...</option>';
+          subSel.disabled = true;
+          return;
+        }
+        const subs = getSubcategories(catSel.value);
+        subSel.innerHTML = '<option value="">Sous-catégorie...</option>' + subs.map(s => `<option value="${s}">${s}</option>`).join('');
+        subSel.disabled = subs.length === 0;
+      };
+
+      minus.onclick = () => {
+        allocValue = Math.max(5, allocValue - 5);
+        alloc.textContent = allocValue;
+      };
+
+      plus.onclick = () => {
+        allocValue = Math.min(60, allocValue + 5);
+        alloc.textContent = allocValue;
+      };
+
+      addBtn.onclick = () => addSelectedCause(catSel.value, subSel.value, allocValue);
+    }
+
+    function getCurrentHourIndex() {
+      const value = parseInt(document.getElementById('hour-index').value, 10);
+      return Number.isNaN(value) ? 0 : value;
+    }
+
+    function addSelectedCause(category, subcategory, minutes) {
+      if (!category || !subcategory) {
+        showToast('Sélectionne catégorie et sous-catégorie', 'error');
+        return;
+      }
+
+      const hour = getCurrentHourIndex();
+      const toJustify = getMinutesToJustify();
+      const list = hourlyData[hour].causes || [];
+      const already = list.reduce((s, c) => s + (c.minutes || 0), 0);
+
+      if (already + minutes > toJustify) {
+        showToast('Tu dépasses les minutes à justifier', 'error');
+        return;
+      }
+
+      hourlyData[hour].causes = list;
+
+      const idx = list.findIndex(c => c.category === category && c.subcategory === subcategory);
+      if (idx >= 0) {
+        list[idx].minutes += minutes;
+      } else {
+        list.push({ category, subcategory, minutes });
+      }
+
+      rebuildSelectedCauses(hour);
+      updateAllocationHint();
+    }
+
+    function changeCauseMinutes(category, subcategory, delta) {
+      const hour = getCurrentHourIndex();
+      const toJustify = getMinutesToJustify();
+      const list = hourlyData[hour].causes || [];
+      const idx = list.findIndex(c => c.category === category && c.subcategory === subcategory);
+      if (idx < 0) return;
+
+      const currentSum = list.reduce((s, c) => s + (c.minutes || 0), 0);
+      const newVal = Math.max(0, (list[idx].minutes || 0) + delta);
+      const newSum = currentSum - (list[idx].minutes || 0) + newVal;
+
+      if (newSum > toJustify) {
+        showToast('Tu dépasses les minutes à justifier', 'error');
+        return;
+      }
+
+      list[idx].minutes = newVal;
+      if (list[idx].minutes === 0) {
+        list.splice(idx, 1);
+      }
+
+      rebuildSelectedCauses(hour);
+      updateAllocationHint();
+    }
+
+    function removeCause(category, subcategory) {
+      const hour = getCurrentHourIndex();
+      const list = hourlyData[hour].causes || [];
+      hourlyData[hour].causes = list.filter(c => !(c.category === category && c.subcategory === subcategory));
+      rebuildSelectedCauses(hour);
+      updateAllocationHint();
+    }
+
+    function rebuildSelectedCauses(hour) {
+      const wrap = document.getElementById('selected-causes');
+      if (!wrap) return;
+      wrap.innerHTML = '';
+
+      (hourlyData[hour].causes || []).forEach(c => {
+        if (!c || typeof c.minutes === 'undefined') return;
+        const pill = document.createElement('div');
+        pill.className = 'cause-chip';
+        pill.innerHTML = `
+          <span>${c.category} &gt; ${c.subcategory} — ${c.minutes}m</span>
+          <button type="button" class="btn btn-secondary" data-act="minus">−5</button>
+          <button type="button" class="btn btn-secondary" data-act="plus">+5</button>
+          <button type="button" class="btn btn-secondary" data-act="del">🗑️</button>
+        `;
+
+        pill.querySelector('[data-act="minus"]').onclick = () => changeCauseMinutes(c.category, c.subcategory, -5);
+        pill.querySelector('[data-act="plus"]').onclick = () => changeCauseMinutes(c.category, c.subcategory, 5);
+        pill.querySelector('[data-act="del"]').onclick = () => removeCause(c.category, c.subcategory);
+
+        wrap.appendChild(pill);
+      });
+    }
+
+    function getMinutesToJustify() {
       const good = parseInt(document.getElementById('good-input').value) || 0;
       const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
       const used = targetRate > 0 ? (good / targetRate) * 60 : 60;
-      const toJustify = Math.max(0, Math.round((60 - used) / 5) * 5);
-      
-      document.getElementById('justify-value').textContent = `${toJustify} min`;
+      return Math.max(0, Math.round((60 - used) / 5) * 5);
     }
 
-    // Gestion des causes rapides
-    document.getElementById('quick-causes').addEventListener('click', (e) => {
-      if (e.target.classList.contains('cause-chip')) {
-        const cause = e.target.dataset.cause;
-        e.target.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-          e.target.style.transform = '';
-        }, 200);
-        
-        showToast(`Cause "${cause}" ajoutée`, 'success');
+    function updateAllocationHint() {
+      const hint = document.getElementById('allocation-hint');
+      if (!hint) return;
+
+      const modal = document.getElementById('hour-modal');
+      if (!modal.open) {
+        hint.textContent = '';
+        hint.style.color = 'var(--text-muted)';
+        return;
       }
-    });
+
+      const hour = getCurrentHourIndex();
+      const toJustify = getMinutesToJustify();
+      const sum = (hourlyData[hour].causes || []).reduce((s, c) => s + (c.minutes || 0), 0);
+      const remain = Math.max(0, toJustify - sum);
+
+      if (sum > toJustify) {
+        hint.textContent = `Tu dépasses de ${sum - toJustify} min. Ajuste la répartition.`;
+        hint.style.color = 'var(--danger)';
+      } else if (remain > 0) {
+        hint.textContent = `Il reste ${remain} min à répartir.`;
+        hint.style.color = 'var(--text-muted)';
+      } else {
+        hint.textContent = 'Répartition OK.';
+        hint.style.color = 'var(--success)';
+      }
+    }
+    
 
     // Soumission du formulaire
     document.getElementById('hour-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      
+
       const hour = parseInt(document.getElementById('hour-index').value);
       const good = parseInt(document.getElementById('good-input').value) || 0;
       const comment = document.getElementById('comment-input').value.trim();
-      
-      // Calcul automatique des causes
-      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
-      const used = targetRate > 0 ? (good / targetRate) * 60 : 60;
-      const toJustify = Math.max(0, Math.round((60 - used) / 5) * 5);
-      
-      const causes = toJustify > 0 ? [
-        { name: 'Production nominale', minutes: 60 - toJustify },
-        { name: 'Micro-arrêts cumulés', minutes: toJustify }
-      ] : [{ name: 'Production nominale', minutes: 60 }];
-      
+
+      const toJustify = getMinutesToJustify();
+      const selected = (hourlyData[hour].causes || []).filter(c => c.minutes > 0);
+      const sum = selected.reduce((s, c) => s + c.minutes, 0);
+
+      if (sum > toJustify) {
+        showToast('Tu dépasses les minutes à justifier', 'error');
+        return;
+      }
+
+      const nominal = Math.max(0, 60 - sum);
+      const causesFinal = [...selected];
+      if (nominal > 0) {
+        causesFinal.unshift({ category: 'Production', subcategory: 'Nominale', minutes: nominal });
+      }
+
       hourlyData[hour] = {
         hour,
         good,
-        causes: causes.filter(c => c.minutes > 0),
+        causes: causesFinal,
         comment,
         validated: true,
         timestamp: new Date().toISOString()
       };
-      
+
+      modalCausesBackup = null;
+      modalHourIndex = null;
       document.getElementById('hour-modal').close();
-      
+      updateAllocationHint();
+
       refreshDisplay();
-      celebrate(good >= targetRate);
+      celebrate(good >= (parseInt(document.getElementById('target-rate').value) || 16000));
       checkBadges();
-      
+
       showToast('✓ Production enregistrée avec succès', 'success');
     });
 
     document.getElementById('cancel-btn').addEventListener('click', () => {
       document.getElementById('hour-modal').close();
+      updateAllocationHint();
+    });
+
+    document.getElementById('hour-modal').addEventListener('close', () => {
+      if (modalHourIndex !== null && modalCausesBackup) {
+        hourlyData[modalHourIndex].causes = modalCausesBackup;
+      }
+      modalHourIndex = null;
+      modalCausesBackup = null;
+      document.getElementById('hour-index').value = '';
+      updateAllocationHint();
     });
 
     // Actualisation de l'affichage
@@ -957,11 +1186,11 @@
       let totalProduction = 0;
       
       validatedData.forEach(data => {
-        const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
+        const downtime = (data.causes || []).reduce((sum, c) => sum + (c.minutes || 0), 0);
         const availability = Math.max(0, (60 - downtime) / 60);
         const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
         const performance = targetRate > 0 ? Math.min(1, data.good / targetRate) : 0;
-        
+
         totalAvail += availability;
         totalPerf += performance;
         totalProduction += data.good;
@@ -1084,7 +1313,7 @@
       
       // Badge: Zéro Arrêt
       validatedData.forEach(data => {
-        const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
+        const downtime = (data.causes || []).reduce((sum, c) => sum + (c.minutes || 0), 0);
         if (downtime === 0) {
           unlockBadge('zero-downtime');
         }
@@ -1222,6 +1451,7 @@
     document.getElementById('target-rate').addEventListener('change', () => {
       updateKPIs();
       updateChart();
+      updateJustifyDisplay();
     });
   </script>
 </body>
