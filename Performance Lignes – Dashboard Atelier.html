@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Performance Lignes – Dashboard Atelier</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --border: #d2d6dc;
+      --primary: #2563eb;
+      --primary-light: #dbeafe;
+      --success: #d1fae5;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --warning: #fee2e2;
+      --danger: #dc2626;
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--card);
+      padding: 1.25rem 2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    header h1 {
+      flex: 1;
+      margin: 0;
+      font-size: 1.75rem;
+      letter-spacing: 0.02em;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 1.5rem 2rem 3rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .toolbar label {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+
+    .toolbar input[type="number"] {
+      width: 5.5rem;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 0.35rem;
+      font-size: 0.95rem;
+    }
+
+    .toolbar button,
+    .toolbar .tab-button,
+    dialog button {
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.95rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .toolbar button.secondary,
+    .toolbar .tab-button.secondary {
+      background: #374151;
+    }
+
+    .toolbar button.export {
+      background: #047857;
+    }
+
+    .toolbar button:hover,
+    .toolbar .tab-button:hover,
+    dialog button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px -15px rgba(37, 99, 235, 0.8);
+    }
+
+    .toolbar .toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .toolbar .toggle input {
+      margin: 0;
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 1rem;
+      border: 1px solid var(--border);
+      box-shadow: 0 15px 35px -25px rgba(15, 23, 42, 0.4);
+      overflow: hidden;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem 1.25rem 0.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+
+    .tab-button {
+      background: transparent;
+      color: var(--text-muted);
+      padding: 0.5rem 0.85rem;
+      border: none;
+      border-bottom: 3px solid transparent;
+      border-radius: 0;
+    }
+
+    .tab-button.active {
+      color: var(--primary);
+      border-color: var(--primary);
+      font-weight: 700;
+      background: var(--primary-light);
+    }
+
+    .tab-panels {
+      padding: 1.25rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    thead {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    th,
+    td {
+      padding: 0.75rem 0.65rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    tbody tr {
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    tbody tr:hover {
+      background: rgba(37, 99, 235, 0.08);
+    }
+
+    tbody tr.row-active {
+      background: rgba(37, 99, 235, 0.18);
+      position: relative;
+    }
+
+    tbody tr.row-active::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-left: 4px solid var(--primary);
+    }
+
+    tbody tr.row-validated {
+      background: var(--success);
+    }
+
+    tbody tr.row-mismatch {
+      background: rgba(251, 191, 36, 0.25);
+    }
+
+    tbody tr.row-mismatch.row-active {
+      background: rgba(37, 99, 235, 0.18);
+      box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.6);
+    }
+
+    tbody tr.low-trs {
+      box-shadow: inset 0 0 0 2px rgba(220, 38, 38, 0.4);
+    }
+
+    tbody tr td:last-child {
+      font-style: italic;
+      color: var(--text-muted);
+    }
+
+    .log-container {
+      margin-top: 1.5rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .log-entry {
+      background: rgba(37, 99, 235, 0.08);
+      border-radius: 0.75rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--primary-light);
+    }
+
+    .kpi-grid {
+      display: grid;
+      gap: 1.25rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+      background: rgba(37, 99, 235, 0.07);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      border: 1px solid var(--primary-light);
+    }
+
+    .kpi-card h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: var(--text-muted);
+    }
+
+    .kpi-card strong {
+      font-size: 1.75rem;
+      display: block;
+      margin-top: 0.25rem;
+    }
+
+    canvas {
+      width: 100%;
+      max-width: 960px;
+      height: 320px;
+      background: #fff;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+    }
+
+    dialog::backdrop {
+      background: rgba(15, 23, 42, 0.35);
+    }
+
+    dialog {
+      border: none;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 25px 45px -35px rgba(15, 23, 42, 0.8);
+      width: min(420px, 90vw);
+    }
+
+    dialog form {
+      display: grid;
+      gap: 0.95rem;
+    }
+
+    dialog .good-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+
+    dialog .good-row label {
+      flex: 1;
+    }
+
+    dialog .justify-indicator {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--primary);
+    }
+
+    dialog label {
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.95rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    dialog input,
+    dialog select,
+    dialog textarea {
+      padding: 0.6rem 0.65rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      font-size: 1rem;
+    }
+
+    dialog textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    dialog button.secondary,
+    .toolbar button.secondary,
+    .toolbar .tab-button.secondary {
+      background: #374151;
+    }
+
+    dialog .cause-block {
+      display: grid;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    dialog .justify-indicator strong .badge,
+    dialog .justify-indicator .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 0.9rem;
+    }
+
+    dialog .justify-indicator .badge.state-ok {
+      background: #dcfce7;
+      color: #047857;
+    }
+
+    dialog .justify-indicator .badge.state-low {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    dialog .justify-indicator .badge.state-high {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    dialog .cause-block-header {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    dialog .cause-block-header h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    dialog .cause-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    dialog .cause-quickbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    dialog .cause-shortcuts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    dialog .cause-shortcuts .cause-chip {
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--primary);
+      background: #fff;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    dialog .cause-shortcuts .cause-chip:hover,
+    dialog .cause-shortcuts .cause-chip:focus-visible {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    dialog .cause-increments {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-left: auto;
+    }
+
+    dialog .cause-increments .inc-btn {
+      padding: 0.3rem 0.55rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    dialog .cause-increments .inc-btn:hover,
+    dialog .cause-increments .inc-btn:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px -18px rgba(37, 99, 235, 0.8);
+    }
+
+    dialog .cause-list {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    dialog .cause-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    dialog .cause-row select {
+      flex: 1 1 55%;
+    }
+
+    dialog .cause-row input[type="number"] {
+      width: 6rem;
+    }
+
+    dialog .cause-row button.remove {
+      background: #dc2626;
+    }
+
+    dialog .cause-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+    }
+
+    dialog .cause-summary .state-ok {
+      color: #047857;
+    }
+
+    dialog .cause-summary .state-low {
+      color: #b45309;
+    }
+
+    dialog .cause-summary .state-high {
+      color: #dc2626;
+    }
+
+    dialog .comment-block {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    dialog .comment-block .comment-hint {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    dialog .comment-block.needs-comment textarea {
+      border-color: #b45309;
+      box-shadow: 0 0 0 3px rgba(180, 83, 9, 0.15);
+    }
+
+    dialog .comment-block.needs-comment .comment-hint {
+      color: #b45309;
+      font-weight: 600;
+    }
+
+    dialog .override.hidden {
+      display: none;
+    }
+
+    dialog .override {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      color: #b45309;
+    }
+
+    dialog .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    dialog .actions button.cancel {
+      background: #6b7280;
+      color: #fff;
+    }
+
+    @media (max-width: 900px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .toolbar {
+        width: 100%;
+      }
+
+      table {
+        font-size: 0.85rem;
+      }
+    }
+
+    body.operator-mode {
+      font-size: calc(1rem * 1.3);
+    }
+
+    body.operator-mode table {
+      font-size: calc(0.95rem * 1.3);
+    }
+
+    body.operator-mode .toolbar button,
+    body.operator-mode .toolbar .tab-button,
+    body.operator-mode dialog button {
+      transform: scale(1.15);
+    }
+
+    body.operator-mode tbody tr.row-active {
+      background: rgba(37, 99, 235, 0.3);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Performance Lignes – Dashboard Atelier</h1>
+    <div class="toolbar">
+      <label>
+        Cadence cible (u/h)
+        <input type="number" id="target-rate" min="0" step="1" value="16000" />
+      </label>
+      <label>
+        Temps cycle (min/u)
+        <input type="number" id="cycle-time" min="0" step="0.0001" value="0.00375" />
+      </label>
+      <button class="tab-button active" data-tab="entry">Journal horaire</button>
+      <button class="tab-button" data-tab="analysis">Analyse TRS</button>
+      <button class="export" id="export-csv">Exporter CSV</button>
+      <button class="export" id="export-html">Exporter Rapport HTML</button>
+      <label class="toggle">
+        <input type="checkbox" id="operator-mode" />
+        Mode opérateur
+      </label>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="tabs" aria-hidden="true">
+        <button class="tab-button active" data-tab="entry">Journal horaire</button>
+        <button class="tab-button" data-tab="analysis">Analyse TRS</button>
+      </div>
+      <div class="tab-panels">
+        <div class="tab-panel" id="tab-entry">
+          <div class="table-wrapper">
+            <table aria-describedby="table-caption">
+              <caption id="table-caption" class="sr-only">Journal horaire des productions</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Heure</th>
+                  <th scope="col">Équipe</th>
+                  <th scope="col">Bon</th>
+                  <th scope="col">À justifier (min)</th>
+                  <th scope="col">Répartition causes</th>
+                </tr>
+              </thead>
+              <tbody id="hourly-table-body"></tbody>
+            </table>
+          </div>
+          <div class="log-container" id="journal-log" aria-live="polite"></div>
+        </div>
+        <div class="tab-panel" id="tab-analysis" hidden>
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <h3>TRS Global</h3>
+              <strong id="kpi-trs">0%</strong>
+            </article>
+            <article class="kpi-card">
+              <h3>Disponibilité</h3>
+              <strong id="kpi-availability">0%</strong>
+            </article>
+            <article class="kpi-card">
+              <h3>Performance</h3>
+              <strong id="kpi-performance">0%</strong>
+            </article>
+          </div>
+          <canvas id="production-chart" width="960" height="320" role="img" aria-label="Comparatif production réelle versus cible"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="hour-edit">
+    <form method="dialog" id="hour-edit-form">
+      <h2 id="hour-edit-title">Saisie horaire</h2>
+      <p id="hour-edit-subtitle" class="sr-only"></p>
+      <input type="hidden" id="edit-hour-index" />
+      <div class="good-row">
+        <label>
+          Bon (u)
+          <input type="number" id="input-good" min="0" step="1" required />
+        </label>
+        <div class="justify-indicator">
+          À justifier :
+          <strong id="justify-display"><span id="to-justify-badge" class="badge">0 min</span></strong>
+        </div>
+      </div>
+      <section class="cause-block">
+        <header class="cause-block-header">
+          <h3>Répartition des causes (pas de 5 min)</h3>
+          <div class="cause-buttons">
+            <button type="button" id="add-cause" class="secondary">Ajouter une cause</button>
+            <button type="button" id="fill-remaining" class="secondary">Micro-arrêts cumulés (remplir le reste)</button>
+            <button type="button" id="auto-balance" class="secondary">Remplir automatiquement</button>
+          </div>
+        </header>
+        <div class="cause-quickbar" aria-live="polite">
+          <div class="cause-shortcuts" id="cause-shortcuts" aria-label="Causes favorites"></div>
+          <div class="cause-increments" role="group" aria-label="Ajouter des minutes">
+            <button type="button" class="inc-btn" data-inc="5">+5</button>
+            <button type="button" class="inc-btn" data-inc="10">+10</button>
+            <button type="button" class="inc-btn" data-inc="15">+15</button>
+          </div>
+        </div>
+        <div id="cause-list" class="cause-list"></div>
+        <footer class="cause-summary">
+          <span id="cause-total">
+            Total causes : <strong id="sum-minutes">0 min</strong> / À justifier : <strong id="need-minutes">0 min</strong>
+          </span>
+          <label id="override-container" class="override hidden">
+            <input type="checkbox" id="override-checkbox" /> Valider quand même
+          </label>
+        </footer>
+      </section>
+      <div id="comment-block" class="comment-block">
+        <label>
+          Commentaire
+          <span id="comment-hint" class="comment-hint" hidden>Motif requis pour override (min. 5 caractères)</span>
+          <textarea id="input-comment" placeholder="Observations, actions, etc."></textarea>
+        </label>
+      </div>
+      <div class="actions">
+        <button type="reset" class="cancel">Annuler</button>
+        <button type="submit" id="submit-hour">Valider</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="log-template">
+    <article class="log-entry"></article>
+  </template>
+
+  <script>
+    const STORAGE_KEY = 'pilotage.hourlyEntries';
+    const TEAM_ASSIGNMENTS = [
+      'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit',
+      'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour',
+      'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir'
+    ];
+    const STANDARD_EVENTS = [
+      'Production nominale',
+      'Micro-arrêts cumulés',
+      'Panne machine',
+      'Changement de format',
+      'Maintenance planifiée',
+      'Approvisionnement',
+      'Qualité - Retouche',
+      'Autre'
+    ];
+    const ROUND_MODE = 'nearest';
+    const OVERRIDE_COMMENT_MIN_LENGTH = 5;
+
+    const hourlyTableBody = document.getElementById('hourly-table-body');
+    const logContainer = document.getElementById('journal-log');
+    const hourEditDialog = document.getElementById('hour-edit');
+    const hourEditForm = document.getElementById('hour-edit-form');
+    const editHourIndexInput = document.getElementById('edit-hour-index');
+    const inputGood = document.getElementById('input-good');
+    const justifyDisplay = document.getElementById('justify-display');
+    const causeListContainer = document.getElementById('cause-list');
+    const addCauseButton = document.getElementById('add-cause');
+    const fillRemainingButton = document.getElementById('fill-remaining');
+    const autoBalanceButton = document.getElementById('auto-balance');
+    const causeTotalDisplay = document.getElementById('cause-total');
+    const justifyBadge = document.getElementById('to-justify-badge');
+    const needMinutesDisplay = document.getElementById('need-minutes');
+    const sumMinutesDisplay = document.getElementById('sum-minutes');
+    const causeShortcutsBar = document.getElementById('cause-shortcuts');
+    const overrideContainer = document.getElementById('override-container');
+    const overrideCheckbox = document.getElementById('override-checkbox');
+    const submitHourButton = document.getElementById('submit-hour');
+    const commentBlock = document.getElementById('comment-block');
+    const commentHint = document.getElementById('comment-hint');
+    const inputComment = document.getElementById('input-comment');
+    const incrementButtons = [...document.querySelectorAll('.inc-btn[data-inc]')];
+    const targetRateInput = document.getElementById('target-rate');
+    const cycleTimeInput = document.getElementById('cycle-time');
+    const tabButtons = [...document.querySelectorAll('.tab-button')];
+    const tabEntry = document.getElementById('tab-entry');
+    const tabAnalysis = document.getElementById('tab-analysis');
+    const operatorModeCheckbox = document.getElementById('operator-mode');
+    const exportCsvButton = document.getElementById('export-csv');
+    const exportHtmlButton = document.getElementById('export-html');
+
+    const kpiTrs = document.getElementById('kpi-trs');
+    const kpiAvailability = document.getElementById('kpi-availability');
+    const kpiPerformance = document.getElementById('kpi-performance');
+    const chartCanvas = document.getElementById('production-chart');
+    const chartCtx = chartCanvas.getContext('2d');
+
+    let hourlyEntries = new Array(24).fill(null);
+    let currentMinutesToJustify = 0;
+    let lastCauseTotal = 0;
+    let lastMismatch = false;
+    let isInitializingModal = false;
+
+    const logTemplate = document.getElementById('log-template');
+
+    const now = new Date();
+    const activeHour = now.getHours();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initCauseShortcuts();
+      buildHourlyTable();
+      loadFromStorage();
+      applyOperatorMode();
+      updateKPI();
+      renderChart();
+      scheduleRowHighlighting();
+    });
+
+    function buildHourlyTable() {
+      hourlyTableBody.innerHTML = '';
+      for (let hour = 0; hour < 24; hour++) {
+        const tr = document.createElement('tr');
+        tr.dataset.hourIndex = hour;
+
+        if (hour === activeHour) {
+          tr.classList.add('row-active');
+        }
+
+        const timeLabel = `${String(hour).padStart(2, '0')}:00 – ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+        const teamLabel = TEAM_ASSIGNMENTS[hour];
+
+        tr.innerHTML = `
+          <td>${timeLabel}</td>
+          <td>${teamLabel}</td>
+          <td data-field="good" data-value="0">–</td>
+          <td data-field="justify" data-value="0">–</td>
+          <td data-field="causes">–</td>
+        `;
+
+        tr.addEventListener('click', () => openHourEdit(hour));
+        hourlyTableBody.appendChild(tr);
+      }
+    }
+
+    // JUSTIFY-TIME
+    function roundToNearest5(min) {
+      const value = Number.isFinite(min) ? min : Number.parseFloat(min);
+      if (!Number.isFinite(value)) return 0;
+      if (ROUND_MODE === 'ceil') {
+        return Math.ceil(value / 5) * 5;
+      }
+      return Math.round(value / 5) * 5;
+    }
+
+    function clampMinutes(min) {
+      return Math.max(0, Math.min(60, min));
+    }
+
+    function sanitizeCauseMinutes(value) {
+      const parsed = Number.parseFloat(value);
+      if (!Number.isFinite(parsed)) return 0;
+      return clampMinutes(roundToNearest5(parsed));
+    }
+
+    function minutesToJustify(good, targetRate) {
+      const safeGood = Math.max(0, Number.isFinite(good) ? good : Number.parseFloat(good) || 0);
+      const safeTarget = Math.max(0, Number.isFinite(targetRate) ? targetRate : Number.parseFloat(targetRate) || 0);
+      const used = safeTarget > 0 ? (safeGood / safeTarget) * 60 : 60;
+      const raw = Math.max(0, 60 - used);
+      return clampMinutes(roundToNearest5(raw));
+    }
+
+    function getTargetRate() {
+      return Math.max(0, Number.parseFloat(targetRateInput.value) || 0);
+    }
+
+    function getAvailableEvents() {
+      const events = [...STANDARD_EVENTS];
+      hourlyEntries
+        .filter(Boolean)
+        .forEach((entry) => {
+          entry.causes?.forEach((cause) => {
+            if (!cause?.name) return;
+            if (!events.includes(cause.name)) {
+              events.push(cause.name);
+            }
+          });
+        });
+      return events;
+    }
+
+    function getFavoriteCauses() {
+      const usage = new Map();
+      hourlyEntries
+        .filter(Boolean)
+        .forEach((entry) => {
+          entry.causes?.forEach((cause) => {
+            if (!cause?.name) return;
+            usage.set(cause.name, (usage.get(cause.name) || 0) + (cause.minutes || 0));
+          });
+        });
+      const fallback = STANDARD_EVENTS.filter((event) => event !== 'Production nominale');
+      const ordered = [...usage.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+      fallback.forEach((name) => {
+        if (!ordered.includes(name)) {
+          ordered.push(name);
+        }
+      });
+      return ordered.slice(0, 3);
+    }
+
+    function initCauseShortcuts() {
+      if (!causeShortcutsBar) return;
+      causeShortcutsBar.innerHTML = '';
+      const favorites = getFavoriteCauses();
+      favorites.forEach((label) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'cause-chip';
+        button.textContent = label;
+        button.addEventListener('click', () => addCauseRow(label, 0));
+        causeShortcutsBar.appendChild(button);
+      });
+    }
+
+    function refreshNeedDisplays() {
+      const text = `${currentMinutesToJustify.toLocaleString('fr-FR')} min`;
+      if (justifyBadge) {
+        justifyBadge.textContent = text;
+      } else if (typeof justifyDisplay !== 'undefined' && justifyDisplay) {
+        justifyDisplay.textContent = text;
+      }
+      if (needMinutesDisplay) {
+        needMinutesDisplay.textContent = text;
+      }
+    }
+
+    function incrementLastCause(amount) {
+      if (!causeListContainer) return;
+      const rows = [...causeListContainer.querySelectorAll('.cause-row')];
+      if (!rows.length) {
+        addCauseRow();
+      }
+      const lastInput = causeListContainer.querySelector('.cause-row:last-child input[type="number"]');
+      if (!lastInput) return;
+      const current = sanitizeCauseMinutes(lastInput.value);
+      const updated = clampMinutes(roundToNearest5(current + amount));
+      lastInput.value = updated;
+      updateCauseSummary();
+    }
+
+    // MULTI-CAUSES
+    function createCauseRow(causeName = STANDARD_EVENTS[0], minutes = 0) {
+      const row = document.createElement('div');
+      row.className = 'cause-row';
+
+      const select = document.createElement('select');
+      const availableEvents = getAvailableEvents();
+      availableEvents.forEach((cause) => {
+        const option = document.createElement('option');
+        option.value = cause;
+        option.textContent = cause;
+        select.appendChild(option);
+      });
+      if (!availableEvents.includes(causeName)) {
+        const option = document.createElement('option');
+        option.value = causeName;
+        option.textContent = causeName;
+        select.appendChild(option);
+      }
+      select.value = causeName;
+
+      const minutesInput = document.createElement('input');
+      minutesInput.type = 'number';
+      minutesInput.min = '0';
+      minutesInput.max = '60';
+      minutesInput.step = '5';
+      minutesInput.inputMode = 'numeric';
+      minutesInput.value = sanitizeCauseMinutes(minutes);
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'remove';
+      removeButton.textContent = 'Supprimer';
+
+      select.addEventListener('change', () => updateCauseSummary());
+      minutesInput.addEventListener('input', (event) => {
+        const sanitized = sanitizeCauseMinutes(event.target.value);
+        if (`${sanitized}` !== event.target.value) {
+          event.target.value = sanitized;
+        }
+        updateCauseSummary();
+      });
+      minutesInput.addEventListener('blur', () => {
+        minutesInput.value = sanitizeCauseMinutes(minutesInput.value);
+        updateCauseSummary();
+      });
+      removeButton.addEventListener('click', () => {
+        row.remove();
+        ensureAtLeastOneCauseRow();
+        updateCauseSummary();
+      });
+
+      row.appendChild(select);
+      row.appendChild(minutesInput);
+      row.appendChild(removeButton);
+      return row;
+    }
+
+    function addCauseRow(causeName = STANDARD_EVENTS[0], minutes = 0) {
+      const row = createCauseRow(causeName, minutes);
+      causeListContainer.appendChild(row);
+      if (!isInitializingModal) {
+        updateCauseSummary();
+      }
+      return row;
+    }
+
+    function ensureAtLeastOneCauseRow() {
+      if (!causeListContainer.children.length) {
+        addCauseRow('Production nominale', 0);
+      }
+    }
+
+    function computeCauseTotal() {
+      let sum = 0;
+      causeListContainer.querySelectorAll('.cause-row').forEach((row) => {
+        const input = row.querySelector('input[type="number"]');
+        sum += sanitizeCauseMinutes(input.value);
+      });
+      return Math.max(0, Math.round(sum));
+    }
+
+    function getCauseData() {
+      const data = [];
+      causeListContainer.querySelectorAll('.cause-row').forEach((row) => {
+        const select = row.querySelector('select');
+        const input = row.querySelector('input[type="number"]');
+        const minutes = sanitizeCauseMinutes(input.value);
+        const name = select.value || 'Non précisé';
+        if (minutes > 0) {
+          data.push({ name, minutes });
+        }
+      });
+      return data.sort((a, b) => b.minutes - a.minutes || a.name.localeCompare(b.name));
+    }
+
+    function updateCauseSummary() {
+      const total = computeCauseTotal();
+      lastCauseTotal = total;
+      const mismatch = total !== currentMinutesToJustify;
+      lastMismatch = mismatch;
+
+      const totalText = `${total.toLocaleString('fr-FR')} min`;
+      const needText = `${currentMinutesToJustify.toLocaleString('fr-FR')} min`;
+      if (sumMinutesDisplay) {
+        sumMinutesDisplay.textContent = totalText;
+      } else if (causeTotalDisplay) {
+        causeTotalDisplay.textContent = `Total causes : ${totalText} / À justifier : ${needText}`;
+      }
+      if (needMinutesDisplay) {
+        needMinutesDisplay.textContent = needText;
+      } else if (causeTotalDisplay && !sumMinutesDisplay) {
+        causeTotalDisplay.textContent = `Total causes : ${totalText} / À justifier : ${needText}`;
+      }
+      refreshNeedDisplays();
+
+      if (causeTotalDisplay) {
+        causeTotalDisplay.classList.remove('state-ok', 'state-low', 'state-high');
+      }
+      justifyBadge?.classList.remove('state-ok', 'state-low', 'state-high');
+      if (!mismatch) {
+        causeTotalDisplay?.classList.add('state-ok');
+        justifyBadge?.classList.add('state-ok');
+      } else if (total < currentMinutesToJustify) {
+        causeTotalDisplay?.classList.add('state-low');
+        justifyBadge?.classList.add('state-low');
+      } else {
+        causeTotalDisplay?.classList.add('state-high');
+        justifyBadge?.classList.add('state-high');
+      }
+
+      overrideContainer.classList.toggle('hidden', !mismatch);
+      if (!mismatch) {
+        overrideCheckbox.checked = false;
+      }
+
+      updateSubmitAvailability();
+    }
+
+    // OVERRIDE
+    function updateSubmitAvailability() {
+      const mismatch = lastMismatch;
+      const commentText = inputComment.value.trim();
+      const needsOverride = mismatch;
+      const overrideChecked = overrideCheckbox.checked;
+      const needsComment = needsOverride && overrideChecked;
+      const hasComment = commentText.length >= OVERRIDE_COMMENT_MIN_LENGTH;
+      const disabled = needsOverride && (!overrideChecked || !hasComment);
+      submitHourButton.disabled = disabled;
+
+      if (commentHint) {
+        commentHint.hidden = !(needsComment);
+      }
+      if (commentBlock) {
+        commentBlock.classList.toggle('needs-comment', needsComment && !hasComment);
+      }
+
+      if (!mismatch) {
+        submitHourButton.title = '';
+      } else if (!overrideCheckbox.checked) {
+        submitHourButton.title = 'Répartissez les minutes ou activez le mode override.';
+      } else if (!hasComment) {
+        submitHourButton.title = `Un commentaire (${OVERRIDE_COMMENT_MIN_LENGTH} caractères minimum) est requis pour valider en override.`;
+      } else {
+        submitHourButton.title = '';
+      }
+    }
+
+    function fillRemainingMinutes() {
+      const rows = [...causeListContainer.querySelectorAll('.cause-row')];
+      let microRow = rows.find((row) => row.querySelector('select').value === 'Micro-arrêts cumulés');
+      let otherSum = 0;
+      rows.forEach((row) => {
+        if (row === microRow) return;
+        const input = row.querySelector('input[type="number"]');
+        otherSum += sanitizeCauseMinutes(input.value);
+      });
+      const remaining = clampMinutes(currentMinutesToJustify - otherSum);
+      const sanitized = sanitizeCauseMinutes(remaining);
+      if (!microRow) {
+        addCauseRow('Micro-arrêts cumulés', sanitized);
+      } else {
+        const input = microRow.querySelector('input[type="number"]');
+        input.value = sanitized;
+      }
+      updateCauseSummary();
+    }
+
+    function autoBalanceMinutes() {
+      const rows = [...causeListContainer.querySelectorAll('.cause-row')];
+      if (!rows.length) {
+        addCauseRow('Micro-arrêts cumulés', currentMinutesToJustify);
+        updateCauseSummary();
+        return;
+      }
+      const lastRow = rows[rows.length - 1];
+      const remaining = clampMinutes(
+        currentMinutesToJustify -
+          rows
+            .slice(0, -1)
+            .reduce((sum, row) => sum + sanitizeCauseMinutes(row.querySelector('input[type="number"]').value), 0)
+      );
+      lastRow.querySelector('input[type="number"]').value = sanitizeCauseMinutes(remaining);
+      updateCauseSummary();
+    }
+
+    // --- HOUR-EDIT MODAL
+    function openHourEdit(hourIndex) {
+      const entry = hourlyEntries[hourIndex];
+      editHourIndexInput.value = hourIndex;
+      const timeLabel = `${String(hourIndex).padStart(2, '0')}:00 – ${String((hourIndex + 1) % 24).padStart(2, '0')}:00`;
+      document.getElementById('hour-edit-title').textContent = `Saisie ${timeLabel}`;
+      document.getElementById('hour-edit-subtitle').textContent = `Equipe ${TEAM_ASSIGNMENTS[hourIndex]}`;
+
+      inputGood.value = entry ? entry.good : '';
+      inputComment.value = entry ? entry.comment || '' : '';
+      overrideCheckbox.checked = Boolean(entry?.override);
+
+      isInitializingModal = true;
+      causeListContainer.innerHTML = '';
+      const initialCauses =
+        entry && Array.isArray(entry.causes) && entry.causes.length
+          ? entry.causes
+          : [{ name: 'Production nominale', minutes: 0 }];
+      initialCauses.forEach((cause) => {
+        addCauseRow(cause.name, cause.minutes);
+      });
+      ensureAtLeastOneCauseRow();
+      isInitializingModal = false;
+
+      handleGoodChange();
+      updateCauseSummary();
+      updateSubmitAvailability();
+
+      if (typeof hourEditDialog.showModal === 'function') {
+        hourEditDialog.showModal();
+      }
+      setTimeout(() => inputGood.focus(), 50);
+    }
+
+    function handleGoodChange() {
+      const goodValue = Math.max(0, Number.parseFloat(inputGood.value) || 0);
+      currentMinutesToJustify = minutesToJustify(goodValue, getTargetRate());
+      refreshNeedDisplays();
+      updateCauseSummary();
+    }
+
+    addCauseButton.addEventListener('click', () => addCauseRow());
+    fillRemainingButton.addEventListener('click', fillRemainingMinutes);
+    autoBalanceButton.addEventListener('click', autoBalanceMinutes);
+    incrementButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const increment = Number.parseInt(button.dataset.inc, 10);
+        if (Number.isNaN(increment)) return;
+        incrementLastCause(increment);
+      });
+    });
+    inputGood.addEventListener('input', handleGoodChange);
+    inputGood.addEventListener('change', handleGoodChange);
+    inputComment.addEventListener('input', updateSubmitAvailability);
+    overrideCheckbox.addEventListener('change', updateSubmitAvailability);
+
+    hourEditForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (saveHourlyEntry()) {
+        hourEditDialog.close();
+      }
+    });
+
+    hourEditForm.addEventListener('reset', (event) => {
+      event.preventDefault();
+      hourEditDialog.close();
+    });
+
+    function saveHourlyEntry() {
+      const hourIndex = Number.parseInt(editHourIndexInput.value, 10);
+      const good = Math.max(0, Number.parseFloat(inputGood.value) || 0);
+      const targetRate = getTargetRate();
+      const computedJustify = minutesToJustify(good, targetRate);
+      currentMinutesToJustify = computedJustify;
+      updateCauseSummary();
+
+      const totalCauses = lastCauseTotal;
+      const mismatch = totalCauses !== computedJustify;
+      const comment = inputComment.value.trim();
+
+      if (mismatch && (!overrideCheckbox.checked || comment.length < OVERRIDE_COMMENT_MIN_LENGTH)) {
+        alert(`Le total des causes doit correspondre à À justifier ou être validé avec un commentaire de ${OVERRIDE_COMMENT_MIN_LENGTH} caractères minimum.`);
+        return false;
+      }
+
+      const causes = getCauseData();
+      const timestamp = new Date().toISOString();
+
+      const entry = {
+        hourIndex,
+        good,
+        causes,
+        minutesToJustify: computedJustify,
+        override: mismatch,
+        comment,
+        timestamp
+      };
+
+      hourlyEntries[hourIndex] = entry;
+
+      updateTableRow(hourIndex, entry);
+      updateLog();
+      persistToStorage();
+      initCauseShortcuts();
+      updateKPI();
+      renderChart();
+
+      return true;
+    }
+
+    function updateTableRow(hourIndex, entry) {
+      const row = hourlyTableBody.querySelector(`tr[data-hour-index="${hourIndex}"]`);
+      if (!row) return;
+
+      row.classList.remove('row-validated', 'row-mismatch', 'low-trs');
+
+      if (entry) {
+        const targetRate = getTargetRate();
+        const computedJustify = minutesToJustify(entry.good, targetRate);
+        entry.minutesToJustify = computedJustify;
+
+        const goodCell = row.querySelector('[data-field="good"]');
+        const justifyCell = row.querySelector('[data-field="justify"]');
+        const causesCell = row.querySelector('[data-field="causes"]');
+
+        goodCell.textContent = entry.good.toLocaleString('fr-FR');
+        goodCell.dataset.value = entry.good;
+        justifyCell.textContent = computedJustify.toLocaleString('fr-FR');
+        justifyCell.dataset.value = computedJustify;
+        const summary = summarizeCauses(entry.causes);
+        causesCell.textContent = summary || '–';
+
+        row.classList.add('row-validated');
+        if (entry.override) {
+          row.classList.add('row-mismatch');
+        }
+      } else {
+        row.querySelector('[data-field="good"]').textContent = '–';
+        row.querySelector('[data-field="good"]').dataset.value = '0';
+        row.querySelector('[data-field="justify"]').textContent = '–';
+        row.querySelector('[data-field="justify"]').dataset.value = '0';
+        row.querySelector('[data-field="causes"]').textContent = '–';
+      }
+    }
+
+    function sortCausesDescending(causes = []) {
+      if (!Array.isArray(causes)) {
+        return [];
+      }
+      return [...causes].sort((a, b) => {
+        const minutesDiff = (b?.minutes || 0) - (a?.minutes || 0);
+        if (minutesDiff !== 0) return minutesDiff;
+        return (a?.name || '').localeCompare(b?.name || '');
+      });
+    }
+
+    function summarizeCauses(causes = []) {
+      const sorted = sortCausesDescending(causes);
+      if (!sorted.length) {
+        return '';
+      }
+      return sorted.map((cause) => `${cause.name}:${cause.minutes}`).join('; ');
+    }
+
+    function flattenCauses(causes = []) {
+      const sorted = sortCausesDescending(causes);
+      if (!sorted.length) {
+        return '';
+      }
+      return sorted.map((cause) => `${cause.name}:${cause.minutes}`).join(' | ');
+    }
+
+    function updateLog() {
+      logContainer.innerHTML = '';
+      const entries = hourlyEntries
+        .filter(Boolean)
+        .sort((a, b) => a.hourIndex - b.hourIndex);
+
+      for (const entry of entries) {
+        const node = logTemplate.content.firstElementChild.cloneNode(true);
+        const timeLabel = `${String(entry.hourIndex).padStart(2, '0')}:00 – ${String((entry.hourIndex + 1) % 24).padStart(2, '0')}:00`;
+        const lines = [
+          `<strong>${timeLabel}</strong> (${TEAM_ASSIGNMENTS[entry.hourIndex]})`,
+          `Bon : <strong>${entry.good.toLocaleString('fr-FR')}</strong> u – À justifier : <strong>${entry.minutesToJustify.toLocaleString('fr-FR')}</strong> min`
+        ];
+        const totalCauses = entry.causes?.reduce((sum, cause) => sum + (cause?.minutes || 0), 0) || 0;
+        const summary = summarizeCauses(entry.causes);
+        lines.push(`Causes (${totalCauses.toLocaleString('fr-FR')} min) : ${summary || '–'}`);
+        if (entry.override) {
+          lines.push('<strong style="color:#b45309;">Override validé</strong>');
+        }
+        if (entry.comment) {
+          lines.push(`Commentaire : ${entry.comment}`);
+        }
+        lines.push(`<span style="font-size:0.85rem;color:var(--text-muted);">Enregistré le ${new Date(entry.timestamp).toLocaleString('fr-FR')}</span>`);
+        node.innerHTML = lines.join('<br />');
+        logContainer.appendChild(node);
+      }
+    }
+
+    function persistToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(hourlyEntries));
+    }
+
+    function migrateEntry(entry) {
+      if (!entry) return null;
+      const targetRate = getTargetRate();
+      const hourIndex = Number.parseInt(entry.hourIndex, 10);
+      const good = Math.max(0, Number.parseFloat(entry.good) || 0);
+      const comment = entry.comment || '';
+      const timestamp = entry.timestamp || new Date().toISOString();
+      const overrideFlag =
+        typeof entry.override === 'string' ? entry.override === 'true' : Boolean(entry.override);
+
+      if (Array.isArray(entry.causes)) {
+        const causes = entry.causes
+          .map((cause) => ({
+            name: cause?.name || 'Non précisé',
+            minutes: sanitizeCauseMinutes(cause?.minutes)
+          }))
+          .filter((cause) => cause.minutes > 0);
+        const storedMinutes = Number.parseFloat(entry.minutesToJustify);
+        const minutesToJustifyValue = Number.isFinite(storedMinutes)
+          ? clampMinutes(roundToNearest5(storedMinutes))
+          : minutesToJustify(good, targetRate);
+        return {
+          hourIndex,
+          good,
+          causes,
+          minutesToJustify: minutesToJustifyValue,
+          override: overrideFlag,
+          comment,
+          timestamp
+        };
+      }
+
+      const downtime = Math.max(0, Number.parseFloat(entry.downtime) || 0);
+      const migratedCauses = downtime
+        ? [
+            {
+              name: entry.cause || 'Non précisé',
+              minutes: sanitizeCauseMinutes(downtime)
+            }
+          ]
+        : [];
+
+      return {
+        hourIndex,
+        good,
+        causes: migratedCauses,
+        minutesToJustify: minutesToJustify(good, targetRate),
+        override: false,
+        comment,
+        timestamp
+      };
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return;
+        hourlyEntries = new Array(24).fill(null);
+        let migrated = false;
+        parsed.forEach((entry) => {
+          if (!entry) return;
+          const hour = Number.parseInt(entry.hourIndex, 10);
+          if (Number.isNaN(hour) || hour < 0 || hour > 23) return;
+          const migratedEntry = migrateEntry(entry);
+          if (migratedEntry) {
+            hourlyEntries[hour] = migratedEntry;
+            if (!Array.isArray(entry.causes)) {
+              migrated = true;
+            }
+          }
+        });
+        hourlyEntries.forEach((entry, hour) => updateTableRow(hour, entry));
+        updateLog();
+        initCauseShortcuts();
+        if (migrated) {
+          persistToStorage();
+        }
+      } catch (error) {
+        console.error('Impossible de charger les données stockées', error);
+      }
+    }
+
+    // KPI-TRS
+    function updateKPI() {
+      const targetRate = getTargetRate();
+
+      let sumAvailability = 0;
+      let sumPerformance = 0;
+      let countedHours = 0;
+
+      hourlyEntries.forEach((entry, hour) => {
+        const row = hourlyTableBody.querySelector(`tr[data-hour-index="${hour}"]`);
+        row?.classList.remove('low-trs');
+        if (!entry) return;
+
+        const downtime = entry.causes?.reduce((total, cause) => total + (cause?.minutes || 0), 0) || 0;
+        const good = Math.max(0, entry.good || 0);
+        const availability = downtime >= 60 ? 0 : (60 - downtime) / 60;
+        const effectiveTarget = targetRate * availability;
+        const performance = effectiveTarget > 0 ? good / effectiveTarget : 0;
+        const trs = availability * performance;
+
+        if (row && trs < 0.9) {
+          row.classList.add('low-trs');
+        }
+
+        sumAvailability += availability;
+        sumPerformance += performance;
+        countedHours += 1;
+      });
+
+      const availabilityAvg = countedHours ? sumAvailability / countedHours : 0;
+      const performanceAvg = countedHours ? sumPerformance / countedHours : 0;
+      const trsGlobal = availabilityAvg * performanceAvg;
+
+      kpiTrs.textContent = formatPercent(trsGlobal);
+      kpiAvailability.textContent = formatPercent(availabilityAvg);
+      kpiPerformance.textContent = formatPercent(performanceAvg);
+    }
+
+    function formatPercent(value) {
+      return `${(value * 100).toFixed(1)}%`;
+    }
+
+    // --- ROW HIGHLIGHTING
+    function scheduleRowHighlighting() {
+      setInterval(() => {
+        const currentHour = new Date().getHours();
+        [...hourlyTableBody.querySelectorAll('tr')].forEach((row) => {
+          const hourIndex = Number.parseInt(row.dataset.hourIndex, 10);
+          if (hourIndex === currentHour) {
+            row.classList.add('row-active');
+          } else {
+            row.classList.remove('row-active');
+          }
+        });
+      }, 60 * 1000);
+    }
+
+    function renderChart() {
+      const targetRate = getTargetRate();
+      chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+      const padding = 40;
+      const width = chartCanvas.width;
+      const height = chartCanvas.height;
+      const availableWidth = width - padding * 2;
+      const availableHeight = height - padding * 2;
+
+      chartCtx.strokeStyle = '#9ca3af';
+      chartCtx.lineWidth = 1;
+      chartCtx.beginPath();
+      chartCtx.moveTo(padding, padding);
+      chartCtx.lineTo(padding, height - padding);
+      chartCtx.lineTo(width - padding, height - padding);
+      chartCtx.stroke();
+
+      const hourlyGood = hourlyEntries.map((entry) => (entry ? entry.good : 0));
+      const maxValue = Math.max(targetRate, ...hourlyGood) || 1;
+      const barWidth = availableWidth / 24 - 4;
+
+      hourlyGood.forEach((value, hour) => {
+        const x = padding + hour * ((availableWidth) / 24) + 2;
+        const barHeight = (value / maxValue) * availableHeight;
+        const y = height - padding - barHeight;
+        chartCtx.fillStyle = '#2563eb';
+        chartCtx.fillRect(x, y, barWidth, barHeight);
+      });
+
+      const targetHeight = (targetRate / maxValue) * availableHeight;
+      const targetY = height - padding - targetHeight;
+      chartCtx.strokeStyle = '#f97316';
+      chartCtx.lineWidth = 2;
+      chartCtx.beginPath();
+      chartCtx.moveTo(padding, targetY);
+      chartCtx.lineTo(width - padding, targetY);
+      chartCtx.stroke();
+
+      chartCtx.fillStyle = '#111827';
+      chartCtx.font = '12px "Segoe UI", sans-serif';
+      chartCtx.fillText('Production réelle (barres)', padding, padding - 10);
+      chartCtx.fillText(`Cible ${targetRate.toLocaleString('fr-FR')} u/h`, width - padding - 150, padding - 10);
+    }
+
+    function handleParameterChange() {
+      let hasChanges = false;
+      hourlyEntries.forEach((entry, hour) => {
+        if (!entry) return;
+        const recomputed = minutesToJustify(entry.good, getTargetRate());
+        if (entry.minutesToJustify !== recomputed) {
+          entry.minutesToJustify = recomputed;
+          hasChanges = true;
+        }
+        updateTableRow(hour, entry);
+      });
+      updateLog();
+      updateKPI();
+      renderChart();
+      if (hasChanges) {
+        persistToStorage();
+      }
+      if (hourEditDialog.open) {
+        handleGoodChange();
+      }
+    }
+
+    targetRateInput.addEventListener('change', handleParameterChange);
+    targetRateInput.addEventListener('input', handleParameterChange);
+
+    cycleTimeInput.addEventListener('change', () => {
+      updateKPI();
+    });
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => switchTab(button.dataset.tab));
+    });
+
+    function switchTab(tab) {
+      tabButtons.forEach((button) => {
+        if (button.dataset.tab === tab) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+
+      if (tab === 'analysis') {
+        tabEntry.hidden = true;
+        tabAnalysis.hidden = false;
+        renderChart();
+      } else {
+        tabEntry.hidden = false;
+        tabAnalysis.hidden = true;
+      }
+    }
+
+    operatorModeCheckbox.addEventListener('change', applyOperatorMode);
+
+    function applyOperatorMode() {
+      document.body.classList.toggle('operator-mode', operatorModeCheckbox.checked);
+    }
+
+    // EXPORTS
+    exportCsvButton.addEventListener('click', () => {
+      const csvRows = [
+        [
+          'Horodatage saisie',
+          'Heure',
+          'Equipe',
+          'Bon',
+          'À justifier (min)',
+          'Total causes (min)',
+          'Causes',
+          'Override',
+          'Commentaire'
+        ]
+      ];
+
+      hourlyEntries.forEach((entry, hour) => {
+        if (!entry) return;
+        const timeLabel = `${String(hour).padStart(2, '0')}:00 – ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+        const totalCauses = entry.causes?.reduce((sum, cause) => sum + (cause?.minutes || 0), 0) || 0;
+        const flattened = flattenCauses(entry.causes);
+        csvRows.push([
+          entry.timestamp,
+          timeLabel,
+          TEAM_ASSIGNMENTS[hour],
+          entry.good,
+          entry.minutesToJustify,
+          totalCauses,
+          flattened,
+          entry.override ? 'Oui' : 'Non',
+          entry.comment?.replace(/\n/g, ' ')
+        ]);
+      });
+
+      const csvContent = csvRows.map((row) => row.map(escapeCsv).join(';')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      downloadBlob(blob, 'journal-horaire.csv');
+    });
+
+    exportHtmlButton.addEventListener('click', () => {
+      const rowsHtml = hourlyEntries
+        .map((entry, hour) => {
+          if (!entry) return '';
+          const timeLabel = `${String(hour).padStart(2, '0')}:00 – ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+          const totalCauses = entry.causes?.reduce((sum, cause) => sum + (cause?.minutes || 0), 0) || 0;
+          const flattened = flattenCauses(entry.causes);
+          const commentHtml = escapeHtml(entry.comment || '').replace(/\n/g, '<br />');
+          return `
+            <tr${entry.override ? ' class="override"' : ''}>
+              <td>${escapeHtml(entry.timestamp)}</td>
+              <td>${escapeHtml(timeLabel)}</td>
+              <td>${escapeHtml(TEAM_ASSIGNMENTS[hour])}</td>
+              <td>${entry.good.toLocaleString('fr-FR')}</td>
+              <td>${entry.minutesToJustify.toLocaleString('fr-FR')}</td>
+              <td>${totalCauses.toLocaleString('fr-FR')}</td>
+              <td>${escapeHtml(flattened)}</td>
+              <td>${entry.override ? 'Oui' : 'Non'}</td>
+              <td>${commentHtml}</td>
+            </tr>
+          `;
+        })
+        .filter(Boolean)
+        .join('');
+
+      const hasOverride = hourlyEntries.some((entry) => entry?.override);
+
+      const html = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Rapport – Journal horaire</title>
+          <style>
+            body { font-family: "Segoe UI", sans-serif; padding: 2rem; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #d1d5db; padding: 0.5rem 0.65rem; }
+            thead { background: #e0f2fe; }
+            tr.override { background: #fef3c7; }
+          </style>
+        </head>
+        <body>
+          <h1>Rapport – Journal horaire</h1>
+          <p>Cadence cible : ${escapeHtml(targetRateInput.value)} u/h – Temps cycle : ${escapeHtml(cycleTimeInput.value)} min/u</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Horodatage saisie</th>
+                <th>Heure</th>
+                <th>Equipe</th>
+                <th>Bon</th>
+                <th>À justifier (min)</th>
+                <th>Total causes (min)</th>
+                <th>Causes</th>
+                <th>Override</th>
+                <th>Commentaire</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          ${hasOverride ? '<p><strong>Note :</strong> Les lignes surlignées indiquent une validation override avec commentaire associé.</p>' : ''}
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+      downloadBlob(blob, 'rapport-journal-horaire.html');
+    });
+
+    function escapeCsv(value) {
+      const str = value === undefined || value === null ? '' : String(value);
+      if (str.includes(';') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    }
+
+    function escapeHtml(value) {
+      if (value === undefined || value === null) {
+        return '';
+      }
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+  </script>
+</body>
+</html>
