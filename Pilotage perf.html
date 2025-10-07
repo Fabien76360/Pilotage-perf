@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard Production - Pilotage Atelier</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #0f172a;
+      --card: rgba(30, 41, 59, 0.8);
+      --card-light: rgba(51, 65, 85, 0.6);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.2);
+      --glass: rgba(255, 255, 255, 0.05);
+      --glow: rgba(99, 102, 241, 0.3);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Header moderne */
+    header {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .header-content {
+      max-width: 1600px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-left: auto;
+    }
+
+    .view-tabs {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-active {
+      box-shadow: 0 0 0 2px var(--primary);
+    }
+
+    .btn {
+      padding: 0.65rem 1.25rem;
+      border: none;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(99, 102, 241, 0.6);
+    }
+
+    .btn-secondary {
+      background: var(--card-light);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--glass);
+      border-color: var(--primary);
+    }
+
+    /* Container principal */
+    main {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 2rem;
+      display: grid;
+      gap: 2rem;
+    }
+
+    /* KPI Cards avec glassmorphism */
+    .kpi-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .kpi-card {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--success));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.6s ease;
+    }
+
+    .kpi-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      border-color: var(--primary);
+    }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .kpi-title {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .kpi-icon {
+      font-size: 2rem;
+      filter: drop-shadow(0 0 10px currentColor);
+    }
+
+    .kpi-value {
+      font-size: 3rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+      line-height: 1;
+    }
+
+    .kpi-trend {
+      font-size: 0.85rem;
+      color: var(--success);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .kpi-trend.negative {
+      color: var(--danger);
+    }
+
+    /* Badges et achievements */
+    .badges-section {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      border: 1px solid var(--border);
+      margin-bottom: 1rem;
+    }
+
+    .badges-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .badge {
+      background: var(--card-light);
+      border-radius: 1rem;
+      padding: 1.5rem 1rem;
+      text-align: center;
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .badge.unlocked {
+      border-color: var(--success);
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .badge-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      filter: grayscale(100%);
+      opacity: 0.3;
+    }
+
+    .badge.unlocked .badge-icon {
+      filter: grayscale(0%);
+      opacity: 1;
+      animation: bounce 0.6s ease;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .badge-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .badge.unlocked .badge-label {
+      color: var(--success);
+    }
+
+    /* Grille d'heures en cartes */
+    .hours-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .hour-card {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hour-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--text-muted);
+      opacity: 0.2;
+    }
+
+    .hour-card.active {
+      border-color: var(--primary);
+      box-shadow: 0 0 30px var(--glow);
+      transform: scale(1.05);
+    }
+
+    .hour-card.validated::after {
+      background: var(--success);
+      opacity: 1;
+    }
+
+    .hour-card.low-trs::after {
+      background: var(--danger);
+      opacity: 1;
+    }
+
+    .hour-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--primary);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .hour-time {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+
+    .hour-team {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .hour-value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .hour-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .hour-trs {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .trs-badge {
+      padding: 0.25rem 0.6rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .trs-excellent {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+
+    .trs-good {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+    }
+
+    .trs-low {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    /* Chart section */
+    .chart-section {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      border: 1px solid var(--border);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .chart-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    canvas {
+      max-height: 350px;
+    }
+
+    /* Modal moderne */
+    dialog {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      max-width: 600px;
+      width: 90vw;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+    }
+
+    .modal-header {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--card-light);
+      border: 2px solid var(--border);
+      border-radius: 0.75rem;
+      color: var(--text);
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--glow);
+    }
+
+    .justify-display {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(192, 132, 252, 0.2) 100%);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      text-align: center;
+      margin: 1.5rem 0;
+      border: 2px solid var(--primary);
+    }
+
+    .justify-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .quick-causes {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+    }
+
+    .cause-chip {
+      padding: 0.5rem 1rem;
+      background: var(--card-light);
+      border: 2px solid var(--border);
+      border-radius: 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .cause-chip:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      justify-content: flex-end;
+    }
+
+    /* Confetti celebration */
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      background: var(--success);
+      position: absolute;
+      animation: confetti-fall 3s linear forwards;
+    }
+
+    @keyframes confetti-fall {
+      to {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+      }
+    }
+
+    /* Toast notifications */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.3s ease;
+      z-index: 1000;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.success {
+      border-left: 4px solid var(--success);
+    }
+
+    .toast.error {
+      border-left: 4px solid var(--danger);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .kpi-section {
+        grid-template-columns: 1fr;
+      }
+      
+      .hours-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      }
+      
+      .badges-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      }
+
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Loading animation */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Section titles */
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 2rem;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+      border-radius: 2px;
+    }
+
+    [data-view] {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .settings-section {
+      background: var(--card);
+      backdrop-filter: blur(20px);
+      border-radius: 1.5rem;
+      border: 1px solid var(--border);
+      padding: 2rem;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .settings-card {
+      background: var(--card-light);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .settings-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .settings-description {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .table-wrapper {
+      max-height: 320px;
+      overflow-y: auto;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+    }
+
+    .settings-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .settings-table th,
+    .settings-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-align: left;
+    }
+
+    .settings-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .settings-table td input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .settings-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .threshold-fields {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .threshold-fields label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .threshold-fields input {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <h1>🏭 Dashboard Production Atelier</h1>
+      <div class="header-actions">
+        <div class="controls">
+          <button class="btn btn-secondary" id="export-btn">📊 Exporter</button>
+          <button class="btn btn-primary" id="refresh-btn">🔄 Actualiser</button>
+        </div>
+        <div class="view-tabs">
+          <button class="btn btn-secondary" data-nav="operateur">Opérateur</button>
+          <button class="btn btn-secondary" data-nav="analyse">Analyse</button>
+          <button class="btn btn-secondary" data-nav="parametres">Paramètres</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div data-view="operateur">
+      <section>
+        <h2 class="section-title">📅 Production Horaire</h2>
+        <div class="hours-grid" id="hours-grid"></div>
+      </section>
+
+      <!-- Modal -->
+      <dialog id="hour-modal">
+        <div class="modal-header">
+          <h2 class="modal-title" id="modal-title">Saisie Production</h2>
+          <p style="color: var(--text-muted); margin-top: 0.5rem;" id="modal-subtitle"></p>
+        </div>
+        <form id="hour-form">
+          <input type="hidden" id="hour-index" />
+
+          <div class="form-group">
+            <label class="form-label">Production Bonne (unités)</label>
+            <input type="number" id="good-input" class="form-input" min="0" step="1" required />
+          </div>
+
+          <div class="justify-display">
+            <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">À Justifier</div>
+            <div class="justify-value" id="justify-value">0 min</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Causes d'Arrêt (sélection rapide)</label>
+            <div class="quick-causes" id="quick-causes">
+              <button type="button" class="cause-chip" data-cause="Production nominale">✅ Nominale</button>
+              <button type="button" class="cause-chip" data-cause="Micro-arrêts">⏱️ Micro-arrêts</button>
+              <button type="button" class="cause-chip" data-cause="Panne machine">🔧 Panne</button>
+              <button type="button" class="cause-chip" data-cause="Changement format">🔄 Format</button>
+              <button type="button" class="cause-chip" data-cause="Approvisionnement">📦 Appro</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Commentaire</label>
+            <textarea id="comment-input" class="form-input" rows="3" placeholder="Observations, actions..."></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="cancel-btn">Annuler</button>
+            <button type="submit" class="btn btn-primary">✓ Valider</button>
+          </div>
+        </form>
+      </dialog>
+    </div>
+
+    <div data-view="analyse">
+      <!-- KPI Cards -->
+      <section class="kpi-section">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">TRS Global</span>
+          <span class="kpi-icon">⚡</span>
+        </div>
+        <div class="kpi-value" id="kpi-trs">0%</div>
+        <div class="kpi-trend" id="trs-trend">
+          <span>↗</span> +2.3% vs hier
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Disponibilité</span>
+          <span class="kpi-icon">🎯</span>
+        </div>
+        <div class="kpi-value" id="kpi-availability">0%</div>
+        <div class="kpi-trend">
+          <span>→</span> Stable
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Performance</span>
+          <span class="kpi-icon">🚀</span>
+        </div>
+        <div class="kpi-value" id="kpi-performance">0%</div>
+        <div class="kpi-trend">
+          <span>↗</span> +1.5% vs hier
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Production Journée</span>
+          <span class="kpi-icon">📦</span>
+        </div>
+        <div class="kpi-value" id="kpi-total">0</div>
+        <div class="kpi-trend" id="target-trend">
+          <span>→</span> Objectif: 384k
+        </div>
+      </div>
+    </section>
+
+    <!-- Badges Section -->
+    <section class="badges-section">
+      <h2 class="section-title">🏆 Achievements</h2>
+      <div class="badges-grid" id="badges-grid">
+        <div class="badge" data-badge="perfect-hour">
+          <div class="badge-icon">🌟</div>
+          <div class="badge-label">Heure Parfaite</div>
+        </div>
+        <div class="badge" data-badge="zero-downtime">
+          <div class="badge-icon">⚡</div>
+          <div class="badge-label">Zéro Arrêt</div>
+        </div>
+        <div class="badge" data-badge="streak-3">
+          <div class="badge-icon">🔥</div>
+          <div class="badge-label">Streak x3</div>
+        </div>
+        <div class="badge" data-badge="team-champion">
+          <div class="badge-icon">👑</div>
+          <div class="badge-label">Champion Équipe</div>
+        </div>
+        <div class="badge" data-badge="consistency">
+          <div class="badge-icon">💎</div>
+          <div class="badge-label">Régularité</div>
+        </div>
+      </div>
+    </section>
+    <!-- Chart Section -->
+    <section class="chart-section">
+      <div class="chart-header">
+        <h2 class="chart-title">📈 Performance en Temps Réel</h2>
+      </div>
+      <canvas id="production-chart"></canvas>
+    </section>
+    </div>
+
+    <div data-view="parametres">
+      <section class="settings-section">
+        <h2 class="section-title">⚙️ Paramètres</h2>
+        <div class="settings-grid">
+          <div class="settings-card">
+            <div class="settings-title">Cadence cible</div>
+            <div class="settings-description">Définissez la cadence horaire nominale utilisée pour calculer les TRS et les justifications.</div>
+            <div>
+              <label style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600; display: flex; flex-direction: column; gap: 0.5rem;">
+                Cadence (u/h)
+                <input type="number" id="target-rate" value="16000" style="width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 0.5rem 0.75rem; color: var(--text);" />
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-title">Affectation des équipes</div>
+            <div class="settings-description">Ajustez l'équipe responsable de chaque tranche horaire pour un suivi précis.</div>
+            <div class="table-wrapper">
+              <table class="settings-table">
+                <thead>
+                  <tr>
+                    <th>Heure</th>
+                    <th>Équipe</th>
+                  </tr>
+                </thead>
+                <tbody id="team-assignments-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-title">Catégories &amp; Sous-catégories</div>
+            <div class="settings-description">Définissez les catégories et sous-catégories d’événements (ex : Machine &gt; Dépileuse). Ces éléments seront utilisés dans les causes d’arrêt.</div>
+            <div class="table-wrapper">
+              <table class="settings-table">
+                <thead>
+                  <tr>
+                    <th>Catégorie</th>
+                    <th>Sous-catégorie</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="categories-table-body"></tbody>
+              </table>
+            </div>
+            <div class="settings-actions">
+              <button class="btn btn-secondary" id="add-category-row-btn">➕ Ajouter une ligne</button>
+              <button class="btn btn-primary" id="save-categories-btn">💾 Sauvegarder</button>
+              <button class="btn btn-secondary" id="export-categories-btn">📤 Exporter</button>
+              <button class="btn btn-secondary" id="import-categories-btn">📥 Importer</button>
+              <input type="file" id="categories-import-input" accept="application/json" style="display: none;" />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-title">Seuils TRS</div>
+            <div class="settings-description">Personnalisez les seuils de performance utilisés pour colorer les cartes horaires.</div>
+            <div class="threshold-fields">
+              <label>
+                Excellent (≥ %)
+                <input type="number" id="threshold-excellent" min="0" max="100" value="95" />
+              </label>
+              <label>
+                Bon (≥ %)
+                <input type="number" id="threshold-good" min="0" max="100" value="85" />
+              </label>
+              <label>
+                Faible (&lt; %)
+                <input type="number" id="threshold-low" min="0" max="100" value="85" disabled style="opacity: 0.6; cursor: not-allowed;" />
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-title">Gestion</div>
+            <div class="settings-description">Sauvegardez vos réglages ou réinitialisez la journée en cours.</div>
+            <div class="settings-actions">
+              <button class="btn btn-primary" id="save-settings-btn">💾 Sauvegarder paramètres</button>
+              <button class="btn btn-secondary" id="import-config-btn">📥 Importer config</button>
+              <button class="btn btn-secondary" id="export-config-btn">📤 Exporter config</button>
+              <button class="btn btn-secondary" id="reset-day-btn">🧹 Réinitialiser journée</button>
+              <input type="file" id="config-import-input" accept="application/json" style="display: none;" />
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const DEFAULT_VIEW = 'operateur';
+    const DEFAULT_TEAM_ASSIGNMENTS = [
+      'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit', 'Equipe Nuit',
+      'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour', 'Equipe Jour',
+      'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir', 'Equipe Soir'
+    ];
+
+    let TEAM_ASSIGNMENTS = [...DEFAULT_TEAM_ASSIGNMENTS];
+    let TRS_THRESHOLDS = { excellent: 95, good: 85 };
+    let CATEGORY_DATA = [
+      { category: 'Machine', subcategory: 'Dépileuse' },
+      { category: 'Machine', subcategory: 'MASS' }
+    ];
+
+    // État global en mémoire (PAS de localStorage)
+    function createEmptyHourlyData() {
+      return new Array(24).fill(null).map((_, i) => ({
+        hour: i,
+        good: 0,
+        causes: [],
+        comment: '',
+        validated: false
+      }));
+    }
+
+    let hourlyData = createEmptyHourlyData();
+
+    let currentChart = null;
+    let unlockedBadges = new Set();
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', () => {
+      buildHoursGrid();
+      updateKPIs();
+      initChart();
+      highlightCurrentHour();
+      checkBadges();
+      buildTeamAssignmentsTable();
+      buildCategoryTable();
+      rebuildQuickCauses();
+      populateParameters();
+      setupNavigation();
+
+      setInterval(highlightCurrentHour, 60000);
+
+      showView(location.hash.replace('#', '') || DEFAULT_VIEW);
+    });
+
+    window.addEventListener('hashchange', () => {
+      const view = location.hash.replace('#', '') || DEFAULT_VIEW;
+      showView(view);
+    });
+
+    function showView(view) {
+      document.querySelectorAll('[data-view]').forEach(v => {
+        v.style.display = 'none';
+      });
+
+      const normalized = ['operateur', 'analyse', 'parametres'].includes(view) ? view : DEFAULT_VIEW;
+      const element = document.querySelector(`[data-view="${normalized}"]`) || document.querySelector('[data-view="operateur"]');
+      if (element) {
+        element.style.display = '';
+      }
+
+      setActiveTab(normalized);
+
+      if (normalized === 'analyse') {
+        refreshDisplay();
+        updateChart();
+      }
+
+      if (normalized === 'parametres') {
+        populateParameters();
+      }
+    }
+
+    function setActiveTab(view) {
+      document.querySelectorAll('[data-nav]').forEach(btn => btn.classList.remove('btn-active'));
+      const activeBtn = document.querySelector(`[data-nav="${view}"]`);
+      if (activeBtn) {
+        activeBtn.classList.add('btn-active');
+      }
+    }
+
+    function setupNavigation() {
+      document.querySelectorAll('[data-nav]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const targetView = btn.dataset.nav;
+          if (targetView) {
+            location.hash = `#${targetView}`;
+          }
+        });
+      });
+    }
+
+    function buildTeamAssignmentsTable() {
+      const tbody = document.getElementById('team-assignments-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      for (let i = 0; i < 24; i++) {
+        const row = document.createElement('tr');
+        const hourCell = document.createElement('td');
+        hourCell.textContent = `${String(i).padStart(2, '0')}h`;
+
+        const teamCell = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = TEAM_ASSIGNMENTS[i] || '';
+        input.dataset.teamHour = i;
+        input.placeholder = 'Équipe';
+
+        teamCell.appendChild(input);
+        row.appendChild(hourCell);
+        row.appendChild(teamCell);
+        tbody.appendChild(row);
+      }
+    }
+
+    function populateParameters() {
+      const targetRateInput = document.getElementById('target-rate');
+      if (targetRateInput) {
+        targetRateInput.value = parseInt(targetRateInput.value, 10) || 16000;
+      }
+
+      const excellentInput = document.getElementById('threshold-excellent');
+      const goodInput = document.getElementById('threshold-good');
+      const lowInput = document.getElementById('threshold-low');
+
+      if (excellentInput) excellentInput.value = TRS_THRESHOLDS.excellent;
+      if (goodInput) goodInput.value = TRS_THRESHOLDS.good;
+      if (lowInput) lowInput.value = Math.max(0, TRS_THRESHOLDS.good - 1);
+
+      buildTeamAssignmentsTable();
+      buildCategoryTable();
+    }
+
+    function saveSettings() {
+      const targetRateInput = document.getElementById('target-rate');
+      if (targetRateInput) {
+        let rateValue = parseInt(targetRateInput.value, 10);
+        if (!Number.isFinite(rateValue) || rateValue <= 0) {
+          rateValue = 16000;
+        }
+        targetRateInput.value = rateValue;
+        targetRateInput.dispatchEvent(new Event('change'));
+      }
+
+      document.querySelectorAll('#team-assignments-body input').forEach(input => {
+        const hour = parseInt(input.dataset.teamHour, 10);
+        if (Number.isInteger(hour)) {
+          const value = input.value.trim();
+          TEAM_ASSIGNMENTS[hour] = value || DEFAULT_TEAM_ASSIGNMENTS[hour];
+          input.value = TEAM_ASSIGNMENTS[hour];
+        }
+      });
+
+      let excellent = parseInt(document.getElementById('threshold-excellent').value, 10);
+      let good = parseInt(document.getElementById('threshold-good').value, 10);
+
+      if (!Number.isFinite(excellent)) excellent = TRS_THRESHOLDS.excellent;
+      if (!Number.isFinite(good)) good = TRS_THRESHOLDS.good;
+
+      excellent = Math.max(0, Math.min(100, excellent));
+      good = Math.max(0, Math.min(100, good));
+
+      if (excellent < good) {
+        excellent = good;
+      }
+
+      TRS_THRESHOLDS.excellent = excellent;
+      TRS_THRESHOLDS.good = Math.min(excellent, good);
+
+      document.getElementById('threshold-excellent').value = TRS_THRESHOLDS.excellent;
+      document.getElementById('threshold-good').value = TRS_THRESHOLDS.good;
+      document.getElementById('threshold-low').value = Math.max(0, TRS_THRESHOLDS.good - 1);
+
+      buildTeamAssignmentsTable();
+      refreshDisplay();
+      checkBadges();
+      showToast('💾 Paramètres appliqués', 'success');
+    }
+
+    function exportConfig() {
+      const config = {
+        targetRate: parseInt(document.getElementById('target-rate').value, 10) || 16000,
+        teamAssignments: [...TEAM_ASSIGNMENTS],
+        thresholds: { ...TRS_THRESHOLDS },
+        categories: CATEGORY_DATA.map(item => ({
+          category: item.category,
+          subcategory: item.subcategory
+        }))
+      };
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      downloadJSON(config, `config-production-${dateStr}.json`);
+      showToast('📤 Configuration exportée', 'success');
+    }
+
+    function importConfig(file) {
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const config = JSON.parse(event.target.result);
+
+          if (typeof config.targetRate === 'number' && Number.isFinite(config.targetRate)) {
+            const targetRateInput = document.getElementById('target-rate');
+            if (targetRateInput) {
+              targetRateInput.value = Math.max(0, Math.round(config.targetRate));
+              targetRateInput.dispatchEvent(new Event('change'));
+            }
+          }
+
+          if (Array.isArray(config.teamAssignments) && config.teamAssignments.length === 24) {
+            TEAM_ASSIGNMENTS = config.teamAssignments.map((team, index) => {
+              const value = typeof team === 'string' ? team.trim() : '';
+              return value || DEFAULT_TEAM_ASSIGNMENTS[index];
+            });
+          }
+
+          if (Array.isArray(config.categories)) {
+            CATEGORY_DATA = config.categories.map(item => ({
+              category: typeof item.category === 'string' ? item.category.trim() : '',
+              subcategory: typeof item.subcategory === 'string' ? item.subcategory.trim() : ''
+            }));
+            buildCategoryTable();
+            rebuildQuickCauses();
+          }
+
+          if (config.thresholds && typeof config.thresholds === 'object') {
+            const { excellent, good } = config.thresholds;
+
+            if (Number.isFinite(excellent)) {
+              TRS_THRESHOLDS.excellent = Math.max(0, Math.min(100, Math.round(excellent)));
+            }
+            if (Number.isFinite(good)) {
+              TRS_THRESHOLDS.good = Math.max(0, Math.min(TRS_THRESHOLDS.excellent, Math.round(good)));
+            }
+
+            if (TRS_THRESHOLDS.excellent < TRS_THRESHOLDS.good) {
+              TRS_THRESHOLDS.excellent = TRS_THRESHOLDS.good;
+            }
+          }
+
+          populateParameters();
+          refreshDisplay();
+          checkBadges();
+          updateJustifyDisplay();
+          showToast('📥 Configuration importée', 'success');
+        } catch (error) {
+          console.error('Erreur import configuration', error);
+          showToast('❌ Import impossible', 'error');
+        }
+      };
+
+      reader.readAsText(file);
+    }
+
+    function resetDay() {
+      hourlyData = createEmptyHourlyData();
+      unlockedBadges = new Set();
+      document.querySelectorAll('.badge').forEach(badge => badge.classList.remove('unlocked'));
+      refreshDisplay();
+      checkBadges();
+      showToast('🧹 Journée réinitialisée', 'success');
+    }
+
+    // Construction de la grille d'heures
+    function buildHoursGrid() {
+      const grid = document.getElementById('hours-grid');
+      const currentHour = new Date().getHours();
+      
+      for (let i = 0; i < 24; i++) {
+        const card = document.createElement('div');
+        card.className = 'hour-card';
+        card.dataset.hour = i;
+        
+        if (i === currentHour) {
+          card.classList.add('active');
+        }
+        
+        const data = hourlyData[i];
+        const trsClass = getTRSClass(data);
+        
+        card.innerHTML = `
+          <div class="hour-time">${String(i).padStart(2, '0')}:00</div>
+          <div class="hour-team">${TEAM_ASSIGNMENTS[i] || ''}</div>
+          <div class="hour-value">${data.validated ? data.good.toLocaleString('fr-FR') : '—'}</div>
+          <div class="hour-label">unités</div>
+          <div class="hour-trs">
+            <span style="font-size: 0.75rem; color: var(--text-muted);">TRS</span>
+            <span class="trs-badge ${trsClass}">${data.validated ? calculateTRS(data) + '%' : '—'}</span>
+          </div>
+        `;
+        
+        if (data.validated) {
+          card.classList.add('validated');
+          if (calculateTRS(data) < TRS_THRESHOLDS.good) {
+            card.classList.add('low-trs');
+          }
+        }
+        
+        card.addEventListener('click', () => openHourModal(i));
+        grid.appendChild(card);
+      }
+    }
+
+    function getTRSClass(data) {
+      if (!data.validated) return '';
+      const trs = calculateTRS(data);
+      if (trs >= TRS_THRESHOLDS.excellent) return 'trs-excellent';
+      if (trs >= TRS_THRESHOLDS.good) return 'trs-good';
+      return 'trs-low';
+    }
+
+    function calculateTRS(data) {
+      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+      const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
+      const availability = Math.max(0, (60 - downtime) / 60);
+      const performance = targetRate > 0 ? Math.min(1, data.good / targetRate) : 0;
+      return Math.round(availability * performance * 100);
+    }
+
+    function highlightCurrentHour() {
+      const currentHour = new Date().getHours();
+      document.querySelectorAll('.hour-card').forEach(card => {
+        const hour = parseInt(card.dataset.hour);
+        if (hour === currentHour) {
+          card.classList.add('active');
+        } else {
+          card.classList.remove('active');
+        }
+      });
+    }
+
+    // Modal de saisie
+    function openHourModal(hour) {
+      const modal = document.getElementById('hour-modal');
+      const data = hourlyData[hour];
+      
+      document.getElementById('hour-index').value = hour;
+      document.getElementById('modal-title').textContent = `Saisie ${String(hour).padStart(2, '0')}:00 — ${String((hour + 1) % 24).padStart(2, '0')}:00`;
+      document.getElementById('modal-subtitle').textContent = TEAM_ASSIGNMENTS[hour];
+      
+      document.getElementById('good-input').value = data.validated ? data.good : '';
+      document.getElementById('comment-input').value = data.comment || '';
+      
+      updateJustifyDisplay();
+      
+      modal.showModal();
+      document.getElementById('good-input').focus();
+    }
+
+    document.getElementById('good-input').addEventListener('input', updateJustifyDisplay);
+
+    function updateJustifyDisplay() {
+      const good = parseInt(document.getElementById('good-input').value) || 0;
+      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+      const used = targetRate > 0 ? (good / targetRate) * 60 : 60;
+      const toJustify = Math.max(0, Math.round((60 - used) / 5) * 5);
+      
+      document.getElementById('justify-value').textContent = `${toJustify} min`;
+    }
+
+    // Gestion des causes rapides
+    document.getElementById('quick-causes').addEventListener('click', (e) => {
+      if (e.target.classList.contains('cause-chip')) {
+        const cause = e.target.dataset.cause;
+        e.target.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          e.target.style.transform = '';
+        }, 200);
+        
+        showToast(`Cause "${cause}" ajoutée`, 'success');
+      }
+    });
+
+    // Soumission du formulaire
+    document.getElementById('hour-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const hour = parseInt(document.getElementById('hour-index').value);
+      const good = parseInt(document.getElementById('good-input').value) || 0;
+      const comment = document.getElementById('comment-input').value.trim();
+      
+      // Calcul automatique des causes
+      const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+      const used = targetRate > 0 ? (good / targetRate) * 60 : 60;
+      const toJustify = Math.max(0, Math.round((60 - used) / 5) * 5);
+      
+      const causes = toJustify > 0 ? [
+        { name: 'Production nominale', minutes: 60 - toJustify },
+        { name: 'Micro-arrêts cumulés', minutes: toJustify }
+      ] : [{ name: 'Production nominale', minutes: 60 }];
+      
+      hourlyData[hour] = {
+        hour,
+        good,
+        causes: causes.filter(c => c.minutes > 0),
+        comment,
+        validated: true,
+        timestamp: new Date().toISOString()
+      };
+      
+      document.getElementById('hour-modal').close();
+      
+      refreshDisplay();
+      celebrate(good >= targetRate);
+      checkBadges();
+      
+      showToast('✓ Production enregistrée avec succès', 'success');
+    });
+
+    document.getElementById('cancel-btn').addEventListener('click', () => {
+      document.getElementById('hour-modal').close();
+    });
+
+    // Actualisation de l'affichage
+    function refreshDisplay() {
+      const grid = document.getElementById('hours-grid');
+      grid.innerHTML = '';
+      buildHoursGrid();
+      updateKPIs();
+      updateChart();
+    }
+
+    // KPIs
+    function updateKPIs() {
+      const validatedData = hourlyData.filter(d => d.validated);
+      
+      if (validatedData.length === 0) {
+        document.getElementById('kpi-trs').textContent = '0%';
+        document.getElementById('kpi-availability').textContent = '0%';
+        document.getElementById('kpi-performance').textContent = '0%';
+        document.getElementById('kpi-total').textContent = '0';
+        return;
+      }
+      
+      let totalAvail = 0, totalPerf = 0;
+      let totalProduction = 0;
+      
+      validatedData.forEach(data => {
+        const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
+        const availability = Math.max(0, (60 - downtime) / 60);
+        const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+        const performance = targetRate > 0 ? Math.min(1, data.good / targetRate) : 0;
+        
+        totalAvail += availability;
+        totalPerf += performance;
+        totalProduction += data.good;
+      });
+      
+      const avgAvail = totalAvail / validatedData.length;
+      const avgPerf = totalPerf / validatedData.length;
+      const trs = avgAvail * avgPerf;
+      
+      document.getElementById('kpi-trs').textContent = `${Math.round(trs * 100)}%`;
+      document.getElementById('kpi-availability').textContent = `${Math.round(avgAvail * 100)}%`;
+      document.getElementById('kpi-performance').textContent = `${Math.round(avgPerf * 100)}%`;
+      document.getElementById('kpi-total').textContent = totalProduction.toLocaleString('fr-FR');
+      
+      // Mise à jour de la tendance
+      const targetDaily = 24 * (parseInt(document.getElementById('target-rate').value) || 16000);
+      document.getElementById('target-trend').innerHTML = `
+        <span>${totalProduction >= targetDaily ? '↗' : '→'}</span> 
+        Objectif: ${(targetDaily / 1000).toFixed(0)}k
+      `;
+    }
+
+    // Graphique Chart.js
+    function initChart() {
+      const ctx = document.getElementById('production-chart').getContext('2d');
+      
+      currentChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}h`),
+          datasets: [
+            {
+              label: 'Production Réelle',
+              data: Array(24).fill(0),
+              backgroundColor: 'rgba(99, 102, 241, 0.6)',
+              borderColor: 'rgba(99, 102, 241, 1)',
+              borderWidth: 2,
+              borderRadius: 8
+            },
+            {
+              label: 'Cible',
+              data: Array(24).fill(16000),
+              type: 'line',
+              borderColor: 'rgba(245, 158, 11, 1)',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              borderWidth: 3,
+              pointRadius: 0,
+              borderDash: [5, 5]
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: {
+                color: '#f1f5f9',
+                font: { size: 14, weight: 600 }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(30, 41, 59, 0.95)',
+              titleColor: '#f1f5f9',
+              bodyColor: '#f1f5f9',
+              borderColor: 'rgba(99, 102, 241, 0.5)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: true
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(148, 163, 184, 0.1)'
+              },
+              ticks: {
+                color: '#94a3b8'
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                color: '#94a3b8'
+              }
+            }
+          },
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuart'
+          }
+        }
+      });
+    }
+
+    function updateChart() {
+      if (!currentChart) return;
+
+      try {
+        const targetRate = parseInt(document.getElementById('target-rate').value) || 16000;
+        const productionData = hourlyData.map(d => d.validated ? d.good : 0);
+
+        currentChart.data.datasets[0].data = productionData;
+        currentChart.data.datasets[1].data = Array(24).fill(targetRate);
+        currentChart.update();
+      } catch (error) {
+        console.error('Erreur mise à jour graphique', error);
+      }
+    }
+
+    // Système de badges
+    function checkBadges() {
+      const validatedData = hourlyData.filter(d => d.validated);
+      
+      // Badge: Heure Parfaite (TRS >= 100%)
+      validatedData.forEach(data => {
+        if (calculateTRS(data) >= 100) {
+          unlockBadge('perfect-hour');
+        }
+      });
+      
+      // Badge: Zéro Arrêt
+      validatedData.forEach(data => {
+        const downtime = data.causes.reduce((sum, c) => sum + (c.minutes || 0), 0);
+        if (downtime === 0) {
+          unlockBadge('zero-downtime');
+        }
+      });
+      
+      // Badge: Streak (3 heures consécutives >= 90%)
+      let streak = 0;
+      for (let i = 0; i < 24; i++) {
+        if (hourlyData[i].validated && calculateTRS(hourlyData[i]) >= 90) {
+          streak++;
+          if (streak >= 3) {
+            unlockBadge('streak-3');
+            break;
+          }
+        } else {
+          streak = 0;
+        }
+      }
+      
+      // Badge: Champion Équipe (moyenne équipe > 95%)
+      const teams = {};
+      validatedData.forEach(data => {
+        const team = TEAM_ASSIGNMENTS[data.hour];
+        if (!teams[team]) teams[team] = [];
+        teams[team].push(calculateTRS(data));
+      });
+      
+      Object.values(teams).forEach(trsList => {
+        const avg = trsList.reduce((a, b) => a + b, 0) / trsList.length;
+        if (avg >= 95) {
+          unlockBadge('team-champion');
+        }
+      });
+      
+      // Badge: Régularité (écart-type faible)
+      if (validatedData.length >= 8) {
+        const trsList = validatedData.map(d => calculateTRS(d));
+        const avg = trsList.reduce((a, b) => a + b, 0) / trsList.length;
+        const variance = trsList.reduce((sum, trs) => sum + Math.pow(trs - avg, 2), 0) / trsList.length;
+        const stdDev = Math.sqrt(variance);
+        
+        if (stdDev < 5) {
+          unlockBadge('consistency');
+        }
+      }
+    }
+
+    function unlockBadge(badgeId) {
+      if (unlockedBadges.has(badgeId)) return;
+      
+      unlockedBadges.add(badgeId);
+      const badge = document.querySelector(`[data-badge="${badgeId}"]`);
+      if (badge) {
+        badge.classList.add('unlocked');
+        showToast(`🏆 Badge débloqué: ${badge.querySelector('.badge-label').textContent}`, 'success');
+      }
+    }
+
+    // Célébration
+    function celebrate(isExcellent) {
+      if (!isExcellent) return;
+      
+      for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+          createConfetti();
+        }, i * 30);
+      }
+    }
+
+    function createConfetti() {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * window.innerWidth + 'px';
+      confetti.style.top = '-10px';
+      confetti.style.background = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][Math.floor(Math.random() * 5)];
+      confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+      document.body.appendChild(confetti);
+      
+      setTimeout(() => confetti.remove(), 3000);
+    }
+
+    // Toast notifications
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.animation = 'slideIn 0.3s ease reverse';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
+    document.getElementById('import-config-btn').addEventListener('click', () => {
+      document.getElementById('config-import-input').click();
+    });
+
+    document.getElementById('config-import-input').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      importConfig(file);
+      event.target.value = '';
+    });
+
+    document.getElementById('export-config-btn').addEventListener('click', exportConfig);
+    document.getElementById('reset-day-btn').addEventListener('click', resetDay);
+    document.getElementById('add-category-row-btn').addEventListener('click', addCategoryRow);
+    document.getElementById('save-categories-btn').addEventListener('click', saveCategoriesList);
+    document.getElementById('export-categories-btn').addEventListener('click', exportCategories);
+    document.getElementById('import-categories-btn').addEventListener('click', () => {
+      document.getElementById('categories-import-input').click();
+    });
+    document.getElementById('categories-import-input').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      importCategories(file);
+      event.target.value = '';
+    });
+
+    // Boutons d'action
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+      refreshDisplay();
+      showToast('🔄 Données actualisées', 'success');
+    });
+
+    document.getElementById('export-btn').addEventListener('click', () => {
+      const csvData = generateCSV();
+      downloadCSV(csvData, getCSVFilename());
+      showToast('📊 Export réussi', 'success');
+    });
+
+    function generateCSV() {
+      const rows = [['Heure', 'Équipe', 'Production', 'TRS%', 'Commentaire']];
+
+      hourlyData.forEach(data => {
+        if (data.validated) {
+          rows.push([
+            `${String(data.hour).padStart(2, '0')}:00`,
+            TEAM_ASSIGNMENTS[data.hour],
+            data.good,
+            calculateTRS(data),
+            data.comment || ''
+          ]);
+        }
+      });
+      
+      return rows.map(row => row.join(';')).join('\n');
+    }
+
+    function getCSVFilename() {
+      const dateStr = new Date().toISOString().split('T')[0];
+      return `production-${dateStr}.csv`;
+    }
+
+    function downloadCSV(content, filename) {
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 100);
+    }
+
+    function downloadJSON(content, filename) {
+      const blob = new Blob([JSON.stringify(content, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 100);
+    }
+
+    function buildCategoryTable() {
+      const tbody = document.getElementById('categories-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+
+      CATEGORY_DATA.forEach((item, index) => {
+        const row = document.createElement('tr');
+
+        const categoryCell = document.createElement('td');
+        const categoryInput = document.createElement('input');
+        categoryInput.type = 'text';
+        categoryInput.value = item.category || '';
+        categoryInput.dataset.field = 'category';
+        categoryCell.appendChild(categoryInput);
+
+        const subcategoryCell = document.createElement('td');
+        const subcategoryInput = document.createElement('input');
+        subcategoryInput.type = 'text';
+        subcategoryInput.value = item.subcategory || '';
+        subcategoryInput.dataset.field = 'subcategory';
+        subcategoryCell.appendChild(subcategoryInput);
+
+        const actionsCell = document.createElement('td');
+        actionsCell.style.whiteSpace = 'nowrap';
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn btn-secondary';
+        deleteBtn.textContent = '🗑️ Supprimer';
+        deleteBtn.addEventListener('click', () => removeCategoryRow(index));
+        actionsCell.appendChild(deleteBtn);
+
+        row.appendChild(categoryCell);
+        row.appendChild(subcategoryCell);
+        row.appendChild(actionsCell);
+
+        tbody.appendChild(row);
+      });
+    }
+
+    function getCategoriesFromTable() {
+      const rows = document.querySelectorAll('#categories-table-body tr');
+      if (!rows.length) {
+        return [...CATEGORY_DATA];
+      }
+
+      return Array.from(rows).map(row => {
+        const categoryInput = row.querySelector('input[data-field="category"]');
+        const subcategoryInput = row.querySelector('input[data-field="subcategory"]');
+        return {
+          category: categoryInput ? categoryInput.value.trim() : '',
+          subcategory: subcategoryInput ? subcategoryInput.value.trim() : ''
+        };
+      });
+    }
+
+    function addCategoryRow() {
+      CATEGORY_DATA = getCategoriesFromTable();
+      CATEGORY_DATA.push({ category: '', subcategory: '' });
+      buildCategoryTable();
+    }
+
+    function removeCategoryRow(index) {
+      const current = getCategoriesFromTable();
+      CATEGORY_DATA = current.filter((_, idx) => idx !== index);
+      buildCategoryTable();
+      rebuildQuickCauses();
+    }
+
+    function saveCategoriesList() {
+      CATEGORY_DATA = getCategoriesFromTable().map(item => ({
+        category: item.category,
+        subcategory: item.subcategory
+      }));
+      buildCategoryTable();
+      rebuildQuickCauses();
+      showToast('💾 Catégories enregistrées', 'success');
+    }
+
+    function exportCategories() {
+      CATEGORY_DATA = getCategoriesFromTable();
+      downloadJSON({ categories: CATEGORY_DATA }, 'categories.json');
+      showToast('📤 Catégories exportées', 'success');
+    }
+
+    function importCategories(file) {
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          const categories = Array.isArray(parsed)
+            ? parsed
+            : (Array.isArray(parsed.categories) ? parsed.categories : null);
+
+          if (!categories) {
+            throw new Error('Format catégories invalide');
+          }
+
+          CATEGORY_DATA = categories.map(item => ({
+            category: typeof item.category === 'string' ? item.category.trim() : '',
+            subcategory: typeof item.subcategory === 'string' ? item.subcategory.trim() : ''
+          }));
+
+          buildCategoryTable();
+          rebuildQuickCauses();
+          showToast('📥 Catégories importées', 'success');
+        } catch (error) {
+          console.error('Erreur import catégories', error);
+          showToast('❌ Import catégories impossible', 'error');
+        }
+      };
+
+      reader.readAsText(file);
+    }
+
+    function rebuildQuickCauses() {
+      const container = document.getElementById('quick-causes');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      CATEGORY_DATA.forEach(({ category, subcategory }) => {
+        const cleanCategory = (category || '').trim();
+        const cleanSubcategory = (subcategory || '').trim();
+        if (!cleanCategory && !cleanSubcategory) return;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cause-chip';
+        const label = cleanSubcategory ? `${cleanCategory} > ${cleanSubcategory}` : cleanCategory;
+        const datasetValue = cleanSubcategory ? `${cleanCategory} - ${cleanSubcategory}` : cleanCategory;
+        btn.dataset.cause = datasetValue;
+        btn.textContent = label;
+        container.appendChild(btn);
+      });
+    }
+
+    // Mise à jour cadence cible
+    document.getElementById('target-rate').addEventListener('change', () => {
+      updateKPIs();
+      updateChart();
+      updateJustifyDisplay();
+    });
+  </script>
+</body>
+</html>
