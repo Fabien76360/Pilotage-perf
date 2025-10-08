@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Pilotage Performance Terrain</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+:root {
+  --bg:#f5f6fa;
+  --primary:#0059b3;
+  --secondary:#ffb400;
+  --green:#2ecc71;
+  --amber:#f1c40f;
+  --red:#e74c3c;
+  --grey:#c0c4cc;
+  --tile-bg:#ffffff;
+  --text:#1f2933;
+  --border:#d7dce3;
+  --focus:#222f6d;
+  font-size:16px;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+a { color:inherit; }
+header {
+  position:sticky;
+  top:0;
+  z-index:10;
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+}
+header .tabs {
+  display:flex;
+  gap:0.5rem;
+  padding:0.75rem 1rem;
+  align-items:center;
+}
+header .tabs button {
+  flex:1;
+  padding:0.75rem 1rem;
+  font-size:1rem;
+  border-radius:0.75rem;
+  border:2px solid transparent;
+  background:var(--border);
+  color:var(--text);
+  cursor:pointer;
+  font-weight:600;
+  min-height:44px;
+}
+header .tabs button.active {
+  background:var(--primary);
+  color:#fff;
+}
+header .tabs button:focus-visible {
+  outline:3px solid var(--focus);
+  outline-offset:2px;
+}
+main {
+  padding:1rem;
+  max-width:1200px;
+  margin:0 auto 4rem;
+}
+section[hidden] { display:none; }
+
+.operator-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:1rem;
+}
+.tile {
+  background:var(--tile-bg);
+  border-radius:1rem;
+  padding:1rem;
+  border:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  gap:0.75rem;
+  position:relative;
+  min-height:280px;
+}
+.tile.validated::after {
+  content:"✔";
+  position:absolute;
+  top:0.75rem;
+  right:0.75rem;
+  color:var(--green);
+  font-size:1.2rem;
+}
+.tile h3 {
+  margin:0;
+  font-size:1.2rem;
+}
+.field {
+  display:flex;
+  flex-direction:column;
+  gap:0.25rem;
+}
+.field label {
+  font-weight:600;
+}
+input[type="number"], input[type="text"], textarea, select {
+  padding:0.65rem 0.75rem;
+  border-radius:0.75rem;
+  border:1px solid var(--border);
+  font-size:1rem;
+  background:#fff;
+  color:inherit;
+}
+textarea { resize:vertical; min-height:70px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline:3px solid var(--focus);
+  outline-offset:1px;
+}
+button {
+  cursor:pointer;
+}
+.btn-primary {
+  background:var(--primary);
+  color:#fff;
+  border:none;
+  border-radius:0.75rem;
+  padding:0.75rem 1rem;
+  font-weight:600;
+  min-height:44px;
+}
+.btn-secondary {
+  background:var(--secondary);
+  color:#222;
+  border:none;
+  border-radius:0.75rem;
+  padding:0.65rem 1rem;
+  font-weight:600;
+  min-height:44px;
+}
+.btn-ghost {
+  background:transparent;
+  border:1px dashed var(--border);
+  border-radius:0.75rem;
+  padding:0.65rem 1rem;
+  font-weight:600;
+}
+.btn-icon {
+  display:inline-flex;
+  align-items:center;
+  gap:0.5rem;
+}
+.cause-row {
+  display:grid;
+  grid-template-columns:1fr 1fr 100px 44px;
+  gap:0.5rem;
+  align-items:end;
+}
+.cause-row button.remove {
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:0.75rem;
+  min-height:44px;
+}
+.minutes-bar {
+  background:#eef2ff;
+  border-radius:0.75rem;
+  height:12px;
+  position:relative;
+  overflow:hidden;
+}
+.minutes-bar span {
+  display:block;
+  height:100%;
+  background:var(--primary);
+}
+.status {
+  font-weight:700;
+}
+.status.green { color:var(--green); }
+.status.orange { color:var(--amber); }
+.status.red { color:var(--red); }
+.status.grey { color:var(--grey); }
+.summary-panel {
+  margin-top:2rem;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:1rem;
+}
+.card {
+  background:#fff;
+  border-radius:1rem;
+  padding:1rem;
+  border:1px solid var(--border);
+  box-shadow:0 1px 2px rgba(31,41,51,0.08);
+}
+.kpi-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:1rem;
+  margin-bottom:1.5rem;
+}
+.kpi-grid .card h4 { margin:0 0 0.25rem; }
+.flex { display:flex; gap:1rem; }
+.flex-column { display:flex; flex-direction:column; gap:1rem; }
+.chart {
+  height:220px;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:1rem;
+  padding:1rem;
+}
+.chart svg {
+  width:100%;
+  height:100%;
+}
+.top-causes-list li {
+  list-style:none;
+  margin:0.25rem 0;
+  display:flex;
+  align-items:center;
+  gap:0.75rem;
+}
+.top-causes-bar {
+  height:12px;
+  background:var(--primary);
+  border-radius:999px;
+}
+.heatmap {
+  width:100%;
+  border-collapse:collapse;
+}
+.heatmap th, .heatmap td {
+  border:1px solid var(--border);
+  padding:0.5rem;
+  text-align:center;
+}
+.toast {
+  position:fixed;
+  right:1rem;
+  top:1rem;
+  background:#1f2933;
+  color:#fff;
+  padding:0.75rem 1rem;
+  border-radius:0.75rem;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
+  opacity:0;
+  transform:translateY(-20px);
+  transition:all 0.3s ease;
+  z-index:20;
+  pointer-events:none;
+}
+.toast.show {
+  opacity:1;
+  transform:translateY(0);
+}
+.settings-table {
+  width:100%;
+  border-collapse:collapse;
+  margin-bottom:1rem;
+}
+.settings-table th, .settings-table td {
+  border:1px solid var(--border);
+  padding:0.5rem;
+}
+.fullscreen-btn {
+  position:fixed;
+  bottom:1rem;
+  right:1rem;
+  z-index:15;
+}
+.badge {
+  display:inline-flex;
+  padding:0.2rem 0.6rem;
+  background:#eef2ff;
+  border-radius:999px;
+  font-size:0.85rem;
+  font-weight:600;
+}
+input[type="file"] {
+  font-size:1rem;
+}
+
+@media (max-width:720px) {
+  .cause-row {
+    grid-template-columns:1fr;
+  }
+  .cause-row button.remove {
+    justify-self:flex-start;
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <nav class="tabs" role="tablist">
+    <button id="tab-operator" class="active" data-target="operator" role="tab" aria-controls="operator" aria-selected="true">👷 Opérateur</button>
+    <button id="tab-analysis" data-target="analysis" role="tab" aria-controls="analysis" aria-selected="false">📊 Analyse</button>
+    <button id="tab-settings" data-target="settings" role="tab" aria-controls="settings" aria-selected="false">⚙️ Paramètres</button>
+  </nav>
+</header>
+<main>
+  <section id="operator" aria-labelledby="tab-operator"></section>
+  <section id="analysis" aria-labelledby="tab-analysis" hidden></section>
+  <section id="settings" aria-labelledby="tab-settings" hidden></section>
+</main>
+<button class="btn-secondary fullscreen-btn" id="toggleFullscreen" aria-label="Basculer en plein écran">⛶ Plein écran</button>
+<div id="toast" class="toast" role="status" aria-live="assertive"></div>
+<script>
+const i18n = {
+  tabs: { operator:"Opérateur", analysis:"Analyse", settings:"Paramètres" },
+  operator: {
+    good:"Pièces bonnes",
+    comment:"Commentaire",
+    addCause:"+ Ajouter une cause",
+    remove:"Retirer",
+    minutesJustify:"Minutes à justifier",
+    delta:"Delta",
+    validate:"Valider l'heure",
+    validated:"Heure validée",
+    notValidated:"Non validée",
+    minutes:"Minutes",
+    cause:"Cause",
+    subcause:"Sous-catégorie",
+    autre:"Autre (libre)",
+    journee:"Journée en cours",
+    totalBons:"Bons totaux",
+    totalMinutes:"Minutes à justifier",
+    topCauses:"Top causes du jour",
+    nonValideAlerte:"Des heures ne sont pas validées."
+  },
+  analysis: {
+    title:"Analyse",
+    filters:"Filtres",
+    from:"Du",
+    to:"Au",
+    line:"Ligne",
+    team:"Équipe",
+    category:"Catégorie",
+    sub:"Sous-catégorie",
+    oee:"OEE",
+    availability:"Disponibilité",
+    performance:"Performance",
+    quality:"Qualité",
+    minutes:"Minutes à justifier",
+    nonConform:"Heures hors tolérance",
+    goodsVs:"Good vs Théorique",
+    top5:"Top 5 causes",
+    heatmap:"Heatmap heures x catégories",
+    noData:"Pas de données"
+  },
+  settings: {
+    title:"Paramètres",
+    date:"Date",
+    line:"Code ligne",
+    rate:"Cadence nominale (u/h)",
+    qualityGood:"Bons (qualité du jour)",
+    qualityTotal:"Total (qualité du jour)",
+    shifts:"Shifts",
+    addShift:"+ Ajouter shift",
+    categories:"Catégories",
+    addCategory:"+ Ajouter catégorie",
+    addSub:"Ajouter sous-catégorie",
+    exportJSON:"Exporter données (JSON)",
+    exportCSV:"Exporter CSV",
+    exportSettings:"Exporter paramètres",
+    importSettings:"Importer paramètres",
+    reset:"Réinitialiser la journée",
+    settingsJSON:"Paramètres JSON"
+  }
+};
+
+const app = (() => {
+  const state = {
+    appState:null,
+    currentView:"operator",
+    tolerance:5
+  };
+
+  const dom = {
+    operator:document.getElementById("operator"),
+    analysis:document.getElementById("analysis"),
+    settings:document.getElementById("settings"),
+    toast:document.getElementById("toast"),
+    fullscreenBtn:document.getElementById("toggleFullscreen")
+  };
+
+  // --- Utility helpers ---
+  const pad = num => String(num).padStart(2,"0");
+  const toMinutes = hhmm => {
+    const [h,m] = hhmm.split(":").map(Number);
+    return h*60 + m;
+  };
+  const minutesToTime = mins => `${pad(Math.floor(mins/60)%24)}:${pad(mins%60)}`;
+  const todayISO = () => new Date().toISOString().slice(0,10);
+
+  const showToast = (message, type="info") => {
+    dom.toast.textContent = message;
+    dom.toast.classList.add("show");
+    dom.toast.style.background = type === "error" ? "var(--red)" : "#1f2933";
+    clearTimeout(dom.toast._timer);
+    dom.toast._timer = setTimeout(() => dom.toast.classList.remove("show"), 3000);
+  };
+
+  const ensureHours = () => {
+    const hours = generateHoursFromShifts(state.appState.meta.shifts);
+    const existing = new Map(state.appState.heures.map((h, idx) => [h.hh, {h, idx}]));
+    const ordered = [];
+    hours.forEach(hh => {
+      if (existing.has(hh)) {
+        ordered.push(existing.get(hh).h);
+      } else {
+        ordered.push({ hh, good:0, comment:"", causes:[], validated:false });
+      }
+    });
+    state.appState.heures = ordered;
+  };
+
+  const generateHoursFromShifts = (shifts) => {
+    const slots = [];
+    shifts.forEach(shift => {
+      let start = toMinutes(shift.start);
+      let end = toMinutes(shift.end);
+      if (end <= start) end += 24*60;
+      for (let t = start; t < end; t += 60) {
+        slots.push(minutesToTime(t));
+      }
+    });
+    return slots;
+  };
+
+  const formatNumber = value => new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(value);
+
+  const getStorageKey = (meta) => `pilotage:${meta.date}:${meta.codeLigne}`;
+
+  const getSubcategoriesForCategory = (name) => {
+    const cat = state.appState.settings.categories.find(c => c.name === name);
+    return cat ? cat.subs : [];
+  };
+
+  const createDemoState = () => {
+    const date = todayISO();
+    return {
+      meta:{
+        date,
+        codeLigne:"L27",
+        targetRate:16000,
+        shifts:[
+          { name:"Équipe A", start:"06:00", end:"14:00" },
+          { name:"Équipe B", start:"14:00", end:"22:00" },
+          { name:"Équipe C", start:"22:00", end:"06:00" }
+        ],
+        quality:{ bons:98750, total:99500 }
+      },
+      heures:[
+        {
+          hh:"06:00",
+          good:15500,
+          comment:"Micro arrêt réglage",
+          causes:[
+            { cat:"Technique", sub:"Réglage", minutes:8 },
+            { cat:"Organisation", sub:"Attente OF", minutes:3 }
+          ],
+          validated:true
+        },
+        {
+          hh:"07:00",
+          good:14000,
+          comment:"Panne courte",
+          causes:[
+            { cat:"Technique", sub:"Panne", minutes:12 },
+            { cat:"Qualité", sub:"Contrôle", minutes:4 }
+          ],
+          validated:true
+        },
+        {
+          hh:"08:00",
+          good:12000,
+          comment:"Manque opérateur",
+          causes:[
+            { cat:"Organisation", sub:"Manque opérateur", minutes:15 },
+            { cat:"Divers", sub:"Autre", minutes:5 }
+          ],
+          validated:false
+        }
+      ],
+      settings:{
+        categories:[
+          { name:"Technique", subs:["Réglage","Panne","Changement format"] },
+          { name:"Organisation", subs:["Attente OF","Manque opérateur","Réunion"] },
+          { name:"Qualité", subs:["Contrôle","Retouche"] },
+          { name:"HSE", subs:["Alerte","Nettoyage"] },
+          { name:"Divers", subs:["Autre"] }
+        ],
+        validation:{ maxDeltaMinutes:5 }
+      }
+    };
+  };
+
+  const createBlankState = (date, line) => ({
+    meta:{
+      date:date || todayISO(),
+      codeLigne:line || "L27",
+      targetRate:16000,
+      shifts:[
+        { name:"Équipe A", start:"06:00", end:"14:00" },
+        { name:"Équipe B", start:"14:00", end:"22:00" },
+        { name:"Équipe C", start:"22:00", end:"06:00" }
+      ],
+      quality:null
+    },
+    heures:[],
+    settings:{
+      categories:[
+        { name:"Technique", subs:["Réglage","Panne","Changement format"] },
+        { name:"Organisation", subs:["Attente OF","Manque opérateur","Réunion"] },
+        { name:"Qualité", subs:["Contrôle","Retouche"] },
+        { name:"HSE", subs:["Alerte","Nettoyage"] },
+        { name:"Divers", subs:["Autre"] }
+      ],
+      validation:{ maxDeltaMinutes:5 }
+    }
+  });
+
+  const persistDay = () => {
+    localStorage.setItem(getStorageKey(state.appState.meta), JSON.stringify(state.appState));
+    updateSummary();
+  };
+
+  const loadDay = (meta) => {
+    const stored = localStorage.getItem(getStorageKey(meta));
+    return stored ? JSON.parse(stored) : null;
+  };
+
+  const resetDay = () => {
+    if (!confirm("Confirmer la réinitialisation ?")) return;
+    localStorage.removeItem(getStorageKey(state.appState.meta));
+    state.appState = createBlankState(state.appState.meta.date, state.appState.meta.codeLigne);
+    ensureHours();
+    renderOperatorView();
+    renderAnalysisView();
+    renderSettingsView();
+    persistDay();
+  };
+
+  const calculateMinutesAJustifier = (good, targetRate) => {
+    const minutesTheoriques = 60;
+    const minutesProduites = Math.min(60, (Number(good || 0) / Math.max(1, Number(targetRate || 0))) * 60);
+    return Math.max(0, Math.round(minutesTheoriques - minutesProduites));
+  };
+
+  const getTeamForHour = (hh, meta = state.appState.meta) => {
+    const hhMinutes = toMinutes(hh);
+    const shifts = meta.shifts;
+    for (const shift of shifts) {
+      let start = toMinutes(shift.start);
+      let end = toMinutes(shift.end);
+      if (end <= start) {
+        if (hhMinutes >= start || hhMinutes < (end % (24*60))) return shift.name;
+      } else if (hhMinutes >= start && hhMinutes < end) {
+        return shift.name;
+      }
+    }
+    return shifts.length ? shifts[0].name : "";
+  };
+
+  const sumCauses = causes => causes.reduce((acc,c) => acc + Number(c.minutes || 0),0);
+
+  const updateSummary = () => {
+    const container = document.getElementById("day-summary");
+    if (!container) return;
+    let totalGood = 0;
+    let totalMinutes = 0;
+    const causeMap = new Map();
+    state.appState.heures.forEach(h => {
+      const minutes = calculateMinutesAJustifier(h.good, state.appState.meta.targetRate);
+      totalGood += Number(h.good || 0);
+      totalMinutes += minutes;
+      h.causes.forEach(c => {
+        const key = `${c.cat} » ${c.sub}`;
+        causeMap.set(key, (causeMap.get(key) || 0) + Number(c.minutes || 0));
+      });
+    });
+    const top = [...causeMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
+    container.querySelector('[data-summary="total-good"]').textContent = formatNumber(totalGood);
+    container.querySelector('[data-summary="total-minutes"]').textContent = formatNumber(totalMinutes);
+    const list = container.querySelector('ol');
+    list.innerHTML = top.length ? top.map(([label,val])=>`<li><span>${label}</span><span class="badge">${formatNumber(val)} min</span></li>`).join("") : `<li>${i18n.analysis.noData}</li>`;
+  };
+
+  const refreshTileCalculations = (tileEl, tileData) => {
+    const targetRate = state.appState.meta.targetRate;
+    const minutesAJustifier = calculateMinutesAJustifier(tileData.good, targetRate);
+    const causeMinutes = sumCauses(tileData.causes);
+    const delta = minutesAJustifier - causeMinutes;
+    tileEl.querySelector('[data-field="minutes"]').textContent = `${minutesAJustifier} min`;
+    tileEl.querySelector('[data-field="delta"]').textContent = `${delta} min`;
+    const bar = tileEl.querySelector('.minutes-bar span');
+    bar.style.width = `${Math.min(100, (minutesAJustifier/60)*100)}%`;
+    const status = tileEl.querySelector('.status');
+    const tolerance = state.appState.settings.validation.maxDeltaMinutes;
+    let statusClass = 'grey';
+    let statusLabel = i18n.operator.notValidated;
+    if (tileData.validated) {
+      statusClass = 'green';
+      statusLabel = i18n.operator.validated;
+    }
+    const absDelta = Math.abs(delta);
+    if (!tileData.validated) {
+      if (delta === 0) statusClass = 'green';
+      else if (absDelta <= tolerance) statusClass = 'orange';
+      else statusClass = 'red';
+    }
+    status.className = `status ${statusClass}`;
+    status.textContent = statusLabel;
+    const validateBtn = tileEl.querySelector('button[data-action="validate"]');
+    if (validateBtn) {
+      validateBtn.disabled = absDelta > tolerance;
+      validateBtn.textContent = tileData.validated ? i18n.operator.validated : i18n.operator.validate;
+    }
+    tileEl.classList.toggle('validated', Boolean(tileData.validated));
+  };
+
+  const renderCauseRow = (tileData, tileIndex, cause, causeIndex) => {
+    const row = document.createElement('div');
+    row.className = 'cause-row';
+    const catSelect = document.createElement('select');
+    catSelect.setAttribute('aria-label', `${i18n.operator.cause} ${causeIndex+1}`);
+    const categories = state.appState.settings.categories;
+    categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.name;
+      opt.textContent = cat.name;
+      catSelect.appendChild(opt);
+    });
+    if (!cause.cat && categories[0]) cause.cat = categories[0].name;
+    catSelect.value = cause.cat;
+
+    const subSelect = document.createElement('select');
+    subSelect.setAttribute('aria-label', `${i18n.operator.subcause} ${causeIndex+1}`);
+    const renderSubs = () => {
+      subSelect.innerHTML = '';
+      const subs = getSubcategoriesForCategory(catSelect.value);
+      subs.forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub;
+        opt.textContent = sub;
+        subSelect.appendChild(opt);
+      });
+      const optOther = document.createElement('option');
+      optOther.value = '__autre__';
+      optOther.textContent = i18n.operator.autre;
+      subSelect.appendChild(optOther);
+      if (!subs.includes(cause.sub)) {
+        if (cause.sub && cause.sub !== '__autre_libre__') {
+          subSelect.value = '__autre__';
+          otherInput.value = cause.sub;
+        } else {
+          subSelect.value = subs[0] || '__autre__';
+        }
+      } else {
+        subSelect.value = cause.sub;
+        otherInput.value = '';
+      }
+      toggleOther();
+    };
+
+    const otherInput = document.createElement('input');
+    otherInput.type = 'text';
+    otherInput.placeholder = 'Préciser...';
+    otherInput.style.display = 'none';
+    otherInput.style.gridColumn = '1 / -1';
+    otherInput.setAttribute('aria-label', 'Préciser sous-catégorie');
+    const toggleOther = () => {
+      if (subSelect.value === '__autre__') {
+        otherInput.style.display = 'block';
+        otherInput.value = cause.sub && cause.sub !== '__autre_libre__' ? cause.sub : '';
+      } else {
+        otherInput.style.display = 'none';
+      }
+    };
+
+    const minutesInput = document.createElement('input');
+    minutesInput.type = 'number';
+    minutesInput.min = '0';
+    minutesInput.step = '1';
+    minutesInput.value = cause.minutes || 0;
+    minutesInput.setAttribute('aria-label', `${i18n.operator.minutes} ${causeIndex+1}`);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove';
+    removeBtn.type = 'button';
+    removeBtn.textContent = '🗑';
+
+    catSelect.addEventListener('change', () => {
+      cause.cat = catSelect.value;
+      const subs = getSubcategoriesForCategory(cause.cat);
+      cause.sub = subs[0] || '';
+      renderSubs();
+      tileData.validated = false;
+      persistDay();
+      refreshTileCalculations(document.querySelector(`.tile[data-index="${tileIndex}"]`), tileData);
+      updateSummary();
+    });
+
+    subSelect.addEventListener('change', () => {
+      if (subSelect.value === '__autre__') {
+        cause.sub = otherInput.value || 'Non renseigné';
+      } else {
+        cause.sub = subSelect.value;
+      }
+      toggleOther();
+      tileData.validated = false;
+      persistDay();
+      refreshTileCalculations(document.querySelector(`.tile[data-index="${tileIndex}"]`), tileData);
+      updateSummary();
+    });
+
+    otherInput.addEventListener('input', () => {
+      cause.sub = otherInput.value || 'Non renseigné';
+      tileData.validated = false;
+      persistDay();
+      refreshTileCalculations(document.querySelector(`.tile[data-index="${tileIndex}"]`), tileData);
+      updateSummary();
+    });
+
+    minutesInput.addEventListener('input', () => {
+      cause.minutes = Number(minutesInput.value || 0);
+      tileData.validated = false;
+      persistDay();
+      refreshTileCalculations(document.querySelector(`.tile[data-index="${tileIndex}"]`), tileData);
+      updateSummary();
+    });
+
+    removeBtn.addEventListener('click', () => {
+      tileData.causes.splice(causeIndex,1);
+      tileData.validated = false;
+      renderOperatorView();
+      persistDay();
+      updateSummary();
+    });
+
+    renderSubs();
+
+    row.append(catSelect, subSelect, minutesInput, removeBtn, otherInput);
+    return row;
+  };
+
+  const renderOperatorView = () => {
+    ensureHours();
+    dom.operator.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'operator-grid';
+    state.appState.heures.forEach((hour, index) => {
+      const tile = document.createElement('article');
+      tile.className = 'tile';
+      tile.dataset.index = index;
+      const title = document.createElement('h3');
+      title.textContent = `${hour.hh}`;
+      tile.appendChild(title);
+
+      const teamBadge = document.createElement('div');
+      teamBadge.className = 'badge';
+      teamBadge.textContent = getTeamForHour(hour.hh);
+      tile.appendChild(teamBadge);
+
+      const fieldGood = document.createElement('div');
+      fieldGood.className = 'field';
+      const goodLabel = document.createElement('label');
+      goodLabel.textContent = i18n.operator.good;
+      goodLabel.setAttribute('for', `good-${index}`);
+      const goodInput = document.createElement('input');
+      goodInput.type = 'number';
+      goodInput.id = `good-${index}`;
+      goodInput.min = '0';
+      goodInput.step = '1';
+      goodInput.value = hour.good || '';
+      goodInput.addEventListener('input', () => {
+        hour.good = Number(goodInput.value || 0);
+        hour.validated = false;
+        persistDay();
+        refreshTileCalculations(tile, hour);
+      });
+      fieldGood.append(goodLabel, goodInput);
+      tile.appendChild(fieldGood);
+
+      const fieldComment = document.createElement('div');
+      fieldComment.className = 'field';
+      const commentLabel = document.createElement('label');
+      commentLabel.textContent = i18n.operator.comment;
+      commentLabel.setAttribute('for', `comment-${index}`);
+      const commentInput = document.createElement('textarea');
+      commentInput.id = `comment-${index}`;
+      commentInput.value = hour.comment || '';
+      commentInput.addEventListener('input', () => {
+        hour.comment = commentInput.value;
+        hour.validated = false;
+        persistDay();
+        refreshTileCalculations(tile, hour);
+      });
+      fieldComment.append(commentLabel, commentInput);
+      tile.appendChild(fieldComment);
+
+      const causesContainer = document.createElement('div');
+      causesContainer.className = 'field';
+      const causesLabel = document.createElement('label');
+      causesLabel.textContent = i18n.operator.cause;
+      causesContainer.appendChild(causesLabel);
+      const causesWrapper = document.createElement('div');
+      causesWrapper.className = 'flex-column';
+      hour.causes = hour.causes || [];
+      if (hour.causes.length === 0) {
+        hour.causes.push({ cat:state.appState.settings.categories[0]?.name || '', sub:state.appState.settings.categories[0]?.subs[0] || '', minutes:0 });
+      }
+      hour.causes.forEach((cause, causeIndex) => {
+        const row = renderCauseRow(hour, index, cause, causeIndex);
+        causesWrapper.appendChild(row);
+      });
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn-ghost btn-icon';
+      addBtn.type = 'button';
+      addBtn.innerHTML = `➕ ${i18n.operator.addCause}`;
+      addBtn.addEventListener('click', () => {
+        hour.causes.push({ cat:state.appState.settings.categories[0]?.name || '', sub:state.appState.settings.categories[0]?.subs[0] || '', minutes:0 });
+        hour.validated = false;
+        renderOperatorView();
+        persistDay();
+      });
+      causesContainer.append(causesWrapper, addBtn);
+      tile.appendChild(causesContainer);
+
+      const metrics = document.createElement('div');
+      metrics.className = 'field';
+      const minutesLabel = document.createElement('div');
+      minutesLabel.innerHTML = `<strong>${i18n.operator.minutesJustify}:</strong> <span data-field="minutes">0</span>`;
+      const deltaLabel = document.createElement('div');
+      deltaLabel.innerHTML = `<strong>${i18n.operator.delta}:</strong> <span data-field="delta">0</span>`;
+      const bar = document.createElement('div');
+      bar.className = 'minutes-bar';
+      const barSpan = document.createElement('span');
+      bar.appendChild(barSpan);
+      const status = document.createElement('div');
+      status.className = 'status grey';
+      metrics.append(minutesLabel, deltaLabel, bar, status);
+      tile.appendChild(metrics);
+
+      const validateBtn = document.createElement('button');
+      validateBtn.className = 'btn-primary';
+      validateBtn.setAttribute('data-action','validate');
+      validateBtn.type = 'button';
+      validateBtn.addEventListener('click', () => validateTile(index));
+      tile.appendChild(validateBtn);
+
+      grid.appendChild(tile);
+      setTimeout(() => refreshTileCalculations(tile, hour), 0);
+    });
+    dom.operator.appendChild(grid);
+
+    const summary = document.createElement('section');
+    summary.id = 'day-summary';
+    summary.className = 'summary-panel card';
+    summary.innerHTML = `
+      <div class="field">
+        <label>${i18n.operator.totalBons}</label>
+        <div class="badge" data-summary="total-good">0</div>
+      </div>
+      <div class="field">
+        <label>${i18n.operator.totalMinutes}</label>
+        <div class="badge" data-summary="total-minutes">0</div>
+      </div>
+      <div class="field" style="grid-column:1 / -1;">
+        <label>${i18n.operator.topCauses}</label>
+        <ol></ol>
+      </div>`;
+    dom.operator.appendChild(summary);
+    updateSummary();
+  };
+
+  const checkDelta = (tileData) => {
+    const minutes = calculateMinutesAJustifier(tileData.good, state.appState.meta.targetRate);
+    const delta = minutes - sumCauses(tileData.causes);
+    return {
+      delta,
+      minutes,
+      tolerance: state.appState.settings.validation.maxDeltaMinutes,
+      ok: Math.abs(delta) <= state.appState.settings.validation.maxDeltaMinutes
+    };
+  };
+
+  const validateTile = (hhIndex) => {
+    const tileData = state.appState.heures[hhIndex];
+    const status = checkDelta(tileData);
+    if (!status.ok) {
+      showToast(`Validation impossible : delta ${status.delta} min (tolérance ±${status.tolerance})`, 'error');
+      return false;
+    }
+    tileData.validated = true;
+    persistDay();
+    renderOperatorView();
+    showToast('Heure validée ✅');
+    return true;
+  };
+
+  const collectStoredDays = () => {
+    const days = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('pilotage:')) {
+        try {
+          days.push(JSON.parse(localStorage.getItem(key)));
+        } catch (e) {
+          console.warn('Lecture impossible', key);
+        }
+      }
+    }
+    if (!days.find(d => d.meta.date === state.appState.meta.date && d.meta.codeLigne === state.appState.meta.codeLigne)) {
+      days.push(state.appState);
+    }
+    return days;
+  };
+
+  const aggregateKPIs = (data, filters) => {
+    let planified = 0;
+    let operational = 0;
+    let totalGood = 0;
+    let totalTarget = 0;
+    let minutesJustif = 0;
+    let nonConform = 0;
+    let qualityBons = 0;
+    let qualityTotal = 0;
+    const hourlySeries = [];
+    const causeMap = new Map();
+    const heatmap = new Map();
+
+    data.forEach(day => {
+      const qualityFactor = day.meta.quality && day.meta.quality.total ? (day.meta.quality.bons/day.meta.quality.total) : 1;
+      const includeDay = (!filters.line || filters.line === day.meta.codeLigne) &&
+        (!filters.from || day.meta.date >= filters.from) && (!filters.to || day.meta.date <= filters.to);
+      if (!includeDay) return;
+      day.heures.forEach(hour => {
+        if (filters.team && getTeamForHour(hour.hh, day.meta) !== filters.team) return;
+        if (!hour.validated) return;
+        const minutes = calculateMinutesAJustifier(hour.good, day.meta.targetRate);
+        const causes = hour.causes || [];
+        const sumCause = causes.reduce((acc,c)=>acc+Number(c.minutes||0),0);
+        const delta = minutes - sumCause;
+        const matchesCategory = !filters.category || causes.some(c => c.cat === filters.category);
+        const matchesSub = !filters.sub || causes.some(c => c.sub === filters.sub);
+        if (filters.category && !matchesCategory) return;
+        if (filters.sub && !matchesSub) return;
+        planified += 60;
+        operational += (60 - sumCause);
+        totalGood += Number(hour.good || 0);
+        totalTarget += Number(day.meta.targetRate || 0);
+        minutesJustif += minutes;
+        if (Math.abs(delta) > day.settings.validation.maxDeltaMinutes) nonConform += 1;
+        qualityBons += day.meta.quality && day.meta.quality.bons ? day.meta.quality.bons : 0;
+        qualityTotal += day.meta.quality && day.meta.quality.total ? day.meta.quality.total : 0;
+        hourlySeries.push({ date:day.meta.date, line:day.meta.codeLigne, hh:hour.hh, good:Number(hour.good||0), theoretical:Number(day.meta.targetRate||0) });
+        causes.forEach(c => {
+          const cat = c.cat || 'Divers';
+          const sub = c.sub || 'Non renseigné';
+          const key = `${cat} » ${sub}`;
+          causeMap.set(key, (causeMap.get(key) || 0) + Number(c.minutes || 0));
+          const heatKey = `${hour.hh}||${cat}`;
+          heatmap.set(heatKey, (heatmap.get(heatKey) || 0) + Number(c.minutes || 0));
+        });
+        if (sumCause < minutes) {
+          const key = `Divers » Non renseigné`;
+          causeMap.set(key, (causeMap.get(key) || 0) + (minutes - sumCause));
+          const heatKey = `${hour.hh}||Divers`;
+          heatmap.set(heatKey, (heatmap.get(heatKey) || 0) + (minutes - sumCause));
+        }
+      });
+    });
+
+    const D = planified ? operational/planified : 0;
+    const P = totalTarget ? totalGood/totalTarget : 0;
+    const Q = qualityTotal ? (qualityBons/qualityTotal) : 1;
+    const OEE = D * P * Q;
+
+    return {
+      D,P,Q,OEE,planified,operational,totalGood,totalTarget,minutesJustif,nonConform,
+      hourlySeries,causeMap,heatmap
+    };
+  };
+
+  const renderLineChart = (container, series) => {
+    if (!series.length) {
+      container.innerHTML = `<p>${i18n.analysis.noData}</p>`;
+      return;
+    }
+    const width = container.clientWidth || 600;
+    const height = container.clientHeight || 200;
+    const maxVal = Math.max(...series.map(s => Math.max(s.good, s.theoretical)),1);
+    const pointsGood = series.map((s,i) => {
+      const x = (i/(series.length-1||1))*(width-60)+30;
+      const y = height - (s.good/maxVal)*(height-60) - 20;
+      return `${x},${y}`;
+    }).join(' ');
+    const pointsTheo = series.map((s,i) => {
+      const x = (i/(series.length-1||1))*(width-60)+30;
+      const y = height - (s.theoretical/maxVal)*(height-60) - 20;
+      return `${x},${y}`;
+    }).join(' ');
+    container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Courbe production vs théorique">
+      <polyline fill="none" stroke="#ddd" stroke-width="1" points="30,${height-30} ${width-30},${height-30}" />
+      <polyline fill="none" stroke="#888" stroke-width="1" points="30,20 30,${height-30}" />
+      <polyline fill="none" stroke="var(--primary)" stroke-width="3" points="${pointsGood}" />
+      <polyline fill="none" stroke="var(--secondary)" stroke-width="3" points="${pointsTheo}" stroke-dasharray="6 4" />
+    </svg>`;
+  };
+
+  const renderTopCauses = (container, causeMap) => {
+    const entries = [...causeMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
+    if (!entries.length) {
+      container.innerHTML = `<p>${i18n.analysis.noData}</p>`;
+      return;
+    }
+    const max = entries[0][1] || 1;
+    container.innerHTML = `<ol class="top-causes-list">${entries.map(([label,val]) => {
+      const width = (val/max)*100;
+      return `<li><span style="flex:1">${label}</span><span class="top-causes-bar" style="width:${width}%"></span><span class="badge">${formatNumber(val)} min</span></li>`;
+    }).join('')}</ol>`;
+  };
+
+  const renderHeatmap = (container, heatmap, hours, categories) => {
+    if (!heatmap.size) {
+      container.innerHTML = `<p>${i18n.analysis.noData}</p>`;
+      return;
+    }
+    const cats = categories.map(c => c.name);
+    const header = `<tr><th>Heure</th>${cats.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+    const rows = hours.map(h => {
+      const cells = cats.map(cat => {
+        const key = `${h}||${cat}`;
+        const val = heatmap.get(key) || 0;
+        const intensity = Math.min(1, val/60);
+        const color = `rgba(0,89,179,${0.1 + intensity*0.6})`;
+        return `<td style="background:${color};color:${intensity>0.5?'#fff':'#111'}">${val ? formatNumber(val) : ''}</td>`;
+      }).join('');
+      return `<tr><th>${h}</th>${cells}</tr>`;
+    }).join('');
+    container.innerHTML = `<table class="heatmap">${header}${rows}</table>`;
+  };
+
+  const renderAnalysisView = () => {
+    const section = dom.analysis;
+    section.innerHTML = '';
+    const filtersWrap = document.createElement('div');
+    filtersWrap.className = 'card flex';
+    filtersWrap.innerHTML = `
+      <div class="field"><label>${i18n.analysis.from}</label><input type="date" id="filter-from"></div>
+      <div class="field"><label>${i18n.analysis.to}</label><input type="date" id="filter-to"></div>
+      <div class="field"><label>${i18n.analysis.line}</label><select id="filter-line"><option value="">Toutes</option></select></div>
+      <div class="field"><label>${i18n.analysis.team}</label><select id="filter-team"><option value="">Toutes</option></select></div>
+      <div class="field"><label>${i18n.analysis.category}</label><select id="filter-category"><option value="">Toutes</option></select></div>
+      <div class="field"><label>${i18n.analysis.sub}</label><select id="filter-sub"><option value="">Toutes</option></select></div>
+    `;
+    section.appendChild(filtersWrap);
+
+    const days = collectStoredDays();
+    const lineSelect = filtersWrap.querySelector('#filter-line');
+    [...new Set(days.map(d => d.meta.codeLigne))].forEach(line => {
+      const opt = document.createElement('option');
+      opt.value = line;
+      opt.textContent = line;
+      lineSelect.appendChild(opt);
+    });
+    const teamSelect = filtersWrap.querySelector('#filter-team');
+    [...new Set(days.flatMap(d => d.meta.shifts.map(s => s.name)))].forEach(team => {
+      const opt = document.createElement('option');
+      opt.value = team;
+      opt.textContent = team;
+      teamSelect.appendChild(opt);
+    });
+    const categorySelect = filtersWrap.querySelector('#filter-category');
+    state.appState.settings.categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.name;
+      opt.textContent = cat.name;
+      categorySelect.appendChild(opt);
+    });
+    const subSelect = filtersWrap.querySelector('#filter-sub');
+    const refreshSubs = () => {
+      const selectedCat = categorySelect.value;
+      subSelect.innerHTML = '<option value="">Toutes</option>';
+      getSubcategoriesForCategory(selectedCat).forEach(sub => {
+        const opt = document.createElement('option');
+        opt.value = sub;
+        opt.textContent = sub;
+        subSelect.appendChild(opt);
+      });
+    };
+    categorySelect.addEventListener('change', () => { refreshSubs(); update(); });
+    subSelect.addEventListener('change', update);
+
+    ['from','to','line','team'].forEach(id => {
+      filtersWrap.querySelector(`#filter-${id}`).addEventListener('change', update);
+    });
+
+    const kpiGrid = document.createElement('div');
+    kpiGrid.className = 'kpi-grid';
+    const createKpi = (label, value) => `<div class="card"><h4>${label}</h4><strong data-kpi="${value}">-</strong></div>`;
+    kpiGrid.innerHTML = `
+      ${createKpi('OEE', 'oee')}
+      ${createKpi('D', 'd')}
+      ${createKpi('P', 'p')}
+      ${createKpi('Q', 'q')}
+      ${createKpi(i18n.analysis.minutes, 'minutes')}
+      ${createKpi(i18n.analysis.nonConform, 'nonConform')}
+    `;
+    section.appendChild(kpiGrid);
+
+    const chartsWrap = document.createElement('div');
+    chartsWrap.className = 'flex-column';
+    chartsWrap.innerHTML = `
+      <div class="chart" id="chart-good"></div>
+      <div class="chart" id="chart-causes"></div>
+      <div class="chart" id="chart-heat"></div>
+    `;
+    section.appendChild(chartsWrap);
+
+    const update = () => {
+      const filters = {
+        from: filtersWrap.querySelector('#filter-from').value,
+        to: filtersWrap.querySelector('#filter-to').value,
+        line: filtersWrap.querySelector('#filter-line').value,
+        team: filtersWrap.querySelector('#filter-team').value,
+        category: filtersWrap.querySelector('#filter-category').value,
+        sub: filtersWrap.querySelector('#filter-sub').value
+      };
+      const agg = aggregateKPIs(days, filters);
+      section.querySelector('[data-kpi="oee"]').textContent = formatNumber(agg.OEE*100)+" %";
+      section.querySelector('[data-kpi="d"]').textContent = formatNumber(agg.D*100)+" %";
+      section.querySelector('[data-kpi="p"]').textContent = formatNumber(agg.P*100)+" %";
+      section.querySelector('[data-kpi="q"]').textContent = formatNumber(agg.Q*100)+" %";
+      section.querySelector('[data-kpi="minutes"]').textContent = formatNumber(agg.minutesJustif)+' min';
+      section.querySelector('[data-kpi="nonConform"]').textContent = agg.nonConform;
+      renderLineChart(document.getElementById('chart-good'), agg.hourlySeries);
+      renderTopCauses(document.getElementById('chart-causes'), agg.causeMap);
+      const hours = [...new Set(agg.hourlySeries.map(s => s.hh))].sort();
+      renderHeatmap(document.getElementById('chart-heat'), agg.heatmap, hours, state.appState.settings.categories);
+    };
+    update();
+  };
+
+  const renderSettingsView = () => {
+    const section = dom.settings;
+    section.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card flex-column';
+    card.innerHTML = `
+      <div class="field"><label>${i18n.settings.date}</label><input type="date" id="settings-date" value="${state.appState.meta.date}"></div>
+      <div class="field"><label>${i18n.settings.line}</label><input type="text" id="settings-line" value="${state.appState.meta.codeLigne}"></div>
+      <div class="field"><label>${i18n.settings.rate}</label><input type="number" id="settings-rate" value="${state.appState.meta.targetRate}"></div>
+      <div class="field"><label>${i18n.settings.qualityGood}</label><input type="number" id="settings-quality-good" value="${state.appState.meta.quality?.bons || ''}"></div>
+      <div class="field"><label>${i18n.settings.qualityTotal}</label><input type="number" id="settings-quality-total" value="${state.appState.meta.quality?.total || ''}"></div>
+      <div class="field"><label>Tolérance validation (min)</label><input type="number" id="settings-tolerance" value="${state.appState.settings.validation.maxDeltaMinutes}"></div>
+    `;
+
+    const shiftsCard = document.createElement('div');
+    shiftsCard.className = 'card';
+    shiftsCard.innerHTML = `<h3>${i18n.settings.shifts}</h3>`;
+    const shiftsTable = document.createElement('table');
+    shiftsTable.className = 'settings-table';
+    shiftsTable.innerHTML = '<thead><tr><th>Nom</th><th>Début</th><th>Fin</th><th></th></tr></thead>';
+    const shiftsBody = document.createElement('tbody');
+    const renderShifts = () => {
+      shiftsBody.innerHTML = '';
+      state.appState.meta.shifts.forEach((shift, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="text" value="${shift.name}" data-field="name" data-idx="${idx}"></td>
+          <td><input type="time" value="${shift.start}" data-field="start" data-idx="${idx}"></td>
+          <td><input type="time" value="${shift.end}" data-field="end" data-idx="${idx}"></td>
+          <td><button type="button" data-action="remove" data-idx="${idx}">✖</button></td>`;
+        shiftsBody.appendChild(tr);
+      });
+    };
+    renderShifts();
+    shiftsTable.appendChild(shiftsBody);
+    shiftsCard.appendChild(shiftsTable);
+    const addShiftBtn = document.createElement('button');
+    addShiftBtn.type = 'button';
+    addShiftBtn.className = 'btn-ghost';
+    addShiftBtn.textContent = i18n.settings.addShift;
+    addShiftBtn.addEventListener('click', () => {
+      state.appState.meta.shifts.push({ name:`Shift ${state.appState.meta.shifts.length+1}`, start:'06:00', end:'14:00' });
+      renderShifts();
+      ensureHours();
+      persistDay();
+      renderOperatorView();
+    });
+    shiftsCard.appendChild(addShiftBtn);
+
+    shiftsBody.addEventListener('input', (e) => {
+      const target = e.target;
+      const idx = Number(target.dataset.idx);
+      const field = target.dataset.field;
+      state.appState.meta.shifts[idx][field] = target.value;
+      ensureHours();
+      persistDay();
+      renderOperatorView();
+      renderAnalysisView();
+    });
+    shiftsBody.addEventListener('click', (e) => {
+      if (e.target.matches('button[data-action="remove"]')) {
+        const idx = Number(e.target.dataset.idx);
+        state.appState.meta.shifts.splice(idx,1);
+        renderShifts();
+        ensureHours();
+        persistDay();
+        renderOperatorView();
+        renderAnalysisView();
+      }
+    });
+
+    const categoriesCard = document.createElement('div');
+    categoriesCard.className = 'card';
+    categoriesCard.innerHTML = `<h3>${i18n.settings.categories}</h3>`;
+    const categoriesList = document.createElement('div');
+    categoriesList.className = 'flex-column';
+    const renderCategories = () => {
+      categoriesList.innerHTML = '';
+      state.appState.settings.categories.forEach((cat, idx) => {
+        const catCard = document.createElement('div');
+        catCard.className = 'card';
+        catCard.style.padding = '0.75rem';
+        catCard.innerHTML = `
+          <div class="field"><label>Nom</label><input type="text" value="${cat.name}" data-idx="${idx}" data-type="cat-name"></div>
+          <div class="field"><label>Sous-catégories</label></div>`;
+        const subsWrapper = document.createElement('div');
+        subsWrapper.className = 'flex-column';
+        cat.subs.forEach((sub, sIdx) => {
+          const subRow = document.createElement('div');
+          subRow.className = 'flex';
+          subRow.style.alignItems = 'center';
+          subRow.innerHTML = `<input type="text" value="${sub}" data-idx="${idx}" data-sidx="${sIdx}" data-type="sub-name"><button type="button" data-action="remove-sub" data-idx="${idx}" data-sidx="${sIdx}">✖</button>`;
+          subsWrapper.appendChild(subRow);
+        });
+        const addSubBtn = document.createElement('button');
+        addSubBtn.type = 'button';
+        addSubBtn.className = 'btn-ghost';
+        addSubBtn.textContent = i18n.settings.addSub;
+        addSubBtn.addEventListener('click', () => {
+          cat.subs.push('Nouvelle sous-catégorie');
+          renderCategories();
+          persistDay();
+          renderOperatorView();
+        });
+        catCard.appendChild(subsWrapper);
+        catCard.appendChild(addSubBtn);
+        const removeCatBtn = document.createElement('button');
+        removeCatBtn.type = 'button';
+        removeCatBtn.className = 'btn-ghost';
+        removeCatBtn.textContent = 'Supprimer catégorie';
+        removeCatBtn.addEventListener('click', () => {
+          state.appState.settings.categories.splice(idx,1);
+          renderCategories();
+          persistDay();
+          renderOperatorView();
+        });
+        catCard.appendChild(removeCatBtn);
+        categoriesList.appendChild(catCard);
+      });
+    };
+    renderCategories();
+    categoriesCard.appendChild(categoriesList);
+    const addCategoryBtn = document.createElement('button');
+    addCategoryBtn.type = 'button';
+    addCategoryBtn.className = 'btn-ghost';
+    addCategoryBtn.textContent = i18n.settings.addCategory;
+    addCategoryBtn.addEventListener('click', () => {
+      state.appState.settings.categories.push({ name:`Catégorie ${state.appState.settings.categories.length+1}`, subs:['Sous-catégorie'] });
+      renderCategories();
+      persistDay();
+      renderOperatorView();
+    });
+    categoriesCard.appendChild(addCategoryBtn);
+
+    categoriesList.addEventListener('input', (e) => {
+      const target = e.target;
+      if (target.dataset.type === 'cat-name') {
+        state.appState.settings.categories[target.dataset.idx].name = target.value;
+      }
+      if (target.dataset.type === 'sub-name') {
+        state.appState.settings.categories[target.dataset.idx].subs[target.dataset.sidx] = target.value;
+      }
+      persistDay();
+      renderOperatorView();
+      renderAnalysisView();
+    });
+    categoriesList.addEventListener('click', (e) => {
+      if (e.target.matches('button[data-action="remove-sub"]')) {
+        const { idx, sidx } = e.target.dataset;
+        state.appState.settings.categories[idx].subs.splice(sidx,1);
+        renderCategories();
+        persistDay();
+        renderOperatorView();
+      }
+    });
+
+    card.querySelector('#settings-date').addEventListener('change', (e) => {
+      const newDate = e.target.value;
+      const existing = loadDay({ date:newDate, codeLigne:state.appState.meta.codeLigne });
+      state.appState.meta.date = newDate;
+      if (existing) {
+        state.appState = existing;
+      } else {
+        state.appState = createBlankState(newDate, state.appState.meta.codeLigne);
+      }
+      ensureHours();
+      persistDay();
+      renderOperatorView();
+      renderAnalysisView();
+      renderSettingsView();
+    });
+
+    card.querySelector('#settings-line').addEventListener('input', (e) => {
+      const newLine = e.target.value;
+      state.appState.meta.codeLigne = newLine;
+      persistDay();
+      renderAnalysisView();
+    });
+
+    card.querySelector('#settings-rate').addEventListener('input', (e) => {
+      state.appState.meta.targetRate = Number(e.target.value || 0);
+      state.appState.heures.forEach(h => h.validated = false);
+      persistDay();
+      renderOperatorView();
+      renderAnalysisView();
+    });
+
+    card.querySelector('#settings-quality-good').addEventListener('input', (e) => {
+      const val = e.target.value;
+      state.appState.meta.quality = state.appState.meta.quality || { bons:0, total:0 };
+      state.appState.meta.quality.bons = Number(val || 0);
+      persistDay();
+      renderAnalysisView();
+    });
+
+    card.querySelector('#settings-quality-total').addEventListener('input', (e) => {
+      const val = e.target.value;
+      state.appState.meta.quality = state.appState.meta.quality || { bons:0, total:0 };
+      state.appState.meta.quality.total = Number(val || 0);
+      persistDay();
+      renderAnalysisView();
+    });
+
+    card.querySelector('#settings-tolerance').addEventListener('input', (e) => {
+      state.appState.settings.validation.maxDeltaMinutes = Number(e.target.value || 0);
+      persistDay();
+      renderOperatorView();
+    });
+
+    section.appendChild(card);
+    section.appendChild(shiftsCard);
+    section.appendChild(categoriesCard);
+
+    const actionsCard = document.createElement('div');
+    actionsCard.className = 'card flex';
+    actionsCard.innerHTML = `
+      <button type="button" class="btn-primary" id="btn-export-json">${i18n.settings.exportJSON}</button>
+      <button type="button" class="btn-primary" id="btn-export-csv">${i18n.settings.exportCSV}</button>
+      <button type="button" class="btn-secondary" id="btn-reset">${i18n.settings.reset}</button>
+      <button type="button" class="btn-ghost" id="btn-export-settings">${i18n.settings.exportSettings}</button>
+      <label class="btn-ghost" style="display:inline-flex;align-items:center;gap:0.5rem;">
+        ${i18n.settings.importSettings}
+        <input type="file" id="input-import" accept="application/json" style="display:none;">
+      </label>
+    `;
+    section.appendChild(actionsCard);
+
+    actionsCard.querySelector('#btn-export-json').addEventListener('click', exportDayJSON);
+    actionsCard.querySelector('#btn-export-csv').addEventListener('click', exportDayCSV);
+    actionsCard.querySelector('#btn-reset').addEventListener('click', resetDay);
+    actionsCard.querySelector('#btn-export-settings').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify({ meta:state.appState.meta, settings:state.appState.settings }, null, 2)], { type:'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `settings-${state.appState.meta.codeLigne}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    actionsCard.querySelector('#input-import').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const imported = JSON.parse(evt.target.result);
+          if (imported.meta) {
+            state.appState.meta = { ...state.appState.meta, ...imported.meta };
+          }
+          if (imported.settings) {
+            state.appState.settings = imported.settings;
+          }
+          ensureHours();
+          persistDay();
+          renderOperatorView();
+          renderAnalysisView();
+          renderSettingsView();
+          showToast('Paramètres importés');
+        } catch (err) {
+          showToast('Import impossible', 'error');
+        }
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  const exportDayJSON = () => {
+    const blob = new Blob([JSON.stringify(state.appState, null, 2)], { type:'application/json' });
+    const filename = `line-${state.appState.meta.codeLigne}-${state.appState.meta.date}.json`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const buildCSVRows = (day) => {
+    const rows = [];
+    const qualityFactor = day.meta.quality && day.meta.quality.total ? day.meta.quality.bons/day.meta.quality.total : 1;
+    day.heures.forEach(hour => {
+      if (!hour.validated) return;
+      const minutesAJustifier = calculateMinutesAJustifier(hour.good, day.meta.targetRate);
+      const sumCause = sumCauses(hour.causes);
+      const team = getTeamForHour(hour.hh, day.meta);
+      const causes = hour.causes && hour.causes.length ? hour.causes : [];
+      const effectiveCauses = causes.length ? causes : [{ cat:'Divers', sub:'Non renseigné', minutes:0 }];
+      effectiveCauses.forEach(cause => {
+        rows.push({
+          Date:day.meta.date,
+          Ligne:day.meta.codeLigne,
+          Equipe:team,
+          Heure:hour.hh,
+          Good:hour.good || 0,
+          TargetRate:day.meta.targetRate,
+          Minutes_A_Justifier:minutesAJustifier,
+          Catégorie:cause.cat || 'Divers',
+          Sous_Catégorie:cause.sub || 'Non renseigné',
+          Minutes_Cause:cause.minutes || 0,
+          Commentaire:hour.comment || '',
+          OEE_h:((60 - sumCauses(hour.causes))/60) * ((hour.good || 0)/Math.max(1, day.meta.targetRate)) * qualityFactor
+        });
+      });
+      if (sumCause < minutesAJustifier) {
+        rows.push({
+          Date:day.meta.date,
+          Ligne:day.meta.codeLigne,
+          Equipe:team,
+          Heure:hour.hh,
+          Good:hour.good || 0,
+          TargetRate:day.meta.targetRate,
+          Minutes_A_Justifier:minutesAJustifier,
+          Catégorie:'Divers',
+          Sous_Catégorie:'Non renseigné',
+          Minutes_Cause:minutesAJustifier - sumCause,
+          Commentaire:hour.comment || '',
+          OEE_h:((60 - sumCauses(hour.causes))/60) * ((hour.good || 0)/Math.max(1, day.meta.targetRate)) * qualityFactor
+        });
+      }
+    });
+    return rows;
+  };
+
+  const exportDayCSV = () => {
+    const rows = buildCSVRows(state.appState);
+    const headers = ['Date','Ligne','Equipe','Heure','Good','TargetRate','Minutes_A_Justifier','Catégorie','Sous_Catégorie','Minutes_Cause','Commentaire','OEE_h'];
+    const csv = [headers.join(',')].concat(rows.map(row => headers.map(h => {
+      const val = row[h];
+      return typeof val === 'number' ? val.toString().replace('.',',') : `"${String(val).replace(/"/g,'""')}"`;
+    }).join(','))).join('\n');
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `line-${state.appState.meta.codeLigne}-${state.appState.meta.date}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const initTabs = () => {
+    document.querySelectorAll('header .tabs button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.target;
+        state.currentView = target;
+        document.querySelectorAll('header .tabs button').forEach(b => {
+          const active = b === btn;
+          b.classList.toggle('active', active);
+          b.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        document.querySelectorAll('main section').forEach(section => {
+          section.hidden = section.id !== target;
+        });
+        if (target === 'analysis') renderAnalysisView();
+        if (target === 'settings') renderSettingsView();
+        if (target === 'operator') renderOperatorView();
+      });
+    });
+  };
+
+  const warnOnExit = (e) => {
+    const hasUnvalidated = state.appState.heures.some(h => !h.validated);
+    if (hasUnvalidated) {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    }
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  const acceptanceTests = () => {
+    const results = [];
+    const assert = (condition, label) => {
+      results.push({ label, passed: Boolean(condition) });
+      if (!condition) console.warn('Test KO:', label);
+    };
+
+    // 1
+    assert(calculateMinutesAJustifier(0,16000) === 60, 'Minutes à justifier = 60 si good=0 et target=16000');
+    // 2
+    const fakeTile = { good:0, causes:[{ minutes:30 }], validated:false };
+    const tolerance = state.appState.settings.validation.maxDeltaMinutes;
+    const validationStatus = checkDelta(fakeTile);
+    assert(!validationStatus.ok, 'Validation échoue si delta > tolérance');
+    // 3 persistence
+    const key = 'pilotage:test:TL';
+    const snapshot = JSON.stringify(state.appState);
+    localStorage.setItem(key, snapshot);
+    assert(localStorage.getItem(key) === snapshot, 'Persistance localStorage');
+    localStorage.removeItem(key);
+    // 4 CSV
+    const csvRows = buildCSVRows(state.appState);
+    const checkDivers = csvRows.some(row => row.Catégorie === 'Divers' && row.Sous_Catégorie === 'Non renseigné');
+    assert(checkDivers, 'CSV inclut Divers/Non renseigné si minutes non affectées');
+    // 5 OEE = D*P*Q
+    const agg = aggregateKPIs([state.appState], { from:null,to:null,line:null,team:null,category:null,sub:null });
+    assert(Math.abs(agg.OEE - (agg.D * agg.P * agg.Q)) < 1e-6, 'OEE = D*P*Q par totaux');
+    // 6 Subcats update
+    const cat = state.appState.settings.categories[0];
+    const newSub = 'Test instantané';
+    cat.subs.push(newSub);
+    const subsSnapshot = getSubcategoriesForCategory(cat.name);
+    const includesNew = subsSnapshot.includes(newSub);
+    cat.subs.pop();
+    assert(includesNew, 'Sous-catégories rafraîchies');
+    console.table(results);
+  };
+
+  const initApp = () => {
+    let stored = loadDay({ date:todayISO(), codeLigne:'L27' });
+    if (!stored) {
+      stored = createDemoState();
+    }
+    state.appState = stored;
+    ensureHours();
+    initTabs();
+    renderOperatorView();
+    window.addEventListener('beforeunload', warnOnExit);
+    dom.fullscreenBtn.addEventListener('click', toggleFullscreen);
+    acceptanceTests();
+    renderAnalysisView();
+  };
+
+  return {
+    initApp,
+    renderOperatorView,
+    calculateMinutesAJustifier,
+    validateTile,
+    getTeamForHour,
+    aggregateKPIs,
+    renderAnalysisView,
+    renderSettingsView,
+    persistDay,
+    loadDay,
+    resetDay,
+    exportDayJSON,
+    exportDayCSV
+  };
+})();
+
+document.addEventListener('DOMContentLoaded', app.initApp);
+</script>
+</body>
+</html>
