@@ -1398,7 +1398,7 @@ async function ensureChartsModule() {
       hours.forEach((hour, col) => {
         const value = matrix[row][col];
         const intensity = value / max;
-        ctx.fillStyle = `rgba(11,87,208,${intensity * 0.8 + 0.1})`;
+        ctx.fillStyle = \`rgba(11,87,208,\${intensity * 0.8 + 0.1})\`;
         ctx.fillRect(col * cellWidth, row * cellHeight, cellWidth - 2, cellHeight - 2);
       });
     });
