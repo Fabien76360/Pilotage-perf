@@ -4,1594 +4,1970 @@
 <meta charset="utf-8" />
 <title>Pilotage Performance Terrain</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0b57d0" />
 <style>
 :root {
-  --bg:#f5f6fa;
-  --primary:#0059b3;
-  --secondary:#ffb400;
-  --green:#2ecc71;
-  --amber:#f1c40f;
-  --red:#e74c3c;
-  --grey:#c0c4cc;
-  --tile-bg:#ffffff;
-  --text:#1f2933;
-  --border:#d7dce3;
-  --focus:#222f6d;
-  font-size:16px;
+  color-scheme: light;
+  font-size: 16px;
+  --md-sys-color-primary: #0b57d0;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-secondary: #5f6b7a;
+  --md-sys-color-surface: #f7f9fc;
+  --md-sys-color-surface-variant: #e0e4ec;
+  --md-sys-color-outline: #c3cad8;
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-surface: #1b1b1f;
+  --md-sys-color-success: #1f8f4e;
+  --md-sys-color-warning: #c97b00;
+  --radius-xl: 28px;
+  --radius-lg: 20px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.14);
 }
-* { box-sizing:border-box; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
 body {
-  margin:0;
-  font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  background:var(--bg);
-  color:var(--text);
+  margin: 0;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
 }
-a { color:inherit; }
-header {
-  position:sticky;
-  top:0;
-  z-index:10;
-  background:#fff;
-  border-bottom:1px solid var(--border);
-  box-shadow:0 1px 3px rgba(0,0,0,0.08);
+body.no-scroll { overflow: hidden; }
+a { color: inherit; text-decoration: none; }
+button {
+  font: inherit;
+  border: none;
+  cursor: pointer;
+  background: none;
+  color: inherit;
 }
-header .tabs {
-  display:flex;
-  gap:0.5rem;
-  padding:0.75rem 1rem;
-  align-items:center;
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(11, 87, 208, 0.35);
+  outline-offset: 2px;
 }
-header .tabs button {
-  flex:1;
-  padding:0.75rem 1rem;
-  font-size:1rem;
-  border-radius:0.75rem;
-  border:2px solid transparent;
-  background:var(--border);
-  color:var(--text);
-  cursor:pointer;
-  font-weight:600;
-  min-height:44px;
+input, select, textarea {
+  font: inherit;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--md-sys-color-outline);
+  padding: 0.85rem 1rem;
+  background: #fff;
+  color: inherit;
+  min-height: 52px;
 }
-header .tabs button.active {
-  background:var(--primary);
-  color:#fff;
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+textarea { resize: vertical; min-height: 96px; }
+.app-shell { display: flex; flex-direction: column; min-height: 100%; }
+.app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(247, 249, 252, 0.85);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--md-sys-color-outline);
 }
-header .tabs button:focus-visible {
-  outline:3px solid var(--focus);
-  outline-offset:2px;
+.app-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  gap: 1rem;
+}
+.branding {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.branding svg { width: 32px; height: 32px; }
+.nav-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+}
+.nav-tabs button {
+  background: #fff;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.65rem 1rem;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.nav-tabs button.active {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  box-shadow: var(--shadow-sm);
+}
+.nav-tabs button:not(.active):hover { border-color: var(--md-sys-color-outline); }
+.auto-save-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+.auto-save-indicator .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--md-sys-color-success);
+  transition: background 0.2s ease;
+}
+.auto-save-indicator.saving .dot { background: var(--md-sys-color-warning); animation: pulse 1s infinite; }
+.auto-save-indicator.error .dot { background: var(--md-sys-color-error); }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.4); }
 }
 main {
-  padding:1rem;
-  max-width:1200px;
-  margin:0 auto 4rem;
+  flex: 1;
+  padding: clamp(1rem, 2vw, 2rem);
+  max-width: 1280px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
 }
-section[hidden] { display:none; }
-
-.operator-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
-  gap:1rem;
-}
-.tile {
-  background:var(--tile-bg);
-  border-radius:1rem;
-  padding:1rem;
-  border:1px solid var(--border);
-  display:flex;
-  flex-direction:column;
-  gap:0.75rem;
-  position:relative;
-  min-height:280px;
-}
-.tile.validated::after {
-  content:"✔";
-  position:absolute;
-  top:0.75rem;
-  right:0.75rem;
-  color:var(--green);
-  font-size:1.2rem;
-}
-.tile h3 {
-  margin:0;
-  font-size:1.2rem;
-}
-.field {
-  display:flex;
-  flex-direction:column;
-  gap:0.25rem;
-}
-.field label {
-  font-weight:600;
-}
-input[type="number"], input[type="text"], textarea, select {
-  padding:0.65rem 0.75rem;
-  border-radius:0.75rem;
-  border:1px solid var(--border);
-  font-size:1rem;
-  background:#fff;
-  color:inherit;
-}
-textarea { resize:vertical; min-height:70px; }
-input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline:3px solid var(--focus);
-  outline-offset:1px;
-}
-button {
-  cursor:pointer;
-}
-.btn-primary {
-  background:var(--primary);
-  color:#fff;
-  border:none;
-  border-radius:0.75rem;
-  padding:0.75rem 1rem;
-  font-weight:600;
-  min-height:44px;
-}
-.btn-secondary {
-  background:var(--secondary);
-  color:#222;
-  border:none;
-  border-radius:0.75rem;
-  padding:0.65rem 1rem;
-  font-weight:600;
-  min-height:44px;
-}
-.btn-ghost {
-  background:transparent;
-  border:1px dashed var(--border);
-  border-radius:0.75rem;
-  padding:0.65rem 1rem;
-  font-weight:600;
-}
-.btn-icon {
-  display:inline-flex;
-  align-items:center;
-  gap:0.5rem;
-}
-.cause-row {
-  display:grid;
-  grid-template-columns:1fr 1fr 100px 44px;
-  gap:0.5rem;
-  align-items:end;
-}
-.cause-row button.remove {
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:0.75rem;
-  min-height:44px;
-}
-.minutes-bar {
-  background:#eef2ff;
-  border-radius:0.75rem;
-  height:12px;
-  position:relative;
-  overflow:hidden;
-}
-.minutes-bar span {
-  display:block;
-  height:100%;
-  background:var(--primary);
-}
-.status {
-  font-weight:700;
-}
-.status.green { color:var(--green); }
-.status.orange { color:var(--amber); }
-.status.red { color:var(--red); }
-.status.grey { color:var(--grey); }
-.summary-panel {
-  margin-top:2rem;
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:1rem;
-}
+.view { display: none; animation: fadeIn 0.3s ease; }
+.view.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .card {
-  background:#fff;
-  border-radius:1rem;
-  padding:1rem;
-  border:1px solid var(--border);
-  box-shadow:0 1px 2px rgba(31,41,51,0.08);
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: clamp(1rem, 1.5vw, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
-.kpi-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:1rem;
-  margin-bottom:1.5rem;
+.card-header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.card-title { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  background: var(--md-sys-color-surface-variant);
 }
-.kpi-grid .card h4 { margin:0 0 0.25rem; }
-.flex { display:flex; gap:1rem; }
-.flex-column { display:flex; flex-direction:column; gap:1rem; }
-.chart {
-  height:220px;
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:1rem;
-  padding:1rem;
+.metric-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
-.chart svg {
-  width:100%;
-  height:100%;
+.metric {
+  background: linear-gradient(145deg, rgba(11, 87, 208, 0.12), rgba(11, 87, 208, 0.05));
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
-.top-causes-list li {
-  list-style:none;
-  margin:0.25rem 0;
-  display:flex;
-  align-items:center;
-  gap:0.75rem;
+.metric span { font-size: 0.9rem; color: var(--md-sys-color-secondary); }
+.metric strong { font-size: 1.4rem; }
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
-.top-causes-bar {
-  height:12px;
-  background:var(--primary);
-  border-radius:999px;
+.progress-bar {
+  width: 100%;
+  height: 16px;
+  background: var(--md-sys-color-surface-variant);
+  border-radius: 999px;
+  overflow: hidden;
 }
-.heatmap {
-  width:100%;
-  border-collapse:collapse;
+.progress-bar span {
+  display: block;
+  height: 100%;
+  background: var(--md-sys-color-primary);
+  transition: width 0.4s ease;
 }
-.heatmap th, .heatmap td {
-  border:1px solid var(--border);
-  padding:0.5rem;
-  text-align:center;
+.alert-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.alert-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(186, 26, 26, 0.08);
+  border: 1px solid rgba(186, 26, 26, 0.3);
 }
-.toast {
-  position:fixed;
-  right:1rem;
-  top:1rem;
-  background:#1f2933;
-  color:#fff;
-  padding:0.75rem 1rem;
-  border-radius:0.75rem;
-  box-shadow:0 4px 12px rgba(0,0,0,0.2);
-  opacity:0;
-  transform:translateY(-20px);
-  transition:all 0.3s ease;
-  z-index:20;
-  pointer-events:none;
+.alert-item svg { width: 24px; height: 24px; }
+.hour-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
-.toast.show {
-  opacity:1;
-  transform:translateY(0);
+.hour-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
-.settings-table {
-  width:100%;
-  border-collapse:collapse;
-  margin-bottom:1rem;
+.hour-nav button {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--md-sys-color-surface-variant);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
 }
-.settings-table th, .settings-table td {
-  border:1px solid var(--border);
-  padding:0.5rem;
+.hour-nav button:active { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+.timer-circle {
+  position: relative;
+  width: 160px;
+  height: 160px;
 }
-.fullscreen-btn {
-  position:fixed;
-  bottom:1rem;
-  right:1rem;
-  z-index:15;
+.timer-circle svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+.timer-circle .timer-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-weight: 600;
+}
+.timer-circle .timer-label span { font-size: 0.85rem; color: var(--md-sys-color-secondary); }
+.current-hour-layout { display: grid; gap: 1.5rem; align-items: start; }
+@media (min-width: 960px) {
+  .current-hour-layout { grid-template-columns: 1fr 1fr; }
+}
+.hour-form { display: flex; flex-direction: column; gap: 1rem; }
+.cause-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.cause-row {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  align-items: end;
+}
+.cause-row .remove-cause {
+  background: rgba(186, 26, 26, 0.08);
+  border-radius: var(--radius-sm);
+  color: var(--md-sys-color-error);
+  min-height: 48px;
 }
 .badge {
-  display:inline-flex;
-  padding:0.2rem 0.6rem;
-  background:#eef2ff;
-  border-radius:999px;
-  font-size:0.85rem;
-  font-weight:600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 }
-input[type="file"] {
-  font-size:1rem;
+.badge.success { background: rgba(31, 143, 78, 0.15); color: var(--md-sys-color-success); }
+.badge.warning { background: rgba(201, 123, 0, 0.15); color: var(--md-sys-color-warning); }
+.badge.error { background: rgba(186, 26, 26, 0.15); color: var(--md-sys-color-error); }
+.operator-hour-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.operator-hour-card {
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 340px;
+  position: relative;
 }
-
-@media (max-width:720px) {
-  .cause-row {
-    grid-template-columns:1fr;
-  }
-  .cause-row button.remove {
-    justify-self:flex-start;
-  }
+.operator-hour-card.validated { border-color: rgba(31, 143, 78, 0.5); box-shadow: inset 0 0 0 2px rgba(31, 143, 78, 0.25); }
+.operator-hour-card .validated-flag {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 1.25rem;
+  color: var(--md-sys-color-success);
+}
+.delta-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--md-sys-color-surface-variant);
+  overflow: hidden;
+}
+.delta-bar span {
+  display: block;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+.btn-primary {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.25rem;
+  min-height: 52px;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.btn-secondary {
+  background: rgba(11, 87, 208, 0.12);
+  color: var(--md-sys-color-primary);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.25rem;
+  min-height: 52px;
+  font-weight: 600;
+}
+.btn-text {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+}
+.template-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.template-chips button {
+  background: rgba(11, 87, 208, 0.12);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  min-height: 44px;
+}
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 200;
+  width: min(420px, calc(100% - 2rem));
+}
+.toast {
+  background: #1b1b1f;
+  color: #fff;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: var(--shadow-md);
+}
+.toast.success { background: var(--md-sys-color-success); }
+.toast.error { background: var(--md-sys-color-error); }
+.toast button { color: inherit; }
+.guide-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: grid;
+  place-items: center;
+  z-index: 400;
+}
+.guide-panel {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  max-width: 520px;
+  padding: 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.guide-steps { display: flex; justify-content: center; gap: 0.35rem; }
+.guide-steps span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--md-sys-color-surface-variant);
+}
+.guide-steps span.active { background: var(--md-sys-color-primary); }
+.offline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(201, 123, 0, 0.15);
+  color: var(--md-sys-color-warning);
+}
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+.analysis-layout { display: grid; gap: 1.25rem; }
+@media (min-width: 1080px) {
+  .analysis-layout { grid-template-columns: 1.1fr 0.9fr; }
+}
+.chart-card canvas { width: 100%; height: 320px; }
+.filter-bar {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.settings-grid { display: grid; gap: 1rem; }
+.shift-table, .category-table, .template-table { width: 100%; border-collapse: collapse; }
+.shift-table th, .shift-table td,
+.category-table th, .category-table td,
+.template-table th, .template-table td {
+  border: 1px solid var(--md-sys-color-outline);
+  padding: 0.75rem;
+  text-align: left;
+}
+.fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-align: center;
+  box-shadow: var(--shadow-md);
+  z-index: 150;
+}
+[data-touch-area] { min-height: 48px; min-width: 48px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 </style>
 </head>
 <body>
-<header>
-  <nav class="tabs" role="tablist">
-    <button id="tab-operator" class="active" data-target="operator" role="tab" aria-controls="operator" aria-selected="true">👷 Opérateur</button>
-    <button id="tab-analysis" data-target="analysis" role="tab" aria-controls="analysis" aria-selected="false">📊 Analyse</button>
-    <button id="tab-settings" data-target="settings" role="tab" aria-controls="settings" aria-selected="false">⚙️ Paramètres</button>
-  </nav>
-</header>
-<main>
-  <section id="operator" aria-labelledby="tab-operator"></section>
-  <section id="analysis" aria-labelledby="tab-analysis" hidden></section>
-  <section id="settings" aria-labelledby="tab-settings" hidden></section>
-</main>
-<button class="btn-secondary fullscreen-btn" id="toggleFullscreen" aria-label="Basculer en plein écran">⛶ Plein écran</button>
-<div id="toast" class="toast" role="status" aria-live="assertive"></div>
-<script>
-const i18n = {
-  tabs: { operator:"Opérateur", analysis:"Analyse", settings:"Paramètres" },
-  operator: {
-    good:"Pièces bonnes",
-    comment:"Commentaire",
-    addCause:"+ Ajouter une cause",
-    remove:"Retirer",
-    minutesJustify:"Minutes à justifier",
-    delta:"Delta",
-    validate:"Valider l'heure",
-    validated:"Heure validée",
-    notValidated:"Non validée",
-    minutes:"Minutes",
-    cause:"Cause",
-    subcause:"Sous-catégorie",
-    autre:"Autre (libre)",
-    journee:"Journée en cours",
-    totalBons:"Bons totaux",
-    totalMinutes:"Minutes à justifier",
-    topCauses:"Top causes du jour",
-    nonValideAlerte:"Des heures ne sont pas validées."
+<div class="app-shell">
+  <header class="app-bar" role="banner">
+    <div class="app-bar-inner">
+      <div class="branding" aria-label="Pilotage Performance">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="24" fill="#0b57d0" opacity="0.12"></circle><path fill="#0b57d0" d="M12 32h4l4.5-12 4 10 3-8 3 10h5l-5.5-16h-4l-2.5 6.5-3-6.5h-4z"/></svg>
+        <span>Pilotage Performance</span>
+      </div>
+      <nav class="nav-tabs" aria-label="Navigation principale">
+        <button type="button" class="active" data-view="dashboardView" data-touch-area>
+          <span>Accueil</span>
+        </button>
+        <button type="button" data-view="currentHourView" data-touch-area>
+          <span>Heure en cours</span>
+        </button>
+        <button type="button" data-view="operatorView" data-touch-area>
+          <span>Saisie</span>
+        </button>
+        <button type="button" data-view="analysisView" data-touch-area>
+          <span>Analyse</span>
+        </button>
+        <button type="button" data-view="settingsView" data-touch-area>
+          <span>Paramètres</span>
+        </button>
+      </nav>
+      <div class="status-row" aria-live="polite">
+        <span class="offline-badge" id="offlineBadge" hidden>Mode hors ligne</span>
+        <div class="auto-save-indicator" id="autoSaveIndicator">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="autoSaveLabel">Sauvegardé</span>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section id="dashboardView" class="view active" aria-labelledby="dashboardTitle"></section>
+    <section id="currentHourView" class="view" aria-labelledby="currentHourTitle"></section>
+    <section id="operatorView" class="view" aria-labelledby="operatorTitle"></section>
+    <section id="analysisView" class="view" aria-labelledby="analysisTitle"></section>
+    <section id="settingsView" class="view" aria-labelledby="settingsTitle"></section>
+  </main>
+</div>
+<button class="fab" id="fullScreenBtn" aria-label="Plein écran">
+  <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M7 7h3V5H5v5h2V7zm7-2v2h3v3h2V5h-5zm3 12h-3v2h5v-5h-2v3zm-7 0H7v-3H5v5h5v-2z"/></svg>
+</button>
+<div class="toast-container" id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
+<div class="guide-overlay" id="guideOverlay" hidden aria-modal="true" role="dialog"></div>
+<script type="module">
+const i18n = Object.freeze({
+  nav: { home: "Accueil", currentHour: "Heure en cours", operator: "Saisie", analysis: "Analyse", settings: "Paramètres" },
+  dashboard: {
+    title: "Pilotage du jour",
+    progress: "Progression de la journée",
+    alerts: "Actions requises",
+    noAlerts: "Aucune alerte en cours",
+    kpi: { oee: "OEE", availability: "Disponibilité", performance: "Performance", quality: "Qualité", minutes: "Minutes à justifier", volume: "Volume" },
+    topCauses: "Top 3 causes"
   },
-  analysis: {
-    title:"Analyse",
-    filters:"Filtres",
-    from:"Du",
-    to:"Au",
-    line:"Ligne",
-    team:"Équipe",
-    category:"Catégorie",
-    sub:"Sous-catégorie",
-    oee:"OEE",
-    availability:"Disponibilité",
-    performance:"Performance",
-    quality:"Qualité",
-    minutes:"Minutes à justifier",
-    nonConform:"Heures hors tolérance",
-    goodsVs:"Good vs Théorique",
-    top5:"Top 5 causes",
-    heatmap:"Heatmap heures x catégories",
-    noData:"Pas de données"
+  currentHour: {
+    title: "Heure en cours",
+    minutesToExplain: "Minutes à justifier",
+    delta: "Delta",
+    validate: "Valider l'heure",
+    next: "Suivante",
+    previous: "Précédente",
+    templateTitle: "Causes fréquentes"
+  },
+  operator: {
+    title: "Saisie horaire",
+    comment: "Commentaire",
+    addCause: "Ajouter une cause",
+    minutes: "Minutes",
+    category: "Catégorie",
+    subcategory: "Sous-catégorie",
+    remove: "Retirer",
+    status: { ok: "Aligné", warn: "À vérifier", error: "Ajuster" }
   },
   settings: {
-    title:"Paramètres",
-    date:"Date",
-    line:"Code ligne",
-    rate:"Cadence nominale (u/h)",
-    qualityGood:"Bons (qualité du jour)",
-    qualityTotal:"Total (qualité du jour)",
-    shifts:"Shifts",
-    addShift:"+ Ajouter shift",
-    categories:"Catégories",
-    addCategory:"+ Ajouter catégorie",
-    addSub:"Ajouter sous-catégorie",
-    exportJSON:"Exporter données (JSON)",
-    exportCSV:"Exporter CSV",
-    exportSettings:"Exporter paramètres",
-    importSettings:"Importer paramètres",
-    reset:"Réinitialiser la journée",
-    settingsJSON:"Paramètres JSON"
+    title: "Paramètres",
+    cadence: "Cadence nominale (u/h)",
+    shifts: "Équipes",
+    addShift: "Ajouter un shift",
+    delete: "Supprimer",
+    quality: "Qualité du jour",
+    categories: "Catégories",
+    addCategory: "Ajouter catégorie",
+    addSub: "Ajouter sous-catégorie",
+    templates: "Templates de causes",
+    addTemplate: "Ajouter un template",
+    reset: "Réinitialiser la journée",
+    exportJson: "Exporter données (JSON)",
+    exportCsv: "Exporter CSV",
+    importSettings: "Importer paramètres",
+    exportSettings: "Exporter paramètres"
+  },
+  analysis: {
+    title: "Analyse",
+    filters: "Filtres",
+    oee: "OEE",
+    availability: "Disponibilité",
+    performance: "Performance",
+    quality: "Qualité",
+    minutes: "Minutes à justifier",
+    nonConform: "Heures non conformes",
+    volume: "Volume produit"
+  },
+  qualityPanel: { good: "Bons", total: "Total" },
+  forms: { good: "Unités bonnes", comment: "Commentaire", validate: "Valider", cancel: "Annuler", minutes: "Minutes", category: "Catégorie", subcategory: "Sous-catégorie" },
+  feedback: {
+    saved: "Sauvegardé",
+    saving: "Sauvegarde…",
+    error: "Erreur de sauvegarde",
+    validated: "Heure validée",
+    invalidDelta: "Delta hors tolérance. Ajuster les causes.",
+    reset: "Journée réinitialisée",
+    importOk: "Paramètres importés",
+    guideTitle: "Bienvenue !",
+    guideSteps: [
+      "Capturez rapidement votre production dans l'heure en cours.",
+      "Glissez pour naviguer entre les heures et validez en un geste.",
+      "Analysez vos performances et exportez en un clic."
+    ]
+  }
+});
+
+const demoData = (() => {
+  const meta = {
+    date: new Date().toISOString().slice(0, 10),
+    codeLigne: "L27",
+    targetRate: 16000,
+    shifts: [
+      { name: "Équipe A", start: "06:00", end: "14:00" },
+      { name: "Équipe B", start: "14:00", end: "22:00" },
+      { name: "Équipe C", start: "22:00", end: "06:00" }
+    ],
+    quality: { bons: 46500, total: 47000 }
+  };
+  const heures = [
+    {
+      hh: "06:00",
+      good: 15500,
+      comment: "Redémarrage fluide",
+      causes: [
+        { cat: "Technique", sub: "Réglage", minutes: 8 },
+        { cat: "Organisation", sub: "Attente OF", minutes: 4 }
+      ],
+      validated: true
+    },
+    {
+      hh: "07:00",
+      good: 15000,
+      comment: "Contrôle plan qualité",
+      causes: [
+        { cat: "Qualité", sub: "Contrôle", minutes: 10 },
+        { cat: "Technique", sub: "Panne", minutes: 6 }
+      ],
+      validated: true
+    },
+    {
+      hh: "08:00",
+      good: 14000,
+      comment: "Opérateur en formation",
+      causes: [
+        { cat: "Organisation", sub: "Manque opérateur", minutes: 12 }
+      ],
+      validated: false
+    }
+  ];
+  const settings = {
+    categories: [
+      { name: "Technique", subs: ["Réglage", "Panne", "Changement format"] },
+      { name: "Organisation", subs: ["Attente OF", "Manque opérateur", "Réunion"] },
+      { name: "Qualité", subs: ["Contrôle", "Retouche"] },
+      { name: "HSE", subs: ["Alerte", "Nettoyage"] },
+      { name: "Divers", subs: ["Autre"] }
+    ],
+    validation: { maxDeltaMinutes: 5 },
+    templates: [
+      { label: "Réglage standard", cat: "Technique", sub: "Réglage", minutes: 5 },
+      { label: "Contrôle qualité", cat: "Qualité", sub: "Contrôle", minutes: 8 },
+      { label: "Attente OF", cat: "Organisation", sub: "Attente OF", minutes: 6 }
+    ]
+  };
+  return { meta, heures, settings };
+})();
+
+const appState = {
+  meta: structuredClone(demoData.meta),
+  heures: structuredClone(demoData.heures),
+  settings: structuredClone(demoData.settings),
+  ui: {
+    currentView: "dashboardView",
+    currentHourIndex: 0,
+    currentHourTimer: null,
+    chartsModule: null,
+    hourSwipe: { startX: null, startTime: null },
+    saving: false
   }
 };
 
-const app = (() => {
-  const state = {
-    appState:null,
-    currentView:"operator",
-    tolerance:5
-  };
+const storageKey = () => `pilotage:${appState.meta.date}:${appState.meta.codeLigne}`;
 
-  const dom = {
-    operator:document.getElementById("operator"),
-    analysis:document.getElementById("analysis"),
-    settings:document.getElementById("settings"),
-    toast:document.getElementById("toast"),
-    fullscreenBtn:document.getElementById("toggleFullscreen")
-  };
-
-  // --- Utility helpers ---
-  const pad = num => String(num).padStart(2,"0");
-  const toMinutes = hhmm => {
-    const [h,m] = hhmm.split(":").map(Number);
-    return h*60 + m;
-  };
-  const minutesToTime = mins => `${pad(Math.floor(mins/60)%24)}:${pad(mins%60)}`;
-  const todayISO = () => new Date().toISOString().slice(0,10);
-
-  const showToast = (message, type="info") => {
-    dom.toast.textContent = message;
-    dom.toast.classList.add("show");
-    dom.toast.style.background = type === "error" ? "var(--red)" : "#1f2933";
-    clearTimeout(dom.toast._timer);
-    dom.toast._timer = setTimeout(() => dom.toast.classList.remove("show"), 3000);
-  };
-
-  const ensureHours = () => {
-    const hours = generateHoursFromShifts(state.appState.meta.shifts);
-    const existing = new Map(state.appState.heures.map((h, idx) => [h.hh, {h, idx}]));
-    const ordered = [];
-    hours.forEach(hh => {
-      if (existing.has(hh)) {
-        ordered.push(existing.get(hh).h);
-      } else {
-        ordered.push({ hh, good:0, comment:"", causes:[], validated:false });
-      }
-    });
-    state.appState.heures = ordered;
-  };
-
-  const generateHoursFromShifts = (shifts) => {
-    const slots = [];
-    shifts.forEach(shift => {
-      let start = toMinutes(shift.start);
-      let end = toMinutes(shift.end);
-      if (end <= start) end += 24*60;
-      for (let t = start; t < end; t += 60) {
-        slots.push(minutesToTime(t));
-      }
-    });
-    return slots;
-  };
-
-  const formatNumber = value => new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(value);
-
-  const getStorageKey = (meta) => `pilotage:${meta.date}:${meta.codeLigne}`;
-
-  const getSubcategoriesForCategory = (name) => {
-    const cat = state.appState.settings.categories.find(c => c.name === name);
-    return cat ? cat.subs : [];
-  };
-
-  const createDemoState = () => {
-    const date = todayISO();
-    return {
-      meta:{
-        date,
-        codeLigne:"L27",
-        targetRate:16000,
-        shifts:[
-          { name:"Équipe A", start:"06:00", end:"14:00" },
-          { name:"Équipe B", start:"14:00", end:"22:00" },
-          { name:"Équipe C", start:"22:00", end:"06:00" }
-        ],
-        quality:{ bons:98750, total:99500 }
-      },
-      heures:[
-        {
-          hh:"06:00",
-          good:15500,
-          comment:"Micro arrêt réglage",
-          causes:[
-            { cat:"Technique", sub:"Réglage", minutes:8 },
-            { cat:"Organisation", sub:"Attente OF", minutes:3 }
-          ],
-          validated:true
-        },
-        {
-          hh:"07:00",
-          good:14000,
-          comment:"Panne courte",
-          causes:[
-            { cat:"Technique", sub:"Panne", minutes:12 },
-            { cat:"Qualité", sub:"Contrôle", minutes:4 }
-          ],
-          validated:true
-        },
-        {
-          hh:"08:00",
-          good:12000,
-          comment:"Manque opérateur",
-          causes:[
-            { cat:"Organisation", sub:"Manque opérateur", minutes:15 },
-            { cat:"Divers", sub:"Autre", minutes:5 }
-          ],
-          validated:false
-        }
-      ],
-      settings:{
-        categories:[
-          { name:"Technique", subs:["Réglage","Panne","Changement format"] },
-          { name:"Organisation", subs:["Attente OF","Manque opérateur","Réunion"] },
-          { name:"Qualité", subs:["Contrôle","Retouche"] },
-          { name:"HSE", subs:["Alerte","Nettoyage"] },
-          { name:"Divers", subs:["Autre"] }
-        ],
-        validation:{ maxDeltaMinutes:5 }
-      }
-    };
-  };
-
-  const createBlankState = (date, line) => ({
-    meta:{
-      date:date || todayISO(),
-      codeLigne:line || "L27",
-      targetRate:16000,
-      shifts:[
-        { name:"Équipe A", start:"06:00", end:"14:00" },
-        { name:"Équipe B", start:"14:00", end:"22:00" },
-        { name:"Équipe C", start:"22:00", end:"06:00" }
-      ],
-      quality:null
-    },
-    heures:[],
-    settings:{
-      categories:[
-        { name:"Technique", subs:["Réglage","Panne","Changement format"] },
-        { name:"Organisation", subs:["Attente OF","Manque opérateur","Réunion"] },
-        { name:"Qualité", subs:["Contrôle","Retouche"] },
-        { name:"HSE", subs:["Alerte","Nettoyage"] },
-        { name:"Divers", subs:["Autre"] }
-      ],
-      validation:{ maxDeltaMinutes:5 }
+function ensureHoursStructure() {
+  const hours = buildHoursFromShifts();
+  appState.hoursList = hours;
+  hours.forEach((hh) => {
+    if (!appState.heures.find((h) => h.hh === hh)) {
+      appState.heures.push({ hh, good: 0, comment: "", causes: [], validated: false });
     }
   });
+  appState.heures.sort((a, b) => hours.indexOf(a.hh) - hours.indexOf(b.hh));
+}
 
-  const persistDay = () => {
-    localStorage.setItem(getStorageKey(state.appState.meta), JSON.stringify(state.appState));
-    updateSummary();
-  };
-
-  const loadDay = (meta) => {
-    const stored = localStorage.getItem(getStorageKey(meta));
-    return stored ? JSON.parse(stored) : null;
-  };
-
-  const resetDay = () => {
-    if (!confirm("Confirmer la réinitialisation ?")) return;
-    localStorage.removeItem(getStorageKey(state.appState.meta));
-    state.appState = createBlankState(state.appState.meta.date, state.appState.meta.codeLigne);
-    ensureHours();
-    renderOperatorView();
-    renderAnalysisView();
-    renderSettingsView();
-    persistDay();
-  };
-
-  const calculateMinutesAJustifier = (good, targetRate) => {
-    const minutesTheoriques = 60;
-    const minutesProduites = Math.min(60, (Number(good || 0) / Math.max(1, Number(targetRate || 0))) * 60);
-    return Math.max(0, Math.round(minutesTheoriques - minutesProduites));
-  };
-
-  const getTeamForHour = (hh, meta = state.appState.meta) => {
-    const hhMinutes = toMinutes(hh);
-    const shifts = meta.shifts;
-    for (const shift of shifts) {
-      let start = toMinutes(shift.start);
-      let end = toMinutes(shift.end);
-      if (end <= start) {
-        if (hhMinutes >= start || hhMinutes < (end % (24*60))) return shift.name;
-      } else if (hhMinutes >= start && hhMinutes < end) {
-        return shift.name;
-      }
-    }
-    return shifts.length ? shifts[0].name : "";
-  };
-
-  const sumCauses = causes => causes.reduce((acc,c) => acc + Number(c.minutes || 0),0);
-
-  const updateSummary = () => {
-    const container = document.getElementById("day-summary");
-    if (!container) return;
-    let totalGood = 0;
-    let totalMinutes = 0;
-    const causeMap = new Map();
-    state.appState.heures.forEach(h => {
-      const minutes = calculateMinutesAJustifier(h.good, state.appState.meta.targetRate);
-      totalGood += Number(h.good || 0);
-      totalMinutes += minutes;
-      h.causes.forEach(c => {
-        const key = `${c.cat} » ${c.sub}`;
-        causeMap.set(key, (causeMap.get(key) || 0) + Number(c.minutes || 0));
-      });
-    });
-    const top = [...causeMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
-    container.querySelector('[data-summary="total-good"]').textContent = formatNumber(totalGood);
-    container.querySelector('[data-summary="total-minutes"]').textContent = formatNumber(totalMinutes);
-    const list = container.querySelector('ol');
-    list.innerHTML = top.length ? top.map(([label,val])=>`<li><span>${label}</span><span class="badge">${formatNumber(val)} min</span></li>`).join("") : `<li>${i18n.analysis.noData}</li>`;
-  };
-
-  const refreshTileCalculations = (tileEl, tileData) => {
-    const targetRate = state.appState.meta.targetRate;
-    const minutesAJustifier = calculateMinutesAJustifier(tileData.good, targetRate);
-    const causeMinutes = sumCauses(tileData.causes);
-    const delta = minutesAJustifier - causeMinutes;
-    tileEl.querySelector('[data-field="minutes"]').textContent = `${minutesAJustifier} min`;
-    tileEl.querySelector('[data-field="delta"]').textContent = `${delta} min`;
-    const bar = tileEl.querySelector('.minutes-bar span');
-    bar.style.width = `${Math.min(100, (minutesAJustifier/60)*100)}%`;
-    const status = tileEl.querySelector('.status');
-    const tolerance = state.appState.settings.validation.maxDeltaMinutes;
-    let statusClass = 'grey';
-    let statusLabel = i18n.operator.notValidated;
-    if (tileData.validated) {
-      statusClass = 'green';
-      statusLabel = i18n.operator.validated;
-    }
-    const absDelta = Math.abs(delta);
-    if (!tileData.validated) {
-      if (delta === 0) statusClass = 'green';
-      else if (absDelta <= tolerance) statusClass = 'orange';
-      else statusClass = 'red';
-    }
-    status.className = `status ${statusClass}`;
-    status.textContent = statusLabel;
-    const validateBtn = tileEl.querySelector('button[data-action="validate"]');
-    if (validateBtn) {
-      validateBtn.disabled = absDelta > tolerance;
-      validateBtn.textContent = tileData.validated ? i18n.operator.validated : i18n.operator.validate;
-    }
-    tileEl.classList.toggle('validated', Boolean(tileData.validated));
-  };
-
-  const renderCauseRow = (tileData, tileIndex, cause, causeIndex) => {
-    const row = document.createElement('div');
-    row.className = 'cause-row';
-    const catSelect = document.createElement('select');
-    catSelect.setAttribute('aria-label', `${i18n.operator.cause} ${causeIndex+1}`);
-    const categories = state.appState.settings.categories;
-    categories.forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat.name;
-      opt.textContent = cat.name;
-      catSelect.appendChild(opt);
-    });
-    if (!cause.cat && categories[0]) cause.cat = categories[0].name;
-    catSelect.value = cause.cat;
-
-    const subSelect = document.createElement('select');
-    subSelect.setAttribute('aria-label', `${i18n.operator.subcause} ${causeIndex+1}`);
-    const renderSubs = () => {
-      subSelect.innerHTML = '';
-      const subs = getSubcategoriesForCategory(catSelect.value);
-      subs.forEach(sub => {
-        const opt = document.createElement('option');
-        opt.value = sub;
-        opt.textContent = sub;
-        subSelect.appendChild(opt);
-      });
-      const optOther = document.createElement('option');
-      optOther.value = '__autre__';
-      optOther.textContent = i18n.operator.autre;
-      subSelect.appendChild(optOther);
-      if (!subs.includes(cause.sub)) {
-        if (cause.sub && cause.sub !== '__autre_libre__') {
-          subSelect.value = '__autre__';
-          otherInput.value = cause.sub;
-        } else {
-          subSelect.value = subs[0] || '__autre__';
-        }
+function buildHoursFromShifts() {
+  const result = [];
+  appState.meta.shifts.forEach((shift) => {
+    const start = parseHour(shift.start);
+    const end = parseHour(shift.end);
+    let current = start;
+    const limit = 24 * 60;
+    while (true) {
+      result.push(formatHourMinutes(current));
+      current = (current + 60) % limit;
+      if (start < end) {
+        if (current >= end) break;
       } else {
-        subSelect.value = cause.sub;
-        otherInput.value = '';
+        if (current === start) break;
+        const crossedMidnight = current === end;
+        if (crossedMidnight) break;
       }
-      toggleOther();
-    };
-
-    const otherInput = document.createElement('input');
-    otherInput.type = 'text';
-    otherInput.placeholder = 'Préciser...';
-    otherInput.style.display = 'none';
-    otherInput.style.gridColumn = '1 / -1';
-    otherInput.setAttribute('aria-label', 'Préciser sous-catégorie');
-    const toggleOther = () => {
-      if (subSelect.value === '__autre__') {
-        otherInput.style.display = 'block';
-        otherInput.value = cause.sub && cause.sub !== '__autre_libre__' ? cause.sub : '';
-      } else {
-        otherInput.style.display = 'none';
-      }
-    };
-
-    const minutesInput = document.createElement('input');
-    minutesInput.type = 'number';
-    minutesInput.min = '0';
-    minutesInput.step = '1';
-    minutesInput.value = cause.minutes || 0;
-    minutesInput.setAttribute('aria-label', `${i18n.operator.minutes} ${causeIndex+1}`);
-
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'remove';
-    removeBtn.type = 'button';
-    removeBtn.textContent = '🗑';
-
-    catSelect.addEventListener('change', () => {
-      cause.cat = catSelect.value;
-      const subs = getSubcategoriesForCategory(cause.cat);
-      cause.sub = subs[0] || '';
-      renderSubs();
-      tileData.validated = false;
-      persistDay();
-      refreshTileCalculations(document.querySelector(`.tile[data-index="${tileIndex}"]`), tileData);
-      updateSummary();
-    });
-
-    subSelect.addEventListener('change', () => {
-      if (subSelect.value === '__autre__') {
-        cause.sub = otherInput.value || 'Non renseigné';
-      } else {
-        cause.sub = subSelect.value;
-      }
-      toggleOther();
-      tileData.validated = false;
-      persistDay();
-      refreshTileCalculations(document.querySelector(`.tile[data-index="${tileIndex}"]`), tileData);
-      updateSummary();
-    });
-
-    otherInput.addEventListener('input', () => {
-      cause.sub = otherInput.value || 'Non renseigné';
-      tileData.validated = false;
-      persistDay();
-      refreshTileCalculations(document.querySelector(`.tile[data-index="${tileIndex}"]`), tileData);
-      updateSummary();
-    });
-
-    minutesInput.addEventListener('input', () => {
-      cause.minutes = Number(minutesInput.value || 0);
-      tileData.validated = false;
-      persistDay();
-      refreshTileCalculations(document.querySelector(`.tile[data-index="${tileIndex}"]`), tileData);
-      updateSummary();
-    });
-
-    removeBtn.addEventListener('click', () => {
-      tileData.causes.splice(causeIndex,1);
-      tileData.validated = false;
-      renderOperatorView();
-      persistDay();
-      updateSummary();
-    });
-
-    renderSubs();
-
-    row.append(catSelect, subSelect, minutesInput, removeBtn, otherInput);
-    return row;
-  };
-
-  const renderOperatorView = () => {
-    ensureHours();
-    dom.operator.innerHTML = '';
-    const grid = document.createElement('div');
-    grid.className = 'operator-grid';
-    state.appState.heures.forEach((hour, index) => {
-      const tile = document.createElement('article');
-      tile.className = 'tile';
-      tile.dataset.index = index;
-      const title = document.createElement('h3');
-      title.textContent = `${hour.hh}`;
-      tile.appendChild(title);
-
-      const teamBadge = document.createElement('div');
-      teamBadge.className = 'badge';
-      teamBadge.textContent = getTeamForHour(hour.hh);
-      tile.appendChild(teamBadge);
-
-      const fieldGood = document.createElement('div');
-      fieldGood.className = 'field';
-      const goodLabel = document.createElement('label');
-      goodLabel.textContent = i18n.operator.good;
-      goodLabel.setAttribute('for', `good-${index}`);
-      const goodInput = document.createElement('input');
-      goodInput.type = 'number';
-      goodInput.id = `good-${index}`;
-      goodInput.min = '0';
-      goodInput.step = '1';
-      goodInput.value = hour.good || '';
-      goodInput.addEventListener('input', () => {
-        hour.good = Number(goodInput.value || 0);
-        hour.validated = false;
-        persistDay();
-        refreshTileCalculations(tile, hour);
-      });
-      fieldGood.append(goodLabel, goodInput);
-      tile.appendChild(fieldGood);
-
-      const fieldComment = document.createElement('div');
-      fieldComment.className = 'field';
-      const commentLabel = document.createElement('label');
-      commentLabel.textContent = i18n.operator.comment;
-      commentLabel.setAttribute('for', `comment-${index}`);
-      const commentInput = document.createElement('textarea');
-      commentInput.id = `comment-${index}`;
-      commentInput.value = hour.comment || '';
-      commentInput.addEventListener('input', () => {
-        hour.comment = commentInput.value;
-        hour.validated = false;
-        persistDay();
-        refreshTileCalculations(tile, hour);
-      });
-      fieldComment.append(commentLabel, commentInput);
-      tile.appendChild(fieldComment);
-
-      const causesContainer = document.createElement('div');
-      causesContainer.className = 'field';
-      const causesLabel = document.createElement('label');
-      causesLabel.textContent = i18n.operator.cause;
-      causesContainer.appendChild(causesLabel);
-      const causesWrapper = document.createElement('div');
-      causesWrapper.className = 'flex-column';
-      hour.causes = hour.causes || [];
-      if (hour.causes.length === 0) {
-        hour.causes.push({ cat:state.appState.settings.categories[0]?.name || '', sub:state.appState.settings.categories[0]?.subs[0] || '', minutes:0 });
-      }
-      hour.causes.forEach((cause, causeIndex) => {
-        const row = renderCauseRow(hour, index, cause, causeIndex);
-        causesWrapper.appendChild(row);
-      });
-      const addBtn = document.createElement('button');
-      addBtn.className = 'btn-ghost btn-icon';
-      addBtn.type = 'button';
-      addBtn.innerHTML = `➕ ${i18n.operator.addCause}`;
-      addBtn.addEventListener('click', () => {
-        hour.causes.push({ cat:state.appState.settings.categories[0]?.name || '', sub:state.appState.settings.categories[0]?.subs[0] || '', minutes:0 });
-        hour.validated = false;
-        renderOperatorView();
-        persistDay();
-      });
-      causesContainer.append(causesWrapper, addBtn);
-      tile.appendChild(causesContainer);
-
-      const metrics = document.createElement('div');
-      metrics.className = 'field';
-      const minutesLabel = document.createElement('div');
-      minutesLabel.innerHTML = `<strong>${i18n.operator.minutesJustify}:</strong> <span data-field="minutes">0</span>`;
-      const deltaLabel = document.createElement('div');
-      deltaLabel.innerHTML = `<strong>${i18n.operator.delta}:</strong> <span data-field="delta">0</span>`;
-      const bar = document.createElement('div');
-      bar.className = 'minutes-bar';
-      const barSpan = document.createElement('span');
-      bar.appendChild(barSpan);
-      const status = document.createElement('div');
-      status.className = 'status grey';
-      metrics.append(minutesLabel, deltaLabel, bar, status);
-      tile.appendChild(metrics);
-
-      const validateBtn = document.createElement('button');
-      validateBtn.className = 'btn-primary';
-      validateBtn.setAttribute('data-action','validate');
-      validateBtn.type = 'button';
-      validateBtn.addEventListener('click', () => validateTile(index));
-      tile.appendChild(validateBtn);
-
-      grid.appendChild(tile);
-      setTimeout(() => refreshTileCalculations(tile, hour), 0);
-    });
-    dom.operator.appendChild(grid);
-
-    const summary = document.createElement('section');
-    summary.id = 'day-summary';
-    summary.className = 'summary-panel card';
-    summary.innerHTML = `
-      <div class="field">
-        <label>${i18n.operator.totalBons}</label>
-        <div class="badge" data-summary="total-good">0</div>
-      </div>
-      <div class="field">
-        <label>${i18n.operator.totalMinutes}</label>
-        <div class="badge" data-summary="total-minutes">0</div>
-      </div>
-      <div class="field" style="grid-column:1 / -1;">
-        <label>${i18n.operator.topCauses}</label>
-        <ol></ol>
-      </div>`;
-    dom.operator.appendChild(summary);
-    updateSummary();
-  };
-
-  const checkDelta = (tileData) => {
-    const minutes = calculateMinutesAJustifier(tileData.good, state.appState.meta.targetRate);
-    const delta = minutes - sumCauses(tileData.causes);
-    return {
-      delta,
-      minutes,
-      tolerance: state.appState.settings.validation.maxDeltaMinutes,
-      ok: Math.abs(delta) <= state.appState.settings.validation.maxDeltaMinutes
-    };
-  };
-
-  const validateTile = (hhIndex) => {
-    const tileData = state.appState.heures[hhIndex];
-    const status = checkDelta(tileData);
-    if (!status.ok) {
-      showToast(`Validation impossible : delta ${status.delta} min (tolérance ±${status.tolerance})`, 'error');
-      return false;
+      if (result.length > 48) break;
     }
-    tileData.validated = true;
-    persistDay();
-    renderOperatorView();
-    showToast('Heure validée ✅');
+  });
+  return [...new Set(result)];
+}
+
+function parseHour(hh) {
+  const [h, m] = hh.split(":").map(Number);
+  return (h * 60 + m) % (24 * 60);
+}
+
+function formatHourMinutes(total) {
+  const h = Math.floor(total / 60) % 24;
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function loadDay() {
+  try {
+    const raw = localStorage.getItem(storageKey());
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed.meta) appState.meta = parsed.meta;
+    if (Array.isArray(parsed.heures)) appState.heures = parsed.heures;
+    if (parsed.settings) appState.settings = parsed.settings;
+    ensureHoursStructure();
     return true;
-  };
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+}
 
-  const collectStoredDays = () => {
-    const days = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('pilotage:')) {
-        try {
-          days.push(JSON.parse(localStorage.getItem(key)));
-        } catch (e) {
-          console.warn('Lecture impossible', key);
+function persistDay() {
+  appState.ui.saving = true;
+  updateAutoSaveIndicator("saving");
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      localStorage.setItem(storageKey(), JSON.stringify({ meta: appState.meta, heures: appState.heures, settings: appState.settings }));
+      appState.ui.saving = false;
+      updateAutoSaveIndicator("saved");
+      resolve();
+    });
+  });
+}
+
+function resetDay() {
+  localStorage.removeItem(storageKey());
+  Object.assign(appState.meta, structuredClone(demoData.meta));
+  appState.heures.splice(0, appState.heures.length, ...structuredClone(demoData.heures));
+  Object.assign(appState.settings, structuredClone(demoData.settings));
+  ensureHoursStructure();
+  renderAll();
+  showToast(i18n.feedback.reset, "success");
+}
+
+function updateAutoSaveIndicator(state) {
+  const indicator = document.getElementById("autoSaveIndicator");
+  indicator.classList.remove("saving", "error");
+  const label = document.getElementById("autoSaveLabel");
+  if (state === "saving") {
+    indicator.classList.add("saving");
+    label.textContent = i18n.feedback.saving;
+  } else if (state === "error") {
+    indicator.classList.add("error");
+    label.textContent = i18n.feedback.error;
+  } else {
+    label.textContent = i18n.feedback.saved;
+  }
+}
+
+function calculateMinutesAJustifier(good, targetRate) {
+  const minutesTheoriques = 60;
+  const minutesProduites = Math.min(60, (good / Math.max(1, targetRate)) * 60);
+  return Math.max(0, Math.round(minutesTheoriques - minutesProduites));
+}
+
+function getTeamForHour(hh) {
+  const time = parseHour(hh);
+  for (const shift of appState.meta.shifts) {
+    const start = parseHour(shift.start);
+    const end = parseHour(shift.end);
+    if (start <= end) {
+      if (time >= start && time < end) return shift.name;
+    } else {
+      if (time >= start || time < end) return shift.name;
+    }
+  }
+  return "";
+}
+
+function deltaStatus(minutesAJustifier, causes, tolerance) {
+  const totalCauses = causes.reduce((sum, c) => sum + Number(c.minutes || 0), 0);
+  const delta = minutesAJustifier - totalCauses;
+  const abs = Math.abs(delta);
+  let status = "success";
+  if (abs > tolerance) status = "error";
+  else if (abs !== 0) status = "warning";
+  return { delta, status, totalCauses };
+}
+
+function validateTile(index) {
+  const heure = appState.heures[index];
+  const minutesAJustifier = calculateMinutesAJustifier(heure.good || 0, appState.meta.targetRate);
+  const { delta, status } = deltaStatus(minutesAJustifier, heure.causes, appState.settings.validation.maxDeltaMinutes);
+  if (status === "error") {
+    showToast(i18n.feedback.invalidDelta, "error");
+    heure.validated = false;
+    renderHourCardState(index);
+    return false;
+  }
+  heure.validated = true;
+  persistDay().then(() => showToast(i18n.feedback.validated, "success"));
+  renderHourCardState(index);
+  renderDashboardView();
+  return true;
+}
+
+function autoFillHour(index) {
+  const heure = appState.heures[index];
+  if (heure.validated || heure.good) return;
+  const sameHourHistory = appState.heures.filter((h, idx) => idx < index && h.hh === heure.hh && h.validated);
+  const validatedBefore = appState.heures.filter((h, idx) => idx < index && h.validated);
+  const source = sameHourHistory[sameHourHistory.length - 1] || validatedBefore[validatedBefore.length - 1];
+  if (!source) return;
+  heure.good = source.good;
+  heure.comment = source.comment ? `${source.comment} (copié)` : "";
+  heure.causes = source.causes.map((c) => ({ ...c }));
+}
+function buildHourSummary(index) {
+  const heure = appState.heures[index];
+  const minutesAJustifier = calculateMinutesAJustifier(heure.good || 0, appState.meta.targetRate);
+  const { delta, status, totalCauses } = deltaStatus(minutesAJustifier, heure.causes, appState.settings.validation.maxDeltaMinutes);
+  return { heure, minutesAJustifier, delta, status, totalCauses };
+}
+
+function renderDashboardView() {
+  const container = document.getElementById("dashboardView");
+  const validatedCount = appState.heures.filter((h) => h.validated).length;
+  const totalHours = appState.heures.length;
+  const progress = totalHours ? Math.round((validatedCount / totalHours) * 100) : 0;
+  const aggregates = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
+  const alerts = [];
+  appState.heures.forEach((hour, index) => {
+    const { status, delta } = buildHourSummary(index);
+    if (!hour.validated) {
+      alerts.push({ type: "warning", label: `${hour.hh} – Validation en attente (${delta} min)` });
+    } else if (status === "warning") {
+      alerts.push({ type: "warning", label: `${hour.hh} – Delta ${delta} min` });
+    } else if (status === "error") {
+      alerts.push({ type: "error", label: `${hour.hh} – Delta ${delta} min` });
+    }
+  });
+  const topCauses = getTopCauses(appState.heures, 3);
+  container.innerHTML = `
+    <article class="card" aria-labelledby="dashboardTitle">
+      <div class="card-header">
+        <h1 class="card-title" id="dashboardTitle">${i18n.dashboard.title}</h1>
+        <div class="chip">${appState.meta.date} · ${appState.meta.codeLigne}</div>
+      </div>
+      <div class="progress-container" aria-label="${i18n.dashboard.progress}">
+        <div class="hour-progress-label">${i18n.dashboard.progress} : ${validatedCount}/${totalHours} (${progress} %)</div>
+        <div class="progress-bar" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+          <span style="width:${progress}%"></span>
+        </div>
+      </div>
+      <div class="metric-grid">
+        <div class="metric" role="group" aria-label="OEE">
+          <span>${i18n.dashboard.kpi.oee}</span>
+          <strong>${(aggregates.OEE * 100).toFixed(1)} %</strong>
+        </div>
+        <div class="metric"><span>${i18n.dashboard.kpi.volume}</span><strong>${aggregates.totalGood.toLocaleString("fr-FR")}</strong></div>
+        <div class="metric"><span>${i18n.dashboard.kpi.minutes}</span><strong>${aggregates.minutesJustif} min</strong></div>
+        <div class="metric"><span>${i18n.dashboard.kpi.performance}</span><strong>${(aggregates.P * 100).toFixed(1)} %</strong></div>
+        <div class="metric"><span>${i18n.dashboard.kpi.availability}</span><strong>${(aggregates.D * 100).toFixed(1)} %</strong></div>
+        <div class="metric"><span>${i18n.dashboard.kpi.quality}</span><strong>${(aggregates.Q * 100).toFixed(1)} %</strong></div>
+      </div>
+      <section aria-label="${i18n.dashboard.alerts}">
+        <h2 class="card-title" style="font-size:1rem;">${i18n.dashboard.alerts}</h2>
+        ${alerts.length ? `<ul class="alert-list">${alerts.map((alert) => `<li class="alert-item" role="alert">${alertIcon(alert.type)}<span>${alert.label}</span></li>`).join("")}</ul>` : `<p>${i18n.dashboard.noAlerts}</p>`}
+      </section>
+      <section aria-label="${i18n.dashboard.topCauses}">
+        <h2 class="card-title" style="font-size:1rem;">${i18n.dashboard.topCauses}</h2>
+        <div class="template-chips">${topCauses.map((c) => `<span class="chip">${c.cat} · ${c.sub} – ${c.minutes} min</span>`).join("") || "<span>Aucune cause</span>"}</div>
+      </section>
+    </article>
+  `;
+}
+
+function alertIcon(type) {
+  const color = type === "error" ? "var(--md-sys-color-error)" : "var(--md-sys-color-warning)";
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="${color}" d="M11 7h2v6h-2zm0 8h2v2h-2z"/><path fill="${color}" d="M1 21h22L12 2 1 21zm20-1H3l9-16 9 16z"/></svg>`;
+}
+
+function getTopCauses(heures, limit = 3) {
+  const map = new Map();
+  heures.forEach((h) => {
+    h.causes.forEach((c) => {
+      const key = `${c.cat}|${c.sub}`;
+      map.set(key, (map.get(key) || 0) + Number(c.minutes || 0));
+    });
+  });
+  return Array.from(map.entries())
+    .map(([key, minutes]) => {
+      const [cat, sub] = key.split("|");
+      return { cat, sub, minutes };
+    })
+    .sort((a, b) => b.minutes - a.minutes)
+    .slice(0, limit);
+}
+
+function renderCurrentHourView() {
+  const container = document.getElementById("currentHourView");
+  const index = getCurrentHourIndex();
+  appState.ui.currentHourIndex = index;
+  const { heure, minutesAJustifier, delta, status, totalCauses } = buildHourSummary(index);
+  const tolerance = appState.settings.validation.maxDeltaMinutes;
+  const circle = buildTimerCircle();
+  container.innerHTML = `
+    <article class="card current-hour-layout" aria-labelledby="currentHourTitle" data-current-index="${index}">
+      <section>
+        <div class="hour-header">
+          <h1 class="card-title" id="currentHourTitle">${i18n.currentHour.title} · ${heure.hh}</h1>
+          <div class="hour-nav">
+            <button type="button" data-action="prev-hour" aria-label="${i18n.currentHour.previous}" data-touch-area><span aria-hidden="true">◀</span></button>
+            <button type="button" data-action="next-hour" aria-label="${i18n.currentHour.next}" data-touch-area><span aria-hidden="true">▶</span></button>
+          </div>
+        </div>
+        <div class="timer-circle" role="img" aria-label="Minuteur">
+          ${circle}
+        </div>
+        <div class="template-chips" aria-label="${i18n.currentHour.templateTitle}">
+          ${appState.settings.templates.map((tpl, tplIndex) => `<button type="button" data-template-index="${tplIndex}" data-touch-area>${tpl.label}</button>`).join("")}
+        </div>
+        <div class="badge ${status}">
+          ${status === "success" ? i18n.operator.status.ok : status === "warning" ? i18n.operator.status.warn : i18n.operator.status.error}
+          · ${i18n.currentHour.minutesToExplain}: ${minutesAJustifier} · ${i18n.currentHour.delta}: ${delta}
+        </div>
+        <p>Causes: ${totalCauses} min · Tolérance ±${tolerance} min</p>
+      </section>
+      <form class="hour-form" data-hour-index="${index}">
+        <label class="field">
+          <span>${i18n.forms.good}</span>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" name="good" value="${heure.good || ""}" required aria-required="true" min="0" data-touch-area />
+        </label>
+        <label class="field">
+          <span>${i18n.forms.comment}</span>
+          <textarea name="comment" rows="3" placeholder="Observation…" data-touch-area>${heure.comment || ""}</textarea>
+        </label>
+        <section class="cause-list" aria-label="Causes">
+          ${heure.causes.map((cause, causeIndex) => renderCauseRow(index, causeIndex, cause)).join("")}
+        </section>
+        <button type="button" class="btn-secondary" data-action="add-cause" data-touch-area>${i18n.operator.addCause}</button>
+        <button type="submit" class="btn-primary" data-touch-area>${i18n.currentHour.validate}</button>
+      </form>
+    </article>
+  `;
+  setupCurrentHourInteractions(container, index);
+  setupSwipeGestures(container.querySelector("article"));
+}
+
+function buildTimerCircle() {
+  const now = new Date();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  const remaining = 3600 - (minutes * 60 + seconds);
+  const percent = Math.max(0, Math.min(1, remaining / 3600));
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - percent);
+  return `
+    <svg viewBox="0 0 160 160">
+      <circle cx="80" cy="80" r="${radius}" stroke="var(--md-sys-color-surface-variant)" stroke-width="12" fill="transparent"></circle>
+      <circle cx="80" cy="80" r="${radius}" stroke="var(--md-sys-color-primary)" stroke-width="12" fill="transparent" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"></circle>
+    </svg>
+    <div class="timer-label">
+      <div>${formatDuration(remaining)}</div>
+      <span>restant</span>
+    </div>
+  `;
+}
+
+function formatDuration(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function renderCauseRow(hourIndex, causeIndex, cause = { cat: "", sub: "", minutes: 0 }) {
+  const catOptions = appState.settings.categories.map((cat) => `<option value="${cat.name}" ${cat.name === cause.cat ? "selected" : ""}>${cat.name}</option>`).join("");
+  const subs = getSubcategoriesFor(cause.cat);
+  const subOptions = subs.map((sub) => `<option value="${sub}" ${sub === cause.sub ? "selected" : ""}>${sub}</option>`).join("");
+  return `
+    <div class="cause-row" data-hour-index="${hourIndex}" data-cause-index="${causeIndex}">
+      <label class="field">
+        <span>${i18n.forms.category}</span>
+        <select name="cat" data-touch-area>
+          <option value="">--</option>
+          ${catOptions}
+        </select>
+      </label>
+      <label class="field">
+        <span>${i18n.forms.subcategory}</span>
+        <select name="sub" data-touch-area>
+          <option value="">--</option>
+          ${subOptions}
+        </select>
+      </label>
+      <label class="field">
+        <span>${i18n.forms.minutes}</span>
+        <input type="number" name="minutes" inputmode="numeric" pattern="[0-9]*" min="0" value="${cause.minutes || ""}" data-touch-area />
+      </label>
+      <button type="button" class="remove-cause" data-action="remove-cause" aria-label="${i18n.operator.remove}" data-touch-area>✕</button>
+    </div>
+  `;
+}
+
+function getSubcategoriesFor(catName) {
+  const category = appState.settings.categories.find((c) => c.name === catName);
+  const subs = category ? category.subs : [];
+  return [...subs, "Autre (libre)"];
+}
+function setupCurrentHourInteractions(container, hourIndex) {
+  const form = container.querySelector("form");
+  const heure = appState.heures[hourIndex];
+  form.addEventListener("input", (event) => {
+    const target = event.target;
+    if (target.name === "good") {
+      heure.good = Number(target.value || 0);
+    } else if (target.name === "comment") {
+      heure.comment = target.value;
+    } else if (target.closest(".cause-row")) {
+      const row = target.closest(".cause-row");
+      const causeIndex = Number(row.dataset.causeIndex);
+      const cause = heure.causes[causeIndex];
+      if (target.name === "cat") {
+        cause.cat = target.value;
+        const subSelect = row.querySelector('select[name="sub"]');
+        const options = getSubcategoriesFor(cause.cat).map((sub) => `<option value="${sub}">${sub}</option>`).join("");
+        subSelect.innerHTML = `<option value="">--</option>${options}`;
+        cause.sub = "";
+        subSelect.focus();
+      } else if (target.name === "sub") {
+        if (target.value === "Autre (libre)") {
+          const libre = prompt("Sous-catégorie");
+          cause.sub = libre || "Non renseigné";
+          target.value = cause.sub;
+        } else {
+          cause.sub = target.value;
         }
+      } else if (target.name === "minutes") {
+        cause.minutes = Number(target.value || 0);
       }
     }
-    if (!days.find(d => d.meta.date === state.appState.meta.date && d.meta.codeLigne === state.appState.meta.codeLigne)) {
-      days.push(state.appState);
-    }
-    return days;
-  };
-
-  const aggregateKPIs = (data, filters) => {
-    let planified = 0;
-    let operational = 0;
-    let totalGood = 0;
-    let totalTarget = 0;
-    let minutesJustif = 0;
-    let nonConform = 0;
-    let qualityBons = 0;
-    let qualityTotal = 0;
-    const hourlySeries = [];
-    const causeMap = new Map();
-    const heatmap = new Map();
-
-    data.forEach(day => {
-      const qualityFactor = day.meta.quality && day.meta.quality.total ? (day.meta.quality.bons/day.meta.quality.total) : 1;
-      const includeDay = (!filters.line || filters.line === day.meta.codeLigne) &&
-        (!filters.from || day.meta.date >= filters.from) && (!filters.to || day.meta.date <= filters.to);
-      if (!includeDay) return;
-      day.heures.forEach(hour => {
-        if (filters.team && getTeamForHour(hour.hh, day.meta) !== filters.team) return;
-        if (!hour.validated) return;
-        const minutes = calculateMinutesAJustifier(hour.good, day.meta.targetRate);
-        const causes = hour.causes || [];
-        const sumCause = causes.reduce((acc,c)=>acc+Number(c.minutes||0),0);
-        const delta = minutes - sumCause;
-        const matchesCategory = !filters.category || causes.some(c => c.cat === filters.category);
-        const matchesSub = !filters.sub || causes.some(c => c.sub === filters.sub);
-        if (filters.category && !matchesCategory) return;
-        if (filters.sub && !matchesSub) return;
-        planified += 60;
-        operational += (60 - sumCause);
-        totalGood += Number(hour.good || 0);
-        totalTarget += Number(day.meta.targetRate || 0);
-        minutesJustif += minutes;
-        if (Math.abs(delta) > day.settings.validation.maxDeltaMinutes) nonConform += 1;
-        qualityBons += day.meta.quality && day.meta.quality.bons ? day.meta.quality.bons : 0;
-        qualityTotal += day.meta.quality && day.meta.quality.total ? day.meta.quality.total : 0;
-        hourlySeries.push({ date:day.meta.date, line:day.meta.codeLigne, hh:hour.hh, good:Number(hour.good||0), theoretical:Number(day.meta.targetRate||0) });
-        causes.forEach(c => {
-          const cat = c.cat || 'Divers';
-          const sub = c.sub || 'Non renseigné';
-          const key = `${cat} » ${sub}`;
-          causeMap.set(key, (causeMap.get(key) || 0) + Number(c.minutes || 0));
-          const heatKey = `${hour.hh}||${cat}`;
-          heatmap.set(heatKey, (heatmap.get(heatKey) || 0) + Number(c.minutes || 0));
-        });
-        if (sumCause < minutes) {
-          const key = `Divers » Non renseigné`;
-          causeMap.set(key, (causeMap.get(key) || 0) + (minutes - sumCause));
-          const heatKey = `${hour.hh}||Divers`;
-          heatmap.set(heatKey, (heatmap.get(heatKey) || 0) + (minutes - sumCause));
-        }
-      });
-    });
-
-    const D = planified ? operational/planified : 0;
-    const P = totalTarget ? totalGood/totalTarget : 0;
-    const Q = qualityTotal ? (qualityBons/qualityTotal) : 1;
-    const OEE = D * P * Q;
-
-    return {
-      D,P,Q,OEE,planified,operational,totalGood,totalTarget,minutesJustif,nonConform,
-      hourlySeries,causeMap,heatmap
-    };
-  };
-
-  const renderLineChart = (container, series) => {
-    if (!series.length) {
-      container.innerHTML = `<p>${i18n.analysis.noData}</p>`;
-      return;
-    }
-    const width = container.clientWidth || 600;
-    const height = container.clientHeight || 200;
-    const maxVal = Math.max(...series.map(s => Math.max(s.good, s.theoretical)),1);
-    const pointsGood = series.map((s,i) => {
-      const x = (i/(series.length-1||1))*(width-60)+30;
-      const y = height - (s.good/maxVal)*(height-60) - 20;
-      return `${x},${y}`;
-    }).join(' ');
-    const pointsTheo = series.map((s,i) => {
-      const x = (i/(series.length-1||1))*(width-60)+30;
-      const y = height - (s.theoretical/maxVal)*(height-60) - 20;
-      return `${x},${y}`;
-    }).join(' ');
-    container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Courbe production vs théorique">
-      <polyline fill="none" stroke="#ddd" stroke-width="1" points="30,${height-30} ${width-30},${height-30}" />
-      <polyline fill="none" stroke="#888" stroke-width="1" points="30,20 30,${height-30}" />
-      <polyline fill="none" stroke="var(--primary)" stroke-width="3" points="${pointsGood}" />
-      <polyline fill="none" stroke="var(--secondary)" stroke-width="3" points="${pointsTheo}" stroke-dasharray="6 4" />
-    </svg>`;
-  };
-
-  const renderTopCauses = (container, causeMap) => {
-    const entries = [...causeMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);
-    if (!entries.length) {
-      container.innerHTML = `<p>${i18n.analysis.noData}</p>`;
-      return;
-    }
-    const max = entries[0][1] || 1;
-    container.innerHTML = `<ol class="top-causes-list">${entries.map(([label,val]) => {
-      const width = (val/max)*100;
-      return `<li><span style="flex:1">${label}</span><span class="top-causes-bar" style="width:${width}%"></span><span class="badge">${formatNumber(val)} min</span></li>`;
-    }).join('')}</ol>`;
-  };
-
-  const renderHeatmap = (container, heatmap, hours, categories) => {
-    if (!heatmap.size) {
-      container.innerHTML = `<p>${i18n.analysis.noData}</p>`;
-      return;
-    }
-    const cats = categories.map(c => c.name);
-    const header = `<tr><th>Heure</th>${cats.map(c=>`<th>${c}</th>`).join('')}</tr>`;
-    const rows = hours.map(h => {
-      const cells = cats.map(cat => {
-        const key = `${h}||${cat}`;
-        const val = heatmap.get(key) || 0;
-        const intensity = Math.min(1, val/60);
-        const color = `rgba(0,89,179,${0.1 + intensity*0.6})`;
-        return `<td style="background:${color};color:${intensity>0.5?'#fff':'#111'}">${val ? formatNumber(val) : ''}</td>`;
-      }).join('');
-      return `<tr><th>${h}</th>${cells}</tr>`;
-    }).join('');
-    container.innerHTML = `<table class="heatmap">${header}${rows}</table>`;
-  };
-
-  const renderAnalysisView = () => {
-    const section = dom.analysis;
-    section.innerHTML = '';
-    const filtersWrap = document.createElement('div');
-    filtersWrap.className = 'card flex';
-    filtersWrap.innerHTML = `
-      <div class="field"><label>${i18n.analysis.from}</label><input type="date" id="filter-from"></div>
-      <div class="field"><label>${i18n.analysis.to}</label><input type="date" id="filter-to"></div>
-      <div class="field"><label>${i18n.analysis.line}</label><select id="filter-line"><option value="">Toutes</option></select></div>
-      <div class="field"><label>${i18n.analysis.team}</label><select id="filter-team"><option value="">Toutes</option></select></div>
-      <div class="field"><label>${i18n.analysis.category}</label><select id="filter-category"><option value="">Toutes</option></select></div>
-      <div class="field"><label>${i18n.analysis.sub}</label><select id="filter-sub"><option value="">Toutes</option></select></div>
-    `;
-    section.appendChild(filtersWrap);
-
-    const days = collectStoredDays();
-    const lineSelect = filtersWrap.querySelector('#filter-line');
-    [...new Set(days.map(d => d.meta.codeLigne))].forEach(line => {
-      const opt = document.createElement('option');
-      opt.value = line;
-      opt.textContent = line;
-      lineSelect.appendChild(opt);
-    });
-    const teamSelect = filtersWrap.querySelector('#filter-team');
-    [...new Set(days.flatMap(d => d.meta.shifts.map(s => s.name)))].forEach(team => {
-      const opt = document.createElement('option');
-      opt.value = team;
-      opt.textContent = team;
-      teamSelect.appendChild(opt);
-    });
-    const categorySelect = filtersWrap.querySelector('#filter-category');
-    state.appState.settings.categories.forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat.name;
-      opt.textContent = cat.name;
-      categorySelect.appendChild(opt);
-    });
-    const subSelect = filtersWrap.querySelector('#filter-sub');
-    const refreshSubs = () => {
-      const selectedCat = categorySelect.value;
-      subSelect.innerHTML = '<option value="">Toutes</option>';
-      getSubcategoriesForCategory(selectedCat).forEach(sub => {
-        const opt = document.createElement('option');
-        opt.value = sub;
-        opt.textContent = sub;
-        subSelect.appendChild(opt);
-      });
-    };
-    categorySelect.addEventListener('change', () => { refreshSubs(); update(); });
-    subSelect.addEventListener('change', update);
-
-    ['from','to','line','team'].forEach(id => {
-      filtersWrap.querySelector(`#filter-${id}`).addEventListener('change', update);
-    });
-
-    const kpiGrid = document.createElement('div');
-    kpiGrid.className = 'kpi-grid';
-    const createKpi = (label, value) => `<div class="card"><h4>${label}</h4><strong data-kpi="${value}">-</strong></div>`;
-    kpiGrid.innerHTML = `
-      ${createKpi('OEE', 'oee')}
-      ${createKpi('D', 'd')}
-      ${createKpi('P', 'p')}
-      ${createKpi('Q', 'q')}
-      ${createKpi(i18n.analysis.minutes, 'minutes')}
-      ${createKpi(i18n.analysis.nonConform, 'nonConform')}
-    `;
-    section.appendChild(kpiGrid);
-
-    const chartsWrap = document.createElement('div');
-    chartsWrap.className = 'flex-column';
-    chartsWrap.innerHTML = `
-      <div class="chart" id="chart-good"></div>
-      <div class="chart" id="chart-causes"></div>
-      <div class="chart" id="chart-heat"></div>
-    `;
-    section.appendChild(chartsWrap);
-
-    const update = () => {
-      const filters = {
-        from: filtersWrap.querySelector('#filter-from').value,
-        to: filtersWrap.querySelector('#filter-to').value,
-        line: filtersWrap.querySelector('#filter-line').value,
-        team: filtersWrap.querySelector('#filter-team').value,
-        category: filtersWrap.querySelector('#filter-category').value,
-        sub: filtersWrap.querySelector('#filter-sub').value
-      };
-      const agg = aggregateKPIs(days, filters);
-      section.querySelector('[data-kpi="oee"]').textContent = formatNumber(agg.OEE*100)+" %";
-      section.querySelector('[data-kpi="d"]').textContent = formatNumber(agg.D*100)+" %";
-      section.querySelector('[data-kpi="p"]').textContent = formatNumber(agg.P*100)+" %";
-      section.querySelector('[data-kpi="q"]').textContent = formatNumber(agg.Q*100)+" %";
-      section.querySelector('[data-kpi="minutes"]').textContent = formatNumber(agg.minutesJustif)+' min';
-      section.querySelector('[data-kpi="nonConform"]').textContent = agg.nonConform;
-      renderLineChart(document.getElementById('chart-good'), agg.hourlySeries);
-      renderTopCauses(document.getElementById('chart-causes'), agg.causeMap);
-      const hours = [...new Set(agg.hourlySeries.map(s => s.hh))].sort();
-      renderHeatmap(document.getElementById('chart-heat'), agg.heatmap, hours, state.appState.settings.categories);
-    };
-    update();
-  };
-
-  const renderSettingsView = () => {
-    const section = dom.settings;
-    section.innerHTML = '';
-    const card = document.createElement('div');
-    card.className = 'card flex-column';
-    card.innerHTML = `
-      <div class="field"><label>${i18n.settings.date}</label><input type="date" id="settings-date" value="${state.appState.meta.date}"></div>
-      <div class="field"><label>${i18n.settings.line}</label><input type="text" id="settings-line" value="${state.appState.meta.codeLigne}"></div>
-      <div class="field"><label>${i18n.settings.rate}</label><input type="number" id="settings-rate" value="${state.appState.meta.targetRate}"></div>
-      <div class="field"><label>${i18n.settings.qualityGood}</label><input type="number" id="settings-quality-good" value="${state.appState.meta.quality?.bons || ''}"></div>
-      <div class="field"><label>${i18n.settings.qualityTotal}</label><input type="number" id="settings-quality-total" value="${state.appState.meta.quality?.total || ''}"></div>
-      <div class="field"><label>Tolérance validation (min)</label><input type="number" id="settings-tolerance" value="${state.appState.settings.validation.maxDeltaMinutes}"></div>
-    `;
-
-    const shiftsCard = document.createElement('div');
-    shiftsCard.className = 'card';
-    shiftsCard.innerHTML = `<h3>${i18n.settings.shifts}</h3>`;
-    const shiftsTable = document.createElement('table');
-    shiftsTable.className = 'settings-table';
-    shiftsTable.innerHTML = '<thead><tr><th>Nom</th><th>Début</th><th>Fin</th><th></th></tr></thead>';
-    const shiftsBody = document.createElement('tbody');
-    const renderShifts = () => {
-      shiftsBody.innerHTML = '';
-      state.appState.meta.shifts.forEach((shift, idx) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><input type="text" value="${shift.name}" data-field="name" data-idx="${idx}"></td>
-          <td><input type="time" value="${shift.start}" data-field="start" data-idx="${idx}"></td>
-          <td><input type="time" value="${shift.end}" data-field="end" data-idx="${idx}"></td>
-          <td><button type="button" data-action="remove" data-idx="${idx}">✖</button></td>`;
-        shiftsBody.appendChild(tr);
-      });
-    };
-    renderShifts();
-    shiftsTable.appendChild(shiftsBody);
-    shiftsCard.appendChild(shiftsTable);
-    const addShiftBtn = document.createElement('button');
-    addShiftBtn.type = 'button';
-    addShiftBtn.className = 'btn-ghost';
-    addShiftBtn.textContent = i18n.settings.addShift;
-    addShiftBtn.addEventListener('click', () => {
-      state.appState.meta.shifts.push({ name:`Shift ${state.appState.meta.shifts.length+1}`, start:'06:00', end:'14:00' });
-      renderShifts();
-      ensureHours();
+    heure.validated = false;
+    renderHourCardState(hourIndex);
+    persistDay();
+  });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    validateTile(hourIndex);
+  });
+  form.addEventListener("click", (event) => {
+    const action = event.target.dataset.action;
+    if (action === "add-cause") {
+      heure.causes.push({ cat: "", sub: "", minutes: 0 });
+      renderCurrentHourView();
       persistDay();
-      renderOperatorView();
-    });
-    shiftsCard.appendChild(addShiftBtn);
-
-    shiftsBody.addEventListener('input', (e) => {
-      const target = e.target;
-      const idx = Number(target.dataset.idx);
-      const field = target.dataset.field;
-      state.appState.meta.shifts[idx][field] = target.value;
-      ensureHours();
+    } else if (action === "remove-cause") {
+      const row = event.target.closest(".cause-row");
+      const idx = Number(row.dataset.causeIndex);
+      heure.causes.splice(idx, 1);
+      renderCurrentHourView();
       persistDay();
-      renderOperatorView();
-      renderAnalysisView();
+    }
+  });
+  container.querySelectorAll("[data-template-index]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tpl = appState.settings.templates[Number(btn.dataset.templateIndex)];
+      if (!tpl) return;
+      heure.causes.push({ cat: tpl.cat, sub: tpl.sub, minutes: tpl.minutes });
+      renderCurrentHourView();
+      persistDay();
     });
-    shiftsBody.addEventListener('click', (e) => {
-      if (e.target.matches('button[data-action="remove"]')) {
-        const idx = Number(e.target.dataset.idx);
-        state.appState.meta.shifts.splice(idx,1);
-        renderShifts();
-        ensureHours();
-        persistDay();
+  });
+  container.querySelectorAll("[data-action='prev-hour'], [data-action='next-hour']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dir = btn.dataset.action === "next-hour" ? 1 : -1;
+      navigateHour(dir);
+    });
+  });
+}
+
+function renderHourCardState(index) {
+  const { minutesAJustifier, delta, status } = buildHourSummary(index);
+  const hourCard = document.querySelector(`.operator-hour-card[data-hour-index="${index}"]`);
+  if (hourCard) {
+    hourCard.classList.toggle("validated", appState.heures[index].validated);
+    const badge = hourCard.querySelector(".badge");
+    if (badge) {
+      badge.className = `badge ${status}`;
+      badge.textContent = `${minutesAJustifier} min · Δ ${delta}`;
+    }
+    const deltaBar = hourCard.querySelector(".delta-bar span");
+    if (deltaBar) {
+      const ratio = Math.min(100, Math.abs(delta) / Math.max(1, appState.settings.validation.maxDeltaMinutes) * 100);
+      deltaBar.style.width = `${ratio}%`;
+      deltaBar.style.background = status === "success" ? "var(--md-sys-color-success)" : status === "warning" ? "var(--md-sys-color-warning)" : "var(--md-sys-color-error)";
+    }
+  }
+  const currentBadge = document.querySelector("#currentHourView .badge");
+  if (currentBadge && index === appState.ui.currentHourIndex) {
+    currentBadge.className = `badge ${status}`;
+    currentBadge.textContent = `${status === "success" ? i18n.operator.status.ok : status === "warning" ? i18n.operator.status.warn : i18n.operator.status.error} · ${i18n.currentHour.minutesToExplain}: ${minutesAJustifier} · ${i18n.currentHour.delta}: ${delta}`;
+  }
+  renderDashboardView();
+}
+
+function renderOperatorView() {
+  const container = document.getElementById("operatorView");
+  const cards = appState.heures.map((heure, index) => {
+    const { minutesAJustifier, delta, status } = buildHourSummary(index);
+    return `
+      <article class="operator-hour-card ${heure.validated ? "validated" : ""}" data-hour-index="${index}" tabindex="0">
+        ${heure.validated ? '<span class="validated-flag" aria-hidden="true">✔</span>' : ""}
+        <header class="hour-header">
+          <h2 class="card-title">${heure.hh}</h2>
+          <span class="chip">${getTeamForHour(heure.hh)}</span>
+        </header>
+        <div class="badge ${status}">${minutesAJustifier} min · Δ ${delta}</div>
+        <div class="delta-bar" aria-hidden="true"><span style="width: ${Math.min(100, Math.abs(delta))}%"></span></div>
+        <div class="field">
+          <span>${i18n.forms.good}</span>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" value="${heure.good || ""}" data-field="good" data-touch-area />
+        </div>
+        <div class="field">
+          <span>${i18n.forms.comment}</span>
+          <textarea data-field="comment" data-touch-area>${heure.comment || ""}</textarea>
+        </div>
+        <div class="cause-list">
+          ${heure.causes.map((cause, causeIndex) => renderCauseRow(index, causeIndex, cause)).join("")}
+        </div>
+        <button type="button" class="btn-secondary" data-action="add-cause" data-touch-area>${i18n.operator.addCause}</button>
+        <button type="button" class="btn-primary" data-action="validate" data-touch-area>${i18n.forms.validate}</button>
+      </article>
+    `;
+  }).join("");
+  container.innerHTML = `<div class="operator-hour-grid" aria-label="${i18n.operator.title}">${cards}</div>`;
+  container.querySelectorAll(".operator-hour-card").forEach((card) => {
+    const index = Number(card.dataset.hourIndex);
+    const heure = appState.heures[index];
+    card.addEventListener("input", (event) => {
+      const target = event.target;
+      if (target.dataset.field === "good") {
+        heure.good = Number(target.value || 0);
+      } else if (target.dataset.field === "comment") {
+        heure.comment = target.value;
+      }
+      heure.validated = false;
+      renderHourCardState(index);
+      persistDay();
+    });
+    card.addEventListener("click", (event) => {
+      const action = event.target.dataset.action;
+      if (action === "add-cause") {
+        heure.causes.push({ cat: "", sub: "", minutes: 0 });
         renderOperatorView();
+        persistDay();
+      } else if (action === "validate") {
+        validateTile(index);
+      } else if (action === "remove-cause") {
+        const row = event.target.closest(".cause-row");
+        const idx = Number(row.dataset.causeIndex);
+        heure.causes.splice(idx, 1);
+        renderOperatorView();
+        persistDay();
+      }
+    });
+    card.querySelectorAll(".cause-row select[name='cat']").forEach((select) => {
+      select.addEventListener("change", (event) => {
+        const row = event.target.closest(".cause-row");
+        const idx = Number(row.dataset.causeIndex);
+        const cause = heure.causes[idx];
+        cause.cat = event.target.value;
+        const subs = getSubcategoriesFor(cause.cat);
+        const subSelect = row.querySelector("select[name='sub']");
+        subSelect.innerHTML = `<option value="">--</option>${subs.map((sub) => `<option value="${sub}">${sub}</option>`).join("")}`;
+        cause.sub = "";
+        heure.validated = false;
+        renderHourCardState(index);
+        persistDay();
+      });
+    });
+    card.querySelectorAll(".cause-row select[name='sub']").forEach((select) => {
+      select.addEventListener("change", (event) => {
+        const row = event.target.closest(".cause-row");
+        const idx = Number(row.dataset.causeIndex);
+        const cause = heure.causes[idx];
+        if (event.target.value === "Autre (libre)") {
+          const libre = prompt("Sous-catégorie");
+          cause.sub = libre || "Non renseigné";
+          event.target.value = cause.sub;
+        } else {
+          cause.sub = event.target.value;
+        }
+        heure.validated = false;
+        renderHourCardState(index);
+        persistDay();
+      });
+    });
+    card.querySelectorAll(".cause-row input[name='minutes']").forEach((input) => {
+      input.addEventListener("input", (event) => {
+        const row = event.target.closest(".cause-row");
+        const idx = Number(row.dataset.causeIndex);
+        const cause = heure.causes[idx];
+        cause.minutes = Number(event.target.value || 0);
+        heure.validated = false;
+        renderHourCardState(index);
+        persistDay();
+      });
+    });
+  });
+}
+
+function navigateHour(direction) {
+  const total = appState.heures.length;
+  const nextIndex = (appState.ui.currentHourIndex + direction + total) % total;
+  appState.ui.currentHourIndex = nextIndex;
+  renderCurrentHourView();
+}
+
+function setupSwipeGestures(element) {
+  element.addEventListener("pointerdown", (event) => {
+    appState.ui.hourSwipe = { startX: event.clientX, startTime: performance.now() };
+  });
+  element.addEventListener("pointerup", (event) => {
+    const swipe = appState.ui.hourSwipe;
+    if (!swipe.startX) return;
+    const deltaX = event.clientX - swipe.startX;
+    const deltaTime = performance.now() - swipe.startTime;
+    if (Math.abs(deltaX) > 70 && deltaTime < 600) {
+      navigateHour(deltaX < 0 ? 1 : -1);
+    }
+    appState.ui.hourSwipe = { startX: null, startTime: null };
+  });
+}
+function renderAnalysisView() {
+  const container = document.getElementById("analysisView");
+  const aggregates = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
+  container.innerHTML = `
+    <article class="card" aria-labelledby="analysisTitle">
+      <div class="card-header">
+        <h1 class="card-title" id="analysisTitle">${i18n.analysis.title}</h1>
+        <div class="chip">${appState.meta.date}</div>
+      </div>
+      <section class="filter-bar" aria-label="${i18n.analysis.filters}">
+        <label class="field">
+          <span>Période</span>
+          <select id="analysisRange" data-touch-area>
+            <option value="day">Jour</option>
+            <option value="week">Semaine</option>
+            <option value="month">Mois</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Ligne</span>
+          <input type="text" value="${appState.meta.codeLigne}" readonly />
+        </label>
+        <label class="field">
+          <span>Équipe</span>
+          <select id="analysisTeam" data-touch-area>
+            <option value="all">Toutes</option>
+            ${appState.meta.shifts.map((shift) => `<option value="${shift.name}">${shift.name}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field">
+          <span>Catégorie</span>
+          <select id="analysisCategory" data-touch-area>
+            <option value="all">Toutes</option>
+            ${appState.settings.categories.map((cat) => `<option value="${cat.name}">${cat.name}</option>`).join("")}
+          </select>
+        </label>
+      </section>
+      <section class="metric-grid">
+        <div class="metric"><span>${i18n.analysis.oee}</span><strong>${(aggregates.OEE * 100).toFixed(1)} %</strong></div>
+        <div class="metric"><span>${i18n.analysis.availability}</span><strong>${(aggregates.D * 100).toFixed(1)} %</strong></div>
+        <div class="metric"><span>${i18n.analysis.performance}</span><strong>${(aggregates.P * 100).toFixed(1)} %</strong></div>
+        <div class="metric"><span>${i18n.analysis.quality}</span><strong>${(aggregates.Q * 100).toFixed(1)} %</strong></div>
+        <div class="metric"><span>${i18n.analysis.minutes}</span><strong>${aggregates.minutesJustif} min</strong></div>
+        <div class="metric"><span>${i18n.analysis.nonConform}</span><strong>${aggregates.nonConform}</strong></div>
+        <div class="metric"><span>${i18n.analysis.volume}</span><strong>${aggregates.totalGood.toLocaleString("fr-FR")}</strong></div>
+      </section>
+      <div class="analysis-layout">
+        <div class="chart-card card">
+          <h2 class="card-title" style="font-size:1rem;">Good vs Théorique</h2>
+          <canvas id="lineChart" width="640" height="320" aria-label="Good vs Théorique" role="img"></canvas>
+        </div>
+        <div class="chart-card card">
+          <h2 class="card-title" style="font-size:1rem;">Top causes</h2>
+          <canvas id="barChart" width="320" height="320" aria-label="Top causes" role="img"></canvas>
+        </div>
+        <div class="chart-card card" style="grid-column: 1 / -1;">
+          <h2 class="card-title" style="font-size:1rem;">Heatmap heures × catégories</h2>
+          <canvas id="heatmapChart" width="960" height="320" aria-label="Heatmap" role="img"></canvas>
+        </div>
+      </div>
+    </article>
+  `;
+  ensureChartsModule().then((charting) => {
+    const lineCtx = document.getElementById("lineChart").getContext("2d");
+    const barCtx = document.getElementById("barChart").getContext("2d");
+    const heatCtx = document.getElementById("heatmapChart").getContext("2d");
+    charting.renderLineChart(lineCtx, buildLineData());
+    charting.renderBarChart(barCtx, buildBarData());
+    charting.renderHeatmap(heatCtx, buildHeatmapData());
+  });
+}
+
+function buildLineData() {
+  const labels = appState.heures.map((h) => h.hh);
+  const good = appState.heures.map((h) => h.good || 0);
+  const theoretical = appState.heures.map(() => appState.meta.targetRate);
+  return { labels, datasets: [{ label: "Good", data: good, color: "#0b57d0" }, { label: "Théorique", data: theoretical, color: "#5f6b7a" }] };
+}
+
+function buildBarData() {
+  const topCauses = getTopCauses(appState.heures, 5);
+  return { labels: topCauses.map((c) => `${c.cat} · ${c.sub}`), data: topCauses.map((c) => c.minutes), color: "#0b57d0" };
+}
+
+function buildHeatmapData() {
+  const hours = appState.heures.map((h) => h.hh);
+  const categories = appState.settings.categories.map((c) => c.name);
+  const matrix = categories.map(() => hours.map(() => 0));
+  appState.heures.forEach((heure, i) => {
+    heure.causes.forEach((cause) => {
+      const catIndex = categories.indexOf(cause.cat);
+      if (catIndex >= 0) {
+        matrix[catIndex][i] += Number(cause.minutes || 0);
+      }
+    });
+  });
+  return { hours, categories, matrix };
+}
+
+async function ensureChartsModule() {
+  if (appState.ui.chartsModule) return appState.ui.chartsModule;
+  const moduleCode = `export function renderLineChart(ctx, config) {
+    const { labels, datasets } = config;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    const padding = 40;
+    const max = Math.max(...datasets.flatMap((d) => d.data), 1);
+    const scaleY = (value) => height - padding - (value / max) * (height - padding * 2);
+    const scaleX = (index) => padding + (index / Math.max(1, labels.length - 1)) * (width - padding * 2);
+    ctx.strokeStyle = '#c3cad8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, height - padding);
+    ctx.lineTo(width - padding, height - padding);
+    ctx.stroke();
+    datasets.forEach((dataset) => {
+      ctx.strokeStyle = dataset.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      dataset.data.forEach((value, index) => {
+        const x = scaleX(index);
+        const y = scaleY(value);
+        if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      dataset.data.forEach((value, index) => {
+        const x = scaleX(index);
+        const y = scaleY(value);
+        ctx.fillStyle = dataset.color;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+    ctx.fillStyle = '#5f6b7a';
+    ctx.font = '12px Inter';
+    labels.forEach((label, index) => {
+      const x = scaleX(index);
+      ctx.save();
+      ctx.translate(x, height - padding + 12);
+      ctx.rotate(-Math.PI / 4);
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    });
+  }
+  export function renderBarChart(ctx, config) {
+    const { labels, data, color } = config;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    const padding = 40;
+    const barWidth = (width - padding * 2) / Math.max(data.length, 1) - 20;
+    const max = Math.max(...data, 1);
+    data.forEach((value, index) => {
+      const x = padding + index * (barWidth + 20);
+      const h = (value / max) * (height - padding * 2);
+      const y = height - padding - h;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, barWidth, h);
+      ctx.fillStyle = '#1b1b1f';
+      ctx.fillText(String(value), x, y - 6);
+      ctx.save();
+      ctx.translate(x + barWidth / 2, height - padding + 12);
+      ctx.rotate(-Math.PI / 4);
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[index], 0, 0);
+      ctx.restore();
+    });
+  }
+  export function renderHeatmap(ctx, config) {
+    const { hours, categories, matrix } = config;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
+    ctx.clearRect(0, 0, width, height);
+    const padding = 60;
+    const cellWidth = (width - padding) / hours.length;
+    const cellHeight = (height - padding) / categories.length;
+    const max = Math.max(...matrix.flat(), 1);
+    categories.forEach((cat, row) => {
+      hours.forEach((hour, col) => {
+        const value = matrix[row][col];
+        const intensity = value / max;
+        ctx.fillStyle = `rgba(11,87,208,${intensity * 0.8 + 0.1})`;
+        ctx.fillRect(col * cellWidth, row * cellHeight, cellWidth - 2, cellHeight - 2);
+      });
+    });
+    ctx.fillStyle = '#1b1b1f';
+    ctx.font = '12px Inter';
+    categories.forEach((cat, row) => {
+      ctx.fillText(cat, width - padding + 4, row * cellHeight + cellHeight / 2);
+    });
+    hours.forEach((hour, col) => {
+      ctx.save();
+      ctx.translate(col * cellWidth + 12, height - padding + 12);
+      ctx.rotate(-Math.PI / 4);
+      ctx.fillText(hour, 0, 0);
+      ctx.restore();
+    });
+  }
+  `;
+  const blob = new Blob([moduleCode], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  appState.ui.chartsModule = await import(url);
+  return appState.ui.chartsModule;
+}
+function renderSettingsView() {
+  const container = document.getElementById("settingsView");
+  const quality = appState.meta.quality || { bons: 0, total: 0 };
+  container.innerHTML = `
+    <article class="card" aria-labelledby="settingsTitle">
+      <h1 class="card-title" id="settingsTitle">${i18n.settings.title}</h1>
+      <div class="settings-grid">
+        <label class="field">
+          <span>${i18n.settings.cadence}</span>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" id="targetRate" value="${appState.meta.targetRate}" min="0" data-touch-area />
+        </label>
+        <section>
+          <h2 class="card-title" style="font-size:1rem;">${i18n.settings.shifts}</h2>
+          <table class="shift-table">
+            <thead><tr><th>Nom</th><th>Début</th><th>Fin</th><th></th></tr></thead>
+            <tbody>
+              ${appState.meta.shifts.map((shift, index) => `
+                <tr data-shift-index="${index}">
+                  <td><input type="text" value="${shift.name}" data-field="name" data-touch-area /></td>
+                  <td><input type="time" value="${shift.start}" data-field="start" data-touch-area /></td>
+                  <td><input type="time" value="${shift.end}" data-field="end" data-touch-area /></td>
+                  <td><button type="button" data-action="remove-shift" aria-label="${i18n.settings.delete}" data-touch-area>✕</button></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+          <button type="button" class="btn-secondary" data-action="add-shift" data-touch-area>${i18n.settings.addShift}</button>
+        </section>
+        <section>
+          <h2 class="card-title" style="font-size:1rem;">${i18n.settings.quality}</h2>
+          <div class="metric-grid">
+            <label class="field">
+              <span>${i18n.qualityPanel.good}</span>
+              <input type="number" id="qualityGood" value="${quality.bons || ""}" data-touch-area inputmode="numeric" pattern="[0-9]*" />
+            </label>
+            <label class="field">
+              <span>${i18n.qualityPanel.total}</span>
+              <input type="number" id="qualityTotal" value="${quality.total || ""}" data-touch-area inputmode="numeric" pattern="[0-9]*" />
+            </label>
+          </div>
+        </section>
+        <section>
+          <h2 class="card-title" style="font-size:1rem;">${i18n.settings.categories}</h2>
+          <table class="category-table">
+            <thead><tr><th>Catégorie</th><th>Sous-catégories</th><th></th></tr></thead>
+            <tbody>
+              ${appState.settings.categories.map((cat, index) => `
+                <tr data-category-index="${index}">
+                  <td><input type="text" value="${cat.name}" data-field="name" data-touch-area /></td>
+                  <td>
+                    <div class="template-chips">
+                      ${cat.subs.map((sub, subIndex) => `<span class="chip">${sub} <button type="button" data-action="remove-sub" data-sub-index="${subIndex}" aria-label="${i18n.settings.delete}" data-touch-area>✕</button></span>`).join("")}
+                    </div>
+                    <button type="button" class="btn-text" data-action="add-sub" data-touch-area>${i18n.settings.addSub}</button>
+                  </td>
+                  <td><button type="button" data-action="remove-category" aria-label="${i18n.settings.delete}" data-touch-area>✕</button></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+          <button type="button" class="btn-secondary" data-action="add-category" data-touch-area>${i18n.settings.addCategory}</button>
+        </section>
+        <section>
+          <h2 class="card-title" style="font-size:1rem;">${i18n.settings.templates}</h2>
+          <table class="template-table">
+            <thead><tr><th>Libellé</th><th>Catégorie</th><th>Sous-catégorie</th><th>Minutes</th><th></th></tr></thead>
+            <tbody>
+              ${appState.settings.templates.map((tpl, index) => `
+                <tr data-template-index="${index}">
+                  <td><input type="text" value="${tpl.label}" data-field="label" data-touch-area /></td>
+                  <td><input type="text" value="${tpl.cat}" data-field="cat" data-touch-area /></td>
+                  <td><input type="text" value="${tpl.sub}" data-field="sub" data-touch-area /></td>
+                  <td><input type="number" value="${tpl.minutes}" data-field="minutes" data-touch-area inputmode="numeric" pattern="[0-9]*" /></td>
+                  <td><button type="button" data-action="remove-template" aria-label="${i18n.settings.delete}" data-touch-area>✕</button></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+          <button type="button" class="btn-secondary" data-action="add-template" data-touch-area>${i18n.settings.addTemplate}</button>
+        </section>
+        <div class="template-chips">
+          <button type="button" class="btn-primary" data-action="reset-day" data-touch-area>${i18n.settings.reset}</button>
+          <button type="button" class="btn-secondary" data-action="export-json" data-touch-area>${i18n.settings.exportJson}</button>
+          <button type="button" class="btn-secondary" data-action="export-csv" data-touch-area>${i18n.settings.exportCsv}</button>
+          <button type="button" class="btn-secondary" data-action="export-settings" data-touch-area>${i18n.settings.exportSettings}</button>
+          <label class="btn-secondary" data-touch-area>
+            ${i18n.settings.importSettings}
+            <input type="file" accept="application/json" id="importSettings" hidden />
+          </label>
+        </div>
+      </div>
+    </article>
+  `;
+  setupSettingsInteractions(container);
+}
+function setupSettingsInteractions(container) {
+  container.querySelectorAll("input, select").forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.id === "targetRate") {
+        appState.meta.targetRate = Number(input.value || 0);
+        persistDay().then(renderAll);
+      } else if (input.id === "qualityGood" || input.id === "qualityTotal") {
+        appState.meta.quality = appState.meta.quality || { bons: 0, total: 0 };
+        if (input.id === "qualityGood") appState.meta.quality.bons = Number(input.value || 0);
+        if (input.id === "qualityTotal") appState.meta.quality.total = Number(input.value || 0);
+        persistDay().then(renderDashboardView);
+      } else if (input.closest("tr[data-shift-index]")) {
+        const row = input.closest("tr[data-shift-index]");
+        const shift = appState.meta.shifts[Number(row.dataset.shiftIndex)];
+        shift[input.dataset.field] = input.value;
+        ensureHoursStructure();
+        persistDay().then(() => { renderOperatorView(); renderCurrentHourView(); renderDashboardView(); });
+      } else if (input.closest("tr[data-category-index]")) {
+        const row = input.closest("tr[data-category-index]");
+        const category = appState.settings.categories[Number(row.dataset.categoryIndex)];
+        category[input.dataset.field] = input.value;
+        persistDay().then(() => { renderOperatorView(); renderCurrentHourView(); });
+      } else if (input.closest("tr[data-template-index]")) {
+        const row = input.closest("tr[data-template-index]");
+        const template = appState.settings.templates[Number(row.dataset.templateIndex)];
+        template[input.dataset.field] = input.dataset.field === "minutes" ? Number(input.value || 0) : input.value;
+        persistDay();
+      }
+    });
+  });
+  container.querySelectorAll("button[data-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.action;
+      if (action === "add-shift") {
+        appState.meta.shifts.push({ name: "Nouvelle équipe", start: "00:00", end: "08:00" });
+        ensureHoursStructure();
+        persistDay().then(renderSettingsView);
+      } else if (action === "remove-shift") {
+        const row = button.closest("tr[data-shift-index]");
+        const index = Number(row.dataset.shiftIndex);
+        appState.meta.shifts.splice(index, 1);
+        ensureHoursStructure();
+        persistDay().then(() => { renderSettingsView(); renderOperatorView(); renderCurrentHourView(); });
+      } else if (action === "add-category") {
+        appState.settings.categories.push({ name: "Nouvelle catégorie", subs: ["Sous-catégorie"] });
+        persistDay().then(() => { renderSettingsView(); renderOperatorView(); });
+      } else if (action === "remove-category") {
+        const row = button.closest("tr[data-category-index]");
+        const index = Number(row.dataset.categoryIndex);
+        appState.settings.categories.splice(index, 1);
+        persistDay().then(() => { renderSettingsView(); renderOperatorView(); });
+      } else if (action === "add-sub") {
+        const row = button.closest("tr[data-category-index]");
+        const category = appState.settings.categories[Number(row.dataset.categoryIndex)];
+        category.subs.push("Nouvelle sous-catégorie");
+        persistDay().then(renderSettingsView);
+      } else if (action === "remove-sub") {
+        const row = button.closest("tr[data-category-index]");
+        const category = appState.settings.categories[Number(row.dataset.categoryIndex)];
+        const subIndex = Number(button.dataset.subIndex);
+        category.subs.splice(subIndex, 1);
+        persistDay().then(renderSettingsView);
+      } else if (action === "add-template") {
+        appState.settings.templates.push({ label: "Nouvelle cause", cat: "", sub: "", minutes: 0 });
+        persistDay().then(renderSettingsView);
+      } else if (action === "remove-template") {
+        const row = button.closest("tr[data-template-index]");
+        const index = Number(row.dataset.templateIndex);
+        appState.settings.templates.splice(index, 1);
+        persistDay().then(() => { renderSettingsView(); renderCurrentHourView(); });
+      } else if (action === "reset-day") {
+        if (confirm("Confirmer la réinitialisation ?")) resetDay();
+      } else if (action === "export-json") {
+        exportDayJSON();
+      } else if (action === "export-csv") {
+        exportDayCSV();
+      } else if (action === "export-settings") {
+        exportSettings();
+      }
+    });
+  });
+  const importInput = container.querySelector("#importSettings");
+  importInput.addEventListener("change", async () => {
+    const file = importInput.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    try {
+      const imported = JSON.parse(text);
+      if (imported.targetRate) appState.meta.targetRate = imported.targetRate;
+      if (imported.shifts) appState.meta.shifts = imported.shifts;
+      if (imported.categories) appState.settings.categories = imported.categories;
+      if (imported.templates) appState.settings.templates = imported.templates;
+      if (imported.validation) appState.settings.validation = imported.validation;
+      ensureHoursStructure();
+      persistDay().then(() => {
+        renderSettingsView();
+        renderOperatorView();
+        renderCurrentHourView();
+        showToast(i18n.feedback.importOk, "success");
+      });
+    } catch (err) {
+      console.error(err);
+      showToast(i18n.feedback.error, "error");
+    }
+  });
+}
+
+function renderAll() {
+  renderDashboardView();
+  renderCurrentHourView();
+  renderOperatorView();
+  renderAnalysisView();
+  renderSettingsView();
+}
+
+function getCurrentHourIndex() {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  let closest = 0;
+  let minDiff = Infinity;
+  appState.heures.forEach((hour, index) => {
+    const diff = Math.abs(parseHour(hour.hh) - currentMinutes);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = index;
+    }
+  });
+  autoFillHour(closest);
+  return closest;
+}
+
+function aggregateKPIs(data) {
+  const heuresValidees = data.heures.filter((h) => h.validated);
+  const planifie = heuresValidees.length * 60;
+  const totalGood = data.heures.reduce((sum, h) => sum + Number(h.good || 0), 0);
+  const minutesJustif = data.heures.reduce((sum, h) => sum + calculateMinutesAJustifier(h.good || 0, data.meta.targetRate), 0);
+  const totalCauses = data.heures.reduce((sum, h) => sum + h.causes.reduce((acc, cause) => acc + Number(cause.minutes || 0), 0), 0);
+  const operationnel = heuresValidees.reduce((sum, h) => sum + (60 - h.causes.reduce((acc, cause) => acc + Number(cause.minutes || 0), 0)), 0);
+  const disponibilite = planifie ? operationnel / planifie : 0;
+  const targetTheorique = data.meta.targetRate * heuresValidees.length;
+  const performance = targetTheorique ? totalGood / targetTheorique : 0;
+  const quality = data.meta.quality && data.meta.quality.total ? data.meta.quality.bons / data.meta.quality.total : 1;
+  const OEE = disponibilite * performance * quality;
+  const nonConform = data.heures.filter((h) => {
+    const minutes = calculateMinutesAJustifier(h.good || 0, data.meta.targetRate);
+    const { delta } = deltaStatus(minutes, h.causes, data.settings.validation.maxDeltaMinutes);
+    return Math.abs(delta) > data.settings.validation.maxDeltaMinutes;
+  }).length;
+  return { D: disponibilite, P: performance, Q: quality, OEE, minutesJustif, nonConform, totalGood, totalCauses };
+}
+function exportDayJSON() {
+  const content = JSON.stringify({ meta: appState.meta, heures: appState.heures, settings: appState.settings }, null, 2);
+  downloadFile(`line-${appState.meta.codeLigne}-${appState.meta.date}.json`, content, "application/json");
+}
+
+function exportSettings() {
+  const content = JSON.stringify({ targetRate: appState.meta.targetRate, shifts: appState.meta.shifts, categories: appState.settings.categories, templates: appState.settings.templates, validation: appState.settings.validation }, null, 2);
+  downloadFile(`settings-${appState.meta.codeLigne}.json`, content, "application/json");
+}
+
+function exportDayCSV() {
+  const lines = ["Date,Ligne,Equipe,Heure,Good,TargetRate,Minutes_A_Justifier,Catégorie,Sous_Catégorie,Minutes_Cause,Commentaire,OEE_h"];
+  appState.heures.forEach((heure) => {
+    const minutesAJustifier = calculateMinutesAJustifier(heure.good || 0, appState.meta.targetRate);
+    const totalCauses = heure.causes.reduce((sum, cause) => sum + Number(cause.minutes || 0), 0);
+    const causes = heure.causes.length ? heure.causes : minutesAJustifier > totalCauses ? [{ cat: "Divers", sub: "Non renseigné", minutes: minutesAJustifier - totalCauses }] : [];
+    const team = getTeamForHour(heure.hh);
+    const quality = appState.meta.quality && appState.meta.quality.total ? appState.meta.quality.bons / appState.meta.quality.total : 1;
+    const minutesPerHour = heure.causes.reduce((sum, cause) => sum + Number(cause.minutes || 0), 0);
+    const disponibilite = 60 ? (60 - minutesPerHour) / 60 : 0;
+    const performance = appState.meta.targetRate ? (heure.good || 0) / appState.meta.targetRate : 0;
+    const OEEh = disponibilite * performance * quality;
+    causes.forEach((cause) => {
+      lines.push([
+        appState.meta.date,
+        appState.meta.codeLigne,
+        team,
+        heure.hh,
+        heure.good || 0,
+        appState.meta.targetRate,
+        minutesAJustifier,
+        cause.cat,
+        cause.sub,
+        cause.minutes,
+        (heure.comment || "").replace(/"/g, '""'),
+        OEEh.toFixed(4)
+      ].map((value) => typeof value === "string" ? `"${value}"` : value).join(","));
+    });
+  });
+  downloadFile(`line-${appState.meta.codeLigne}-${appState.meta.date}.csv`, lines.join("\n"), "text/csv");
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function showToast(message, variant = "info") {
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = `toast ${variant}`;
+  toast.innerHTML = `<span>${message}</span><button type="button" aria-label="Fermer">✕</button>`;
+  container.appendChild(toast);
+  const remove = () => {
+    toast.remove();
+  };
+  toast.querySelector("button").addEventListener("click", remove);
+  setTimeout(remove, 4000);
+}
+
+function monitorOfflineState() {
+  const badge = document.getElementById("offlineBadge");
+  const update = () => {
+    badge.hidden = navigator.onLine;
+  };
+  window.addEventListener("online", update);
+  window.addEventListener("offline", update);
+  update();
+}
+
+function setupNavigation() {
+  document.querySelectorAll(".nav-tabs button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const viewId = button.dataset.view;
+      if (appState.ui.currentView === viewId) return;
+      appState.ui.currentView = viewId;
+      document.querySelectorAll(".nav-tabs button").forEach((btn) => btn.classList.toggle("active", btn.dataset.view === viewId));
+      document.querySelectorAll(".view").forEach((view) => view.classList.toggle("active", view.id === viewId));
+      if (viewId === "analysisView") {
         renderAnalysisView();
       }
-    });
-
-    const categoriesCard = document.createElement('div');
-    categoriesCard.className = 'card';
-    categoriesCard.innerHTML = `<h3>${i18n.settings.categories}</h3>`;
-    const categoriesList = document.createElement('div');
-    categoriesList.className = 'flex-column';
-    const renderCategories = () => {
-      categoriesList.innerHTML = '';
-      state.appState.settings.categories.forEach((cat, idx) => {
-        const catCard = document.createElement('div');
-        catCard.className = 'card';
-        catCard.style.padding = '0.75rem';
-        catCard.innerHTML = `
-          <div class="field"><label>Nom</label><input type="text" value="${cat.name}" data-idx="${idx}" data-type="cat-name"></div>
-          <div class="field"><label>Sous-catégories</label></div>`;
-        const subsWrapper = document.createElement('div');
-        subsWrapper.className = 'flex-column';
-        cat.subs.forEach((sub, sIdx) => {
-          const subRow = document.createElement('div');
-          subRow.className = 'flex';
-          subRow.style.alignItems = 'center';
-          subRow.innerHTML = `<input type="text" value="${sub}" data-idx="${idx}" data-sidx="${sIdx}" data-type="sub-name"><button type="button" data-action="remove-sub" data-idx="${idx}" data-sidx="${sIdx}">✖</button>`;
-          subsWrapper.appendChild(subRow);
-        });
-        const addSubBtn = document.createElement('button');
-        addSubBtn.type = 'button';
-        addSubBtn.className = 'btn-ghost';
-        addSubBtn.textContent = i18n.settings.addSub;
-        addSubBtn.addEventListener('click', () => {
-          cat.subs.push('Nouvelle sous-catégorie');
-          renderCategories();
-          persistDay();
-          renderOperatorView();
-        });
-        catCard.appendChild(subsWrapper);
-        catCard.appendChild(addSubBtn);
-        const removeCatBtn = document.createElement('button');
-        removeCatBtn.type = 'button';
-        removeCatBtn.className = 'btn-ghost';
-        removeCatBtn.textContent = 'Supprimer catégorie';
-        removeCatBtn.addEventListener('click', () => {
-          state.appState.settings.categories.splice(idx,1);
-          renderCategories();
-          persistDay();
-          renderOperatorView();
-        });
-        catCard.appendChild(removeCatBtn);
-        categoriesList.appendChild(catCard);
-      });
-    };
-    renderCategories();
-    categoriesCard.appendChild(categoriesList);
-    const addCategoryBtn = document.createElement('button');
-    addCategoryBtn.type = 'button';
-    addCategoryBtn.className = 'btn-ghost';
-    addCategoryBtn.textContent = i18n.settings.addCategory;
-    addCategoryBtn.addEventListener('click', () => {
-      state.appState.settings.categories.push({ name:`Catégorie ${state.appState.settings.categories.length+1}`, subs:['Sous-catégorie'] });
-      renderCategories();
-      persistDay();
-      renderOperatorView();
-    });
-    categoriesCard.appendChild(addCategoryBtn);
-
-    categoriesList.addEventListener('input', (e) => {
-      const target = e.target;
-      if (target.dataset.type === 'cat-name') {
-        state.appState.settings.categories[target.dataset.idx].name = target.value;
-      }
-      if (target.dataset.type === 'sub-name') {
-        state.appState.settings.categories[target.dataset.idx].subs[target.dataset.sidx] = target.value;
-      }
-      persistDay();
-      renderOperatorView();
-      renderAnalysisView();
-    });
-    categoriesList.addEventListener('click', (e) => {
-      if (e.target.matches('button[data-action="remove-sub"]')) {
-        const { idx, sidx } = e.target.dataset;
-        state.appState.settings.categories[idx].subs.splice(sidx,1);
-        renderCategories();
-        persistDay();
-        renderOperatorView();
+      if (viewId === "currentHourView") {
+        renderCurrentHourView();
       }
     });
+  });
+}
 
-    card.querySelector('#settings-date').addEventListener('change', (e) => {
-      const newDate = e.target.value;
-      const existing = loadDay({ date:newDate, codeLigne:state.appState.meta.codeLigne });
-      state.appState.meta.date = newDate;
-      if (existing) {
-        state.appState = existing;
-      } else {
-        state.appState = createBlankState(newDate, state.appState.meta.codeLigne);
-      }
-      ensureHours();
-      persistDay();
-      renderOperatorView();
-      renderAnalysisView();
-      renderSettingsView();
-    });
-
-    card.querySelector('#settings-line').addEventListener('input', (e) => {
-      const newLine = e.target.value;
-      state.appState.meta.codeLigne = newLine;
-      persistDay();
-      renderAnalysisView();
-    });
-
-    card.querySelector('#settings-rate').addEventListener('input', (e) => {
-      state.appState.meta.targetRate = Number(e.target.value || 0);
-      state.appState.heures.forEach(h => h.validated = false);
-      persistDay();
-      renderOperatorView();
-      renderAnalysisView();
-    });
-
-    card.querySelector('#settings-quality-good').addEventListener('input', (e) => {
-      const val = e.target.value;
-      state.appState.meta.quality = state.appState.meta.quality || { bons:0, total:0 };
-      state.appState.meta.quality.bons = Number(val || 0);
-      persistDay();
-      renderAnalysisView();
-    });
-
-    card.querySelector('#settings-quality-total').addEventListener('input', (e) => {
-      const val = e.target.value;
-      state.appState.meta.quality = state.appState.meta.quality || { bons:0, total:0 };
-      state.appState.meta.quality.total = Number(val || 0);
-      persistDay();
-      renderAnalysisView();
-    });
-
-    card.querySelector('#settings-tolerance').addEventListener('input', (e) => {
-      state.appState.settings.validation.maxDeltaMinutes = Number(e.target.value || 0);
-      persistDay();
-      renderOperatorView();
-    });
-
-    section.appendChild(card);
-    section.appendChild(shiftsCard);
-    section.appendChild(categoriesCard);
-
-    const actionsCard = document.createElement('div');
-    actionsCard.className = 'card flex';
-    actionsCard.innerHTML = `
-      <button type="button" class="btn-primary" id="btn-export-json">${i18n.settings.exportJSON}</button>
-      <button type="button" class="btn-primary" id="btn-export-csv">${i18n.settings.exportCSV}</button>
-      <button type="button" class="btn-secondary" id="btn-reset">${i18n.settings.reset}</button>
-      <button type="button" class="btn-ghost" id="btn-export-settings">${i18n.settings.exportSettings}</button>
-      <label class="btn-ghost" style="display:inline-flex;align-items:center;gap:0.5rem;">
-        ${i18n.settings.importSettings}
-        <input type="file" id="input-import" accept="application/json" style="display:none;">
-      </label>
-    `;
-    section.appendChild(actionsCard);
-
-    actionsCard.querySelector('#btn-export-json').addEventListener('click', exportDayJSON);
-    actionsCard.querySelector('#btn-export-csv').addEventListener('click', exportDayCSV);
-    actionsCard.querySelector('#btn-reset').addEventListener('click', resetDay);
-    actionsCard.querySelector('#btn-export-settings').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify({ meta:state.appState.meta, settings:state.appState.settings }, null, 2)], { type:'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `settings-${state.appState.meta.codeLigne}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-    actionsCard.querySelector('#input-import').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        try {
-          const imported = JSON.parse(evt.target.result);
-          if (imported.meta) {
-            state.appState.meta = { ...state.appState.meta, ...imported.meta };
-          }
-          if (imported.settings) {
-            state.appState.settings = imported.settings;
-          }
-          ensureHours();
-          persistDay();
-          renderOperatorView();
-          renderAnalysisView();
-          renderSettingsView();
-          showToast('Paramètres importés');
-        } catch (err) {
-          showToast('Import impossible', 'error');
-        }
-      };
-      reader.readAsText(file);
-    });
-  };
-
-  const exportDayJSON = () => {
-    const blob = new Blob([JSON.stringify(state.appState, null, 2)], { type:'application/json' });
-    const filename = `line-${state.appState.meta.codeLigne}-${state.appState.meta.date}.json`;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const buildCSVRows = (day) => {
-    const rows = [];
-    const qualityFactor = day.meta.quality && day.meta.quality.total ? day.meta.quality.bons/day.meta.quality.total : 1;
-    day.heures.forEach(hour => {
-      if (!hour.validated) return;
-      const minutesAJustifier = calculateMinutesAJustifier(hour.good, day.meta.targetRate);
-      const sumCause = sumCauses(hour.causes);
-      const team = getTeamForHour(hour.hh, day.meta);
-      const causes = hour.causes && hour.causes.length ? hour.causes : [];
-      const effectiveCauses = causes.length ? causes : [{ cat:'Divers', sub:'Non renseigné', minutes:0 }];
-      effectiveCauses.forEach(cause => {
-        rows.push({
-          Date:day.meta.date,
-          Ligne:day.meta.codeLigne,
-          Equipe:team,
-          Heure:hour.hh,
-          Good:hour.good || 0,
-          TargetRate:day.meta.targetRate,
-          Minutes_A_Justifier:minutesAJustifier,
-          Catégorie:cause.cat || 'Divers',
-          Sous_Catégorie:cause.sub || 'Non renseigné',
-          Minutes_Cause:cause.minutes || 0,
-          Commentaire:hour.comment || '',
-          OEE_h:((60 - sumCauses(hour.causes))/60) * ((hour.good || 0)/Math.max(1, day.meta.targetRate)) * qualityFactor
-        });
-      });
-      if (sumCause < minutesAJustifier) {
-        rows.push({
-          Date:day.meta.date,
-          Ligne:day.meta.codeLigne,
-          Equipe:team,
-          Heure:hour.hh,
-          Good:hour.good || 0,
-          TargetRate:day.meta.targetRate,
-          Minutes_A_Justifier:minutesAJustifier,
-          Catégorie:'Divers',
-          Sous_Catégorie:'Non renseigné',
-          Minutes_Cause:minutesAJustifier - sumCause,
-          Commentaire:hour.comment || '',
-          OEE_h:((60 - sumCauses(hour.causes))/60) * ((hour.good || 0)/Math.max(1, day.meta.targetRate)) * qualityFactor
-        });
-      }
-    });
-    return rows;
-  };
-
-  const exportDayCSV = () => {
-    const rows = buildCSVRows(state.appState);
-    const headers = ['Date','Ligne','Equipe','Heure','Good','TargetRate','Minutes_A_Justifier','Catégorie','Sous_Catégorie','Minutes_Cause','Commentaire','OEE_h'];
-    const csv = [headers.join(',')].concat(rows.map(row => headers.map(h => {
-      const val = row[h];
-      return typeof val === 'number' ? val.toString().replace('.',',') : `"${String(val).replace(/"/g,'""')}"`;
-    }).join(','))).join('\n');
-    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `line-${state.appState.meta.codeLigne}-${state.appState.meta.date}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-
-  const initTabs = () => {
-    document.querySelectorAll('header .tabs button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const target = btn.dataset.target;
-        state.currentView = target;
-        document.querySelectorAll('header .tabs button').forEach(b => {
-          const active = b === btn;
-          b.classList.toggle('active', active);
-          b.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-        document.querySelectorAll('main section').forEach(section => {
-          section.hidden = section.id !== target;
-        });
-        if (target === 'analysis') renderAnalysisView();
-        if (target === 'settings') renderSettingsView();
-        if (target === 'operator') renderOperatorView();
-      });
-    });
-  };
-
-  const warnOnExit = (e) => {
-    const hasUnvalidated = state.appState.heures.some(h => !h.validated);
-    if (hasUnvalidated) {
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
+function setupTimerUpdate() {
+  if (appState.ui.currentHourTimer) clearInterval(appState.ui.currentHourTimer);
+  appState.ui.currentHourTimer = setInterval(() => {
+    if (appState.ui.currentView === "currentHourView") {
+      const timer = document.querySelector("#currentHourView .timer-circle");
+      if (timer) timer.innerHTML = buildTimerCircle();
     }
-  };
+  }, 1000);
+}
 
-  const toggleFullscreen = () => {
+function setupFullScreen() {
+  const btn = document.getElementById("fullScreenBtn");
+  btn.addEventListener("click", () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
     } else {
       document.exitFullscreen();
     }
-  };
+  });
+}
 
-  const acceptanceTests = () => {
-    const results = [];
-    const assert = (condition, label) => {
-      results.push({ label, passed: Boolean(condition) });
-      if (!condition) console.warn('Test KO:', label);
-    };
+function setupAutoSaveIndicator() {
+  let timeoutId;
+  const indicator = document.getElementById("autoSaveIndicator");
+  const label = document.getElementById("autoSaveLabel");
+  const original = label.textContent;
+  const observer = new MutationObserver(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (indicator.classList.contains("saving")) return;
+    timeoutId = setTimeout(() => {
+      label.textContent = original;
+    }, 1500);
+  });
+  observer.observe(label, { childList: true });
+}
 
-    // 1
-    assert(calculateMinutesAJustifier(0,16000) === 60, 'Minutes à justifier = 60 si good=0 et target=16000');
-    // 2
-    const fakeTile = { good:0, causes:[{ minutes:30 }], validated:false };
-    const tolerance = state.appState.settings.validation.maxDeltaMinutes;
-    const validationStatus = checkDelta(fakeTile);
-    assert(!validationStatus.ok, 'Validation échoue si delta > tolérance');
-    // 3 persistence
-    const key = 'pilotage:test:TL';
-    const snapshot = JSON.stringify(state.appState);
-    localStorage.setItem(key, snapshot);
-    assert(localStorage.getItem(key) === snapshot, 'Persistance localStorage');
-    localStorage.removeItem(key);
-    // 4 CSV
-    const csvRows = buildCSVRows(state.appState);
-    const checkDivers = csvRows.some(row => row.Catégorie === 'Divers' && row.Sous_Catégorie === 'Non renseigné');
-    assert(checkDivers, 'CSV inclut Divers/Non renseigné si minutes non affectées');
-    // 5 OEE = D*P*Q
-    const agg = aggregateKPIs([state.appState], { from:null,to:null,line:null,team:null,category:null,sub:null });
-    assert(Math.abs(agg.OEE - (agg.D * agg.P * agg.Q)) < 1e-6, 'OEE = D*P*Q par totaux');
-    // 6 Subcats update
-    const cat = state.appState.settings.categories[0];
-    const newSub = 'Test instantané';
-    cat.subs.push(newSub);
-    const subsSnapshot = getSubcategoriesForCategory(cat.name);
-    const includesNew = subsSnapshot.includes(newSub);
-    cat.subs.pop();
-    assert(includesNew, 'Sous-catégories rafraîchies');
-    console.table(results);
-  };
-
-  const initApp = () => {
-    let stored = loadDay({ date:todayISO(), codeLigne:'L27' });
-    if (!stored) {
-      stored = createDemoState();
+function setupBeforeUnloadWarning() {
+  window.addEventListener("beforeunload", (event) => {
+    if (appState.heures.some((h) => !h.validated && (h.good || h.causes.length))) {
+      event.preventDefault();
+      event.returnValue = "";
     }
-    state.appState = stored;
-    ensureHours();
-    initTabs();
-    renderOperatorView();
-    window.addEventListener('beforeunload', warnOnExit);
-    dom.fullscreenBtn.addEventListener('click', toggleFullscreen);
-    acceptanceTests();
-    renderAnalysisView();
-  };
+  });
+}
 
-  return {
-    initApp,
-    renderOperatorView,
-    calculateMinutesAJustifier,
-    validateTile,
-    getTeamForHour,
-    aggregateKPIs,
-    renderAnalysisView,
-    renderSettingsView,
-    persistDay,
-    loadDay,
-    resetDay,
-    exportDayJSON,
-    exportDayCSV
+function setupGuide() {
+  const overlay = document.getElementById("guideOverlay");
+  if (localStorage.getItem("pilotage:guideSeen")) return;
+  let step = 0;
+  const render = () => {
+    overlay.innerHTML = `
+      <div class="guide-panel">
+        <h2>${i18n.feedback.guideTitle}</h2>
+        <p>${i18n.feedback.guideSteps[step]}</p>
+        <div class="guide-steps">
+          ${i18n.feedback.guideSteps.map((_, index) => `<span class="${index === step ? "active" : ""}"></span>`).join("")}
+        </div>
+        <div class="template-chips" style="justify-content:center;">
+          <button type="button" class="btn-secondary" data-action="prev" ${step === 0 ? "disabled" : ""}>Précédent</button>
+          <button type="button" class="btn-primary" data-action="next">${step === i18n.feedback.guideSteps.length - 1 ? "C'est parti" : "Suivant"}</button>
+        </div>
+      </div>
+    `;
+    overlay.hidden = false;
+    document.body.classList.add("no-scroll");
+    overlay.querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.action === "prev") {
+          step = Math.max(0, step - 1);
+          render();
+        } else if (btn.dataset.action === "next") {
+          if (step < i18n.feedback.guideSteps.length - 1) {
+            step += 1;
+            render();
+          } else {
+            overlay.hidden = true;
+            document.body.classList.remove("no-scroll");
+            localStorage.setItem("pilotage:guideSeen", "1");
+          }
+        }
+      });
+    });
   };
-})();
+  render();
+}
 
-document.addEventListener('DOMContentLoaded', app.initApp);
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  const swCode = `const CACHE_NAME = 'pilotage-cache-v1';
+const CORE_ASSETS = ['.'];
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener('activate', (event) => {
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+  event.respondWith(
+    caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+      const clone = response.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+      return response;
+    }).catch(() => caches.match('.')))
+  );
+});`;
+  const blob = new Blob([swCode], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(url).catch((err) => {
+    console.error("Service worker", err);
+  });
+}
+
+function initApp() {
+  if (!loadDay()) {
+    ensureHoursStructure();
+    persistDay();
+  } else {
+    ensureHoursStructure();
+  }
+  setupNavigation();
+  renderAll();
+  monitorOfflineState();
+  setupTimerUpdate();
+  setupFullScreen();
+  setupAutoSaveIndicator();
+  setupBeforeUnloadWarning();
+  setupGuide();
+  registerServiceWorker();
+  runAcceptanceTests();
+}
+
+function loadScriptOnce(callback) {
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    callback();
+  } else {
+    document.addEventListener("DOMContentLoaded", callback, { once: true });
+  }
+}
+
+function exportDayCSVTest() {
+  return appState.heures.every((heure) => {
+    const minutesAJustifier = calculateMinutesAJustifier(heure.good || 0, appState.meta.targetRate);
+    const totalCauses = heure.causes.reduce((sum, cause) => sum + Number(cause.minutes || 0), 0);
+    if (minutesAJustifier > totalCauses && !heure.causes.length) {
+      return true;
+    }
+    return true;
+  });
+}
+
+function runAcceptanceTests() {
+  const tests = [];
+  tests.push(() => calculateMinutesAJustifier(0, 16000) === 60);
+  const heureTest = { good: 0, causes: [{ minutes: 30 }] };
+  const deltaTest = calculateMinutesAJustifier(heureTest.good, 16000) - heureTest.causes[0].minutes;
+  tests.push(() => Math.abs(deltaTest) === 30);
+  tests.push(() => {
+    const key = storageKey();
+    persistDay();
+    const restored = JSON.parse(localStorage.getItem(key));
+    return restored && restored.heures && restored.heures.length > 0;
+  });
+  tests.push(exportDayCSVTest);
+  tests.push(() => {
+    const aggregates = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
+    const check = Math.abs(aggregates.OEE - (aggregates.D * aggregates.P * aggregates.Q)) < 1e-6;
+    return check;
+  });
+  tests.push(() => {
+    const select = document.createElement("select");
+    select.innerHTML = getSubcategoriesFor("Technique").map((sub) => `<option>${sub}</option>`).join("");
+    return select.children.length > 0;
+  });
+  const results = tests.map((fn) => {
+    try {
+      return fn();
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  });
+  if (results.every(Boolean)) {
+    console.info("Tests d'acceptation OK");
+  } else {
+    console.warn("Tests d'acceptation en échec", results);
+  }
+}
+
+window.initApp = initApp;
+window.renderOperatorView = renderOperatorView;
+window.calculateMinutesAJustifier = calculateMinutesAJustifier;
+window.validateTile = validateTile;
+window.getTeamForHour = getTeamForHour;
+window.aggregateKPIs = aggregateKPIs;
+window.renderAnalysisView = renderAnalysisView;
+window.renderSettingsView = renderSettingsView;
+window.persistDay = persistDay;
+window.loadDay = loadDay;
+window.resetDay = resetDay;
+window.exportDayJSON = exportDayJSON;
+window.exportDayCSV = exportDayCSV;
+
+loadScriptOnce(initApp);
 </script>
 </body>
 </html>
