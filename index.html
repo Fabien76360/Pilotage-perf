@@ -1,4 +1,12 @@
 
+<!--
+Lancer en local:
+  python -m http.server 8000
+ou
+  npx serve
+Puis ouvrir http://localhost:8000/
+Éviter file:// qui bloque certaines APIs et CDN.
+-->
 <!DOCTYPE html>
 <html lang="fr" x-data="shell()" x-init="initShell()" x-bind:class="theme">
 <head>
@@ -6,7 +14,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pilotage Performance Terrain — Hypervision</title>
   <meta name="description" content="Pilotage de performance industrielle avec saisie horaire intelligente et analytics avancés.">
-  <link rel="manifest" href="data:application/manifest+json,{"name":"Pilotage Performance Terrain","short_name":"Pilotage","start_url":".","display":"standalone","background_color":"#0f172a","theme_color":"#2563eb"}">
+  <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#2563eb">
   <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
   <script>
@@ -36,6 +44,11 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.10/dist/cdn.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <script defer>
+    // PATCH v3: vérifie la présence des CDN essentiels
+    window.HAS_ALPINE = typeof window.Alpine !== 'undefined';
+    window.HAS_CHART = typeof window.Chart !== 'undefined';
+  </script>
   <style>
     html,body{min-height:100%;}
     [x-cloak]{display:none!important;}
@@ -108,7 +121,7 @@
     </template>
   </div>
   <div class="grid xl:grid-cols-[2fr_3fr] gap-6">
-    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg" data-chart-container>
       <header class="flex items-center justify-between mb-4">
         <div>
           <h2 class="text-lg font-semibold">Progression de la journée</h2>
@@ -141,7 +154,7 @@
     </article>
   </div>
   <div class="grid xl:grid-cols-2 gap-6">
-    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg" data-chart-container>
       <header class="flex items-center justify-between mb-4">
         <div>
           <h2 class="text-lg font-semibold">Production vs Théorique</h2>
@@ -155,7 +168,7 @@
       <canvas id="productionChart" aria-description="Ligne production vs cible" role="img"></canvas>
       <noscript>Graphique indisponible sans JavaScript.</noscript>
     </article>
-    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg" data-chart-container>
       <header class="flex items-center justify-between mb-4">
         <div>
           <h2 class="text-lg font-semibold">Pareto des causes</h2>
@@ -536,7 +549,6 @@
   <script>
     const STORAGE_KEY = 'pilotage-v3';
     const GUIDE_KEY = 'pilotage-guide-v3';
-    const SW_SNIPPET = `self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open('pilotage-cache').then(cache=>cache.addAll([])));});self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));self.addEventListener('fetch',event=>{event.respondWith(caches.match(event.request).then(resp=>resp||fetch(event.request).catch(()=>resp)));});self.addEventListener('message',event=>{if(event.data&&event.data.type==='SKIP_WAITING'){self.skipWaiting();}});`;
     function pushToast(title,message,level='info'){
       const tpl=document.getElementById('toast-template');
       if(!tpl) return;
@@ -568,20 +580,35 @@
           this.registerSW();
         },
         toggleTheme(){this.theme=this.theme==='dark'?'light':'dark';document.documentElement.classList.toggle('dark',this.theme==='dark');safeSet('pilotage-theme',this.theme);},
-        openGuide(){document.querySelector('[x-data="appState"]').__x.$data.openGuide();},
-        closeGuide(){document.querySelector('[x-data="appState"]').__x.$data.closeGuide();},
+        openGuide(){
+          // PATCH v3: protection si Alpine non chargé
+          const host=document.querySelector('[x-data="appState"]');
+          const scope=host && host.__x ? host.__x.$data : null;
+          if(scope&&typeof scope.openGuide==='function'){scope.openGuide();}
+        },
+        closeGuide(){
+          // PATCH v3: protection si Alpine non chargé
+          const host=document.querySelector('[x-data="appState"]');
+          const scope=host && host.__x ? host.__x.$data : null;
+          if(scope&&typeof scope.closeGuide==='function'){scope.closeGuide();}
+        },
         triggerUpdate(){if(this.registration&&this.registration.waiting){this.registration.waiting.postMessage({type:'SKIP_WAITING'});}},
         registerSW(){
           if(!('serviceWorker'in navigator)) return;
-          const blob=new Blob([SW_SNIPPET],{type:'text/javascript'});
-          const url=URL.createObjectURL(blob);
-          navigator.serviceWorker.register(url).then(reg=>{
-            this.registration=reg;
-            const notify=()=>{this.updateReady=true;pushToast('Mise à jour','Nouvelle version disponible');};
-            if(reg.waiting) notify();
-            reg.addEventListener('updatefound',()=>{reg.installing?.addEventListener('statechange',()=>{if(reg.waiting) notify();});});
-            navigator.serviceWorker.addEventListener('controllerchange',()=>window.location.reload());
-          }).catch(()=>{});
+          window.addEventListener('load',()=>{
+            // PATCH v3: enregistrement SW classique depuis sw.js
+            navigator.serviceWorker.register('./sw.js').then(reg=>{
+              this.registration=reg;
+              const notify=()=>{this.updateReady=true;pushToast('Mise à jour','Nouvelle version disponible');};
+              if(reg.waiting) notify();
+              reg.addEventListener('updatefound',()=>{
+                reg.installing?.addEventListener('statechange',()=>{if(reg.waiting) notify();});
+              });
+              navigator.serviceWorker.addEventListener('controllerchange',()=>window.location.reload());
+            }).catch(err=>{
+              console.warn('SW registration failed',err);
+            });
+          });
         }
       };
     }
@@ -624,6 +651,8 @@
       }
     };
     document.addEventListener('alpine:init',()=>{
+      // PATCH v3: confirme le chargement d'Alpine
+      window.HAS_ALPINE = true;
       Alpine.data('appState',()=>({
         theme:document.documentElement.classList.contains('dark')?'dark':'light',
         nav:[
@@ -778,14 +807,42 @@
         autoComplete(){this.state.heures.forEach(h=>{if(!h.validated){h.good=Math.round(this.state.meta.targetRate*0.95);}});this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));this.persist();},
         syncCloud(){pushToast('Synchronisation','WebRTC à venir','info');},
         renderCharts(){
+          // PATCH v3: fallback si Chart.js absent
+          const containers=document.querySelectorAll('[data-chart-container]');
+          if(typeof window.Chart==='undefined'){
+            window.HAS_CHART=false;
+            containers.forEach(container=>{
+              if(!container.querySelector('.chart-fallback')){
+                const note=document.createElement('div');
+                note.className='chart-fallback text-sm text-slate-500 dark:text-slate-400';
+                note.textContent='Graphiques indisponibles (module non chargé).';
+                container.appendChild(note);
+              }
+            });
+            return;
+          }
+          window.HAS_CHART=true;
+          containers.forEach(container=>{
+            const fallback=container.querySelector('.chart-fallback');
+            if(fallback) fallback.remove();
+          });
+          if(this.charts.production){this.charts.production.destroy();}
+          if(this.charts.pareto){this.charts.pareto.destroy();}
+          if(this.charts.progress){this.charts.progress.destroy();}
           const ctxProd=document.getElementById('productionChart');
           const ctxPareto=document.getElementById('paretoChart');
           const ctxProg=document.getElementById('progressChart');
+          if(!ctxProd||!ctxPareto||!ctxProg) return;
           this.charts.production=new Chart(ctxProd,{type:'line',data:{labels:this.state.heures.map(h=>h.hh),datasets:[{label:'Production',data:this.state.heures.map(h=>h.good),borderColor:'#2563eb',tension:0.3,fill:false},{label:'Théorique',data:this.state.heures.map(()=>this.state.meta.targetRate),borderColor:'#facc15',borderDash:[6,4],tension:0.1,fill:false}]},options:{responsive:true,plugins:{legend:{display:true}},interaction:{mode:'nearest',intersect:false}}});
           this.charts.pareto=new Chart(ctxPareto,{type:'bar',data:{labels:this.settings.categories,datasets:[{label:'Minutes',data:this.settings.categories.map(cat=>this.state.heures.reduce((acc,h)=>acc+h.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0),0)),backgroundColor:'#f97316'}]},options:{responsive:true}});
           this.charts.progress=new Chart(ctxProg,{type:'doughnut',data:{labels:['Validées','Restantes'],datasets:[{data:[this.state.heures.filter(h=>h.validated).length,this.state.heures.length-this.state.heures.filter(h=>h.validated).length],backgroundColor:['#10b981','#cbd5f5']} ]},options:{responsive:true,cutout:'70%'}});
         },
         toggleDataset(type){
+          if(!this.charts.production){
+            // PATCH v3: évite erreur si chart indisponible
+            pushToast('Graphiques','Module graphique indisponible','info');
+            return;
+          }
           if(type==='causes'){this.renderPareto();return;}
           const datasetIndex=type==='target'?1:0;
           const meta=this.charts.production.getDatasetMeta(datasetIndex);
@@ -793,6 +850,11 @@
           this.charts.production.update();
         },
         renderPareto(){
+          if(!this.charts.pareto){
+            // PATCH v3: évite erreur si chart indisponible
+            pushToast('Graphiques','Module graphique indisponible','info');
+            return;
+          }
           this.charts.pareto.data.datasets[0].data=this.settings.categories.map(cat=>this.state.heures.reduce((acc,h)=>acc+h.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0),0));
           this.charts.pareto.update();
         },
@@ -838,11 +900,15 @@
           const rows=['Date;Ligne;Equipe;Heure;Good;TargetRate;Minutes_A_Justifier;Catégorie;Sous_Catégorie;Minutes_Cause;Commentaire;OEE_h'];
           this.state.heures.forEach(hour=>{
             const toJustify=this.computeDelta({...hour,causes:[]})+hour.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
-            if(hour.causes.length===0){rows.push(`${this.state.meta.date};${this.state.meta.line};${hour.team};${hour.hh};${hour.good};${this.state.meta.targetRate};${toJustify};Divers;Non renseigné;${toJustify};${hour.comment||''};${(hour.good/(this.state.meta.targetRate||1)).toFixed(3)}`);}
-            hour.causes.forEach(cause=>{rows.push(`${this.state.meta.date};${this.state.meta.line};${hour.team};${hour.hh};${hour.good};${this.state.meta.targetRate};${toJustify};${cause.cat};${cause.sub};${cause.minutes};${hour.comment||''};${(hour.good/(this.state.meta.targetRate||1)).toFixed(3)}`);});
+            if(hour.causes.length===0){
+              rows.push(`${this.state.meta.date};${this.state.meta.line};${hour.team};${hour.hh};${hour.good};${this.state.meta.targetRate};${toJustify};Divers;Non renseigné;${toJustify};${hour.comment||''};${(hour.good/(this.state.meta.targetRate||1)).toFixed(3)}`);
+            }
+            hour.causes.forEach(cause=>{
+              rows.push(`${this.state.meta.date};${this.state.meta.line};${hour.team};${hour.hh};${hour.good};${this.state.meta.targetRate};${toJustify};${cause.cat};${cause.sub};${cause.minutes};${hour.comment||''};${(hour.good/(this.state.meta.targetRate||1)).toFixed(3)}`);
+            });
           });
-          const blob=new Blob(['﻿'+rows.join('
-')],{type:'text/csv;charset=utf-8;'});
+          // PATCH v3: export CSV UTF-8 avec BOM et \n
+          const blob=new Blob([`\ufeff${rows.join('\n')}`],{type:'text/csv;charset=utf-8;'});
           const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Pilotage_${this.state.meta.line}_${this.state.meta.date}.csv`;a.click();
         },
         exportSettings(){const blob=new Blob([JSON.stringify({templates:this.templates,settings:this.settings},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='settings.json';a.click();},
