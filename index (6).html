@@ -283,10 +283,21 @@ Puis ouvrir http://localhost:8000/
             </div>
           </section>
           <section class="lg:col-span-2 grid md:grid-cols-3 gap-4">
-            <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+            <!-- PATCH v3.DELTA: carte avec anneau coloré -->
+            <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4" :class="currentHourMetrics.ui && currentHourMetrics.ui.ring">
               <p class="text-xs uppercase text-slate-500">Minutes à justifier</p>
               <p class="text-2xl font-semibold" x-text="currentHourMetrics.toJustify"></p>
-              <p class="text-xs text-slate-500 mt-1">Delta causes : <span x-text="currentHourMetrics.delta"></span> min</p>
+              <!-- PATCH v3.DELTA: ligne delta en couleur + badge + icône -->
+              <p class="text-xs mt-1 flex items-center gap-2" aria-live="polite">
+                <span :class="currentHourMetrics.ui && currentHourMetrics.ui.text">
+                  <span x-text="currentHourMetrics.ui && currentHourMetrics.ui.icon"></span>
+                  <span>Delta causes :</span>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg" :class="currentHourMetrics.ui && currentHourMetrics.ui.badge">
+                    <span x-text="currentHourMetrics.label"></span>
+                  </span>
+                </span>
+                <span class="text-slate-500 dark:text-slate-400" x-text="`${currentHourMetrics.delta} min`"></span>
+              </p>
             </article>
             <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
               <p class="text-xs uppercase text-slate-500">OEE horaire</p>
@@ -762,7 +773,7 @@ Puis ouvrir http://localhost:8000/
         weather:{label:'Flux stable',badge:'bg-emerald-100 text-emerald-700'},
         hours:[],
         currentHour:{hh:'09:00',good:0,causes:[],comment:'',photo:null},
-        currentHourMetrics:{toJustify:0,delta:0,oee:'0%',valid:false,message:'Saisir les données'},
+        currentHourMetrics:{toJustify:0,delta:0,oee:'0%',valid:false,message:'Saisir les données',severity:'ok',ui:{badge:'',ring:'',text:'',icon:'✓'},label:'Équilibré'}, // PATCH v3.DELTA: état initial métriques heure
         currentTimer:{display:'60:00'},
         selectedTemplate:'',
         templates:[],
@@ -933,7 +944,7 @@ Puis ouvrir http://localhost:8000/
         },
         recalcCurrent(){
           if(!this.hourDraft){
-            this.currentHourMetrics={toJustify:0,delta:0,oee:'0%',valid:false,message:'Saisir les données'};
+            this.currentHourMetrics={toJustify:0,delta:0,oee:'0%',valid:false,message:'Saisir les données',severity:'ok',ui:{badge:'',ring:'',text:'',icon:'✓'},label:'Équilibré'}; // PATCH v3.DELTA: valeurs neutres
             return;
           }
           const produced=Math.min(60,(Number(this.hourDraft.good||0)/this.state.meta.targetRate)*60);
@@ -941,7 +952,33 @@ Puis ouvrir http://localhost:8000/
           const causes=this.hourDraft.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
           const delta=toJustify-causes;
           const valid=Number(this.hourDraft.good||0)>0 && delta===0;
-          this.currentHourMetrics={toJustify,delta,oee:((produced/60)*100).toFixed(1)+'%',valid,message:valid?'Delta équilibré':'Ajuster les causes'};
+          // PATCH v3.DELTA: mapping couleurs/labels pour le delta
+          const severity=delta===0?'ok':(delta>0?'under':'over');
+          const map={
+            ok:{label:'Équilibré',icon:'✓',
+              badge:'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+              ring:'ring-2 ring-emerald-300/60',
+              text:'text-emerald-600 dark:text-emerald-300'},
+            under:{label:'À justifier',icon:'⚠',
+              badge:'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
+              ring:'ring-2 ring-rose-300/60',
+              text:'text-rose-600 dark:text-rose-300'},
+            over:{label:'Excès',icon:'!',
+              badge:'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+              ring:'ring-2 ring-amber-300/60',
+              text:'text-amber-700 dark:text-amber-300'}
+          };
+          this.currentHourMetrics={
+            toJustify,
+            delta,
+            oee:((produced/60)*100).toFixed(1)+'%',
+            valid,
+            message:valid?'Delta équilibré':'Ajuster les causes',
+            // PATCH v3.DELTA: décorations UI
+            severity,
+            ui:map[severity],
+            label:map[severity].label
+          };
         },
         addCause(){
           if(!this.hourDraft){return;}
