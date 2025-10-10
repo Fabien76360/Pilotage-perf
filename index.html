@@ -1,0 +1,924 @@
+
+<!--
+Lancer en local:
+  python -m http.server 8000
+ou
+  npx serve
+Puis ouvrir http://localhost:8000/
+Éviter file:// qui bloque certaines APIs et CDN.
+-->
+<!DOCTYPE html>
+<html lang="fr" x-data="shell()" x-init="initShell()" x-bind:class="theme">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pilotage Performance Terrain — Hypervision</title>
+  <meta name="description" content="Pilotage de performance industrielle avec saisie horaire intelligente et analytics avancés.">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            secondary: '#10b981',
+            accent: '#f59e0b',
+            surface: '#0f172a'
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s ease-in-out infinite',
+            'fade-up': 'fade-up 0.6s ease-out forwards'
+          },
+          keyframes: {
+            'fade-up': {
+              '0%': { opacity: 0, transform: 'translateY(16px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' }
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.10/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <script defer>
+    // PATCH v3: vérifie la présence des CDN essentiels
+    window.HAS_ALPINE = typeof window.Alpine !== 'undefined';
+    window.HAS_CHART = typeof window.Chart !== 'undefined';
+  </script>
+  <style>
+    html,body{min-height:100%;}
+    [x-cloak]{display:none!important;}
+    .glass{backdrop-filter:blur(16px);background:rgba(15,23,42,0.78);}
+    .ripple{position:relative;overflow:hidden;}
+    .ripple::after{content:"";position:absolute;inset:50%;width:1px;height:1px;border-radius:9999px;background:rgba(255,255,255,0.35);transform:translate(-50%,-50%) scale(0);opacity:0;transition:transform 0.4s ease,opacity 0.6s ease;}
+    .ripple:active::after{transform:translate(-50%,-50%) scale(40);opacity:1;}
+    @media (prefers-reduced-motion: reduce){*{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;}}
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100" x-data="appState" x-init="initApp()">
+  <div class="min-h-screen grid xl:grid-cols-[280px_1fr] gap-6 p-6">
+    <aside class="glass rounded-3xl p-6 flex flex-col gap-6 text-white shadow-2xl">
+      <header class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-3xl bg-primary/90 flex items-center justify-center shadow-xl">
+          <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6v6l4 2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <p class="text-sm uppercase tracking-[0.3em] text-slate-100/70">Pilotage</p>
+          <h1 class="text-xl font-semibold">Performance Terrain</h1>
+        </div>
+      </header>
+      <nav class="flex-1 space-y-2">
+        <template x-for="item in nav" :key="item.id">
+          <button type="button" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl ripple transition" @click="activeView=item.id" :class="activeView===item.id?'bg-white/20 border border-white/30':'hover:bg-white/10'">
+            <span class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+              <template x-if="item.icon==='dashboard'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 13h8V3H3v10zM13 21h8V11h-8v10z"/><path d="M13 3h8M3 21h8" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+              <template x-if="item.icon==='hour'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 12a8.5 8.5 0 11-17 0 8.5 8.5 0 0117 0z" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+              <template x-if="item.icon==='operator'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1"/><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+              <template x-if="item.icon==='analysis'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18" stroke-linecap="round"/><path d="M8 13l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+              <template x-if="item.icon==='team'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 11a4 4 0 10-8 0 4 4 0 008 0z"/><path d="M3 21v-2a4 4 0 014-4h10a4 4 0 014 4v2" stroke-linecap="round"/></svg></template>
+              <template x-if="item.icon==='settings'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.89 3.31.877 2.42 2.42a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.89 1.543-.877 3.31-2.42 2.42a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.89-3.31-.877-2.42-2.42a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.89-1.543.877-3.31 2.42-2.42.996.575 2.25.134 2.573-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></template>
+            </span>
+            <span class="text-sm font-medium" x-text="item.label"></span>
+          </button>
+        </template>
+      </nav>
+      <section class="space-y-4 text-sm">
+        <div class="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-100/70">Connexion</p>
+            <p class="font-semibold" x-text="isOnline?'Connecté':'Hors ligne'"></p>
+          </div>
+          <span class="w-2 h-2 rounded-full" :class="isOnline?'bg-emerald-300 animate-pulse':'bg-red-400'"></span>
+        </div>
+        <div class="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-100/70">Mode</p>
+            <p class="font-semibold" x-text="theme==='dark'?'Sombre':'Clair'"></p>
+          </div>
+          <button type="button" class="px-3 py-1 rounded-xl bg-white/20 hover:bg-white/30" @click="toggleTheme">Basculer</button>
+        </div>
+        <button type="button" class="w-full py-3 rounded-2xl bg-primary text-white font-semibold shadow-lg ripple" x-show="updateReady" x-cloak @click="triggerUpdate">Mettre à jour l'app</button>
+        <button type="button" class="w-full py-3 rounded-2xl bg-white/10 border border-white/30 font-semibold ripple" @click="openGuide">Guide interactif</button>
+      </section>
+    </aside>
+    <main class="space-y-6">
+
+<section x-show="activeView==='dashboard'" x-transition class="space-y-6">
+  <div class="grid lg:grid-cols-4 md:grid-cols-2 gap-4">
+    <template x-for="card in kpis" :key="card.id">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg animate-[fade-up]">
+        <header class="flex items-center justify-between">
+          <p class="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400" x-text="card.label"></p>
+          <span class="text-xs px-2 py-1 rounded-lg" :class="card.trend>=0?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'" x-text="card.trend>=0?`+${card.trend}%`:`${card.trend}%`"></span>
+        </header>
+        <p class="mt-4 text-3xl font-bold" x-text="card.value"></p>
+        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400" x-text="card.detail"></p>
+      </article>
+    </template>
+  </div>
+  <div class="grid xl:grid-cols-[2fr_3fr] gap-6">
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg" data-chart-container>
+      <header class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">Progression de la journée</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Heures validées / planifiées</p>
+        </div>
+        <span class="px-3 py-1 text-xs rounded-full bg-emerald-100 text-emerald-700" x-text="Math.round(progress*100)+'%'"></span>
+      </header>
+      <canvas id="progressChart" aria-description="Donut progression" role="img"></canvas>
+      <noscript>Progression : <span x-text="Math.round(progress*100)+'%'"></span></noscript>
+    </article>
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+      <header class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">Alertes du jour</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Actions prioritaires</p>
+        </div>
+        <span class="px-3 py-1 text-xs rounded-full" :class="weather.badge" x-text="weather.label"></span>
+      </header>
+      <ul class="space-y-3">
+        <template x-for="alert in alerts" :key="alert.id">
+          <li class="rounded-2xl border px-4 py-3 flex items-start justify-between" :class="alert.level==='high'?'border-rose-400 bg-rose-50 dark:bg-rose-500/20':alert.level==='medium'?'border-amber-400 bg-amber-50 dark:bg-amber-500/20':'border-emerald-300 bg-emerald-50 dark:bg-emerald-500/20'">
+            <div>
+              <p class="font-semibold" x-text="alert.title"></p>
+              <p class="text-sm" x-text="alert.message"></p>
+            </div>
+            <button type="button" class="px-3 py-1 rounded-xl bg-white/80 dark:bg-slate-900/70 text-xs" @click="ackAlert(alert.id)">Acquitter</button>
+          </li>
+        </template>
+      </ul>
+    </article>
+  </div>
+  <div class="grid xl:grid-cols-2 gap-6">
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg" data-chart-container>
+      <header class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">Production vs Théorique</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Courbe en temps réel</p>
+        </div>
+        <div class="flex gap-2 text-xs">
+          <button type="button" class="px-3 py-1 rounded-lg border" @click="toggleDataset('real')">Production</button>
+          <button type="button" class="px-3 py-1 rounded-lg border" @click="toggleDataset('target')">Théorique</button>
+        </div>
+      </header>
+      <canvas id="productionChart" aria-description="Ligne production vs cible" role="img"></canvas>
+      <noscript>Graphique indisponible sans JavaScript.</noscript>
+    </article>
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg" data-chart-container>
+      <header class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">Pareto des causes</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Top causes du jour</p>
+        </div>
+        <button type="button" class="px-3 py-1 rounded-lg border" @click="toggleDataset('causes')">Rafraîchir</button>
+      </header>
+      <canvas id="paretoChart" aria-description="Histogramme des minutes" role="img"></canvas>
+      <noscript>Pareto indisponible sans JavaScript.</noscript>
+    </article>
+  </div>
+</section>
+<section x-show="activeView==='currentHour'" x-transition class="space-y-6">
+  <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+    <header class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-xl font-semibold">Heure en cours</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Timer, pré-remplissage et validation automatique</p>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="w-16 h-16 rounded-full border-[6px] border-primary/30 flex items-center justify-center text-lg font-semibold" x-text="currentTimer.display"></div>
+        <div class="text-sm">
+          <p class="font-semibold" x-text="currentHour.hh"></p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Actualisation 1 s</p>
+        </div>
+      </div>
+    </header>
+    <form class="grid lg:grid-cols-2 gap-6 mt-6" @submit.prevent="submitHour">
+      <section class="space-y-4">
+        <label class="block">
+          <span class="text-sm font-medium">Good (u)</span>
+          <input type="number" min="0" inputmode="numeric" class="mt-1 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-950/60 px-4 py-3 focus:ring-2 focus:ring-primary" x-model.number="currentHour.good" @input="recalcCurrent" required>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Commentaire</span>
+          <div class="relative">
+            <textarea class="mt-1 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-950/60 px-4 py-3 h-28 focus:ring-2 focus:ring-primary" x-model="currentHour.comment" placeholder="Observations..."></textarea>
+            <button type="button" class="absolute top-2 right-2 px-3 py-1 rounded-xl bg-primary text-white text-xs" @click="dictate">🎙️</button>
+          </div>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Photo défaut</span>
+          <input type="file" accept="image/*" capture="environment" class="mt-1 text-sm" @change="handlePhoto">
+        </label>
+      </section>
+      <section class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Causes</h3>
+          <div class="flex gap-2">
+            <select x-model="selectedTemplate" class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700" @change="applyTemplate">
+              <option value="">Template rapide</option>
+              <template x-for="tpl in templates" :key="tpl.id"><option :value="tpl.id" x-text="tpl.name"></option></template>
+            </select>
+            <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900 font-semibold" @click="addCause">+ Cause</button>
+          </div>
+        </div>
+        <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
+          <template x-for="(cause,idx) in currentHour.causes" :key="cause.uid">
+            <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 space-y-3">
+              <label class="block text-xs uppercase tracking-wide text-slate-500">Catégorie
+                <input list="cat-list" x-model="cause.cat" @change="updateCause(idx,'cat',cause.cat)" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950/60 px-3 py-2">
+              </label>
+              <label class="block text-xs uppercase tracking-wide text-slate-500">Sous-catégorie
+                <input list="sub-list" x-model="cause.sub" @change="updateCause(idx,'sub',cause.sub)" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950/60 px-3 py-2">
+              </label>
+              <div class="flex items-center gap-3">
+                <label class="flex-1 text-xs uppercase tracking-wide text-slate-500">Minutes
+                  <input type="number" min="0" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950/60 px-3 py-2" x-model.number="cause.minutes" @input="updateCause(idx,'minutes',cause.minutes)">
+                </label>
+                <button type="button" class="px-3 py-2 rounded-xl bg-rose-100 text-rose-700" aria-label="Supprimer la cause" @click="removeCause(idx)">✕</button>
+              </div>
+            </div>
+          </template>
+          <datalist id="cat-list">
+            <template x-for="cat in settings.categories" :key="'cat'+cat"><option :value="cat"></option></template>
+          </datalist>
+          <datalist id="sub-list">
+            <template x-for="sub in settings.subCategories" :key="'sub'+sub"><option :value="sub"></option></template>
+          </datalist>
+        </div>
+      </section>
+    </form>
+    <section class="grid md:grid-cols-3 gap-4 mt-6">
+      <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+        <p class="text-xs uppercase text-slate-500">Minutes à justifier</p>
+        <p class="text-2xl font-semibold" x-text="currentHourMetrics.toJustify"></p>
+        <p class="text-xs text-slate-500 mt-1">Delta causes : <span x-text="currentHourMetrics.delta"></span> min</p>
+      </article>
+      <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+        <p class="text-xs uppercase text-slate-500">OEE horaire</p>
+        <p class="text-2xl font-semibold" x-text="currentHourMetrics.oee"></p>
+        <p class="text-xs text-slate-500 mt-1">Projection IA locale</p>
+      </article>
+      <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+        <p class="text-xs uppercase text-slate-500">Validation</p>
+        <p class="text-2xl font-semibold" :class="currentHourMetrics.valid?'text-emerald-500':'text-rose-500'" x-text="currentHourMetrics.valid?'Prête':'Incomplète'"></p>
+        <p class="text-xs text-slate-500 mt-1" x-text="currentHourMetrics.message"></p>
+      </article>
+    </section>
+    <footer class="flex flex-wrap gap-3 mt-6">
+      <button type="button" class="px-6 py-3 rounded-2xl bg-primary text-white font-semibold ripple" @click="submitHour">Valider l'heure</button>
+      <button type="button" class="px-6 py-3 rounded-2xl bg-slate-200 dark:bg-slate-800" @click="swipeHour(-1)">⟵ Précédent</button>
+      <button type="button" class="px-6 py-3 rounded-2xl bg-slate-200 dark:bg-slate-800" @click="swipeHour(1)">Suivant ⟶</button>
+      <button type="button" class="px-6 py-3 rounded-2xl bg-amber-200 text-amber-900" @click="launchAR">Mode AR</button>
+    </footer>
+  </article>
+</section>
+
+    <section x-show="activeView==='operator'" x-transition class="space-y-6">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+        <header class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-semibold">Saisie opérateur</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Gestes tactiles, templates et synchronisation</p>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900 font-semibold" @click="autoComplete">Auto-compléter</button>
+            <button type="button" class="px-4 py-2 rounded-xl bg-primary text-white" @click="syncCloud">Synchroniser</button>
+          </div>
+        </header>
+        <div class="mt-6 overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="text-left text-xs uppercase tracking-wider text-slate-500">
+              <tr>
+                <th class="py-3 pr-4">Heure</th>
+                <th class="py-3 pr-4">Equipe</th>
+                <th class="py-3 pr-4">Good</th>
+                <th class="py-3 pr-4">Delta</th>
+                <th class="py-3 pr-4">Statut</th>
+                <th class="py-3 pr-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+              <template x-for="hour in hours" :key="hour.hh">
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                  <td class="py-3 pr-4 font-semibold" x-text="hour.hh"></td>
+                  <td class="py-3 pr-4" x-text="hour.team"></td>
+                  <td class="py-3 pr-4" x-text="hour.good"></td>
+                  <td class="py-3 pr-4" x-text="hour.delta"></td>
+                  <td class="py-3 pr-4">
+                    <span class="px-3 py-1 rounded-lg text-xs" :class="hour.validated?'bg-emerald-100 text-emerald-700':'bg-slate-200 text-slate-600'" x-text="hour.validated?'Validé':'En attente'"></span>
+                  </td>
+                  <td class="py-3 pr-4 flex gap-2">
+                    <button type="button" class="px-3 py-1 rounded-lg bg-primary/10 text-primary" @click="editHour(hour)">Modifier</button>
+                    <button type="button" class="px-3 py-1 rounded-lg bg-rose-100 text-rose-700" @click="invalidateHour(hour.hh)">Réouvrir</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+    <section x-show="activeView==='analysis'" x-transition class="space-y-6">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg space-y-6">
+        <header class="flex flex-wrap items-end gap-4">
+          <label class="text-xs uppercase text-slate-500">Période
+            <select class="mt-1 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700" x-model="filters.range" @change="applyFilters">
+              <option value="day">Jour</option>
+              <option value="week">Semaine</option>
+              <option value="month">Mois</option>
+            </select>
+          </label>
+          <label class="text-xs uppercase text-slate-500">Equipe
+            <select class="mt-1 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700" x-model="filters.team" @change="applyFilters">
+              <option value="all">Toutes</option>
+              <template x-for="team in teamNames" :key="team"><option :value="team" x-text="team"></option></template>
+            </select>
+          </label>
+          <label class="text-xs uppercase text-slate-500">Catégorie
+            <select class="mt-1 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700" x-model="filters.category" @change="applyFilters">
+              <option value="all">Toutes</option>
+              <template x-for="cat in settings.categories" :key="cat"><option :value="cat" x-text="cat"></option></template>
+            </select>
+          </label>
+          <label class="text-xs uppercase text-slate-500">Comparaison
+            <input type="range" min="0" max="100" class="mt-1 w-48" x-model.number="compare" @input="applyFilters">
+          </label>
+          <span class="text-xs px-3 py-1 rounded-full bg-slate-200 dark:bg-slate-800" x-show="partialData" x-cloak>Données du jour</span>
+        </header>
+        <div class="grid md:grid-cols-4 gap-4">
+          <template x-for="card in analysisCards" :key="card.id">
+            <article class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5">
+              <p class="text-xs uppercase tracking-widest text-slate-500" x-text="card.label"></p>
+              <p class="mt-3 text-3xl font-bold" x-text="card.value"></p>
+              <p class="text-xs text-slate-500 mt-1" x-text="card.detail"></p>
+            </article>
+          </template>
+        </div>
+        <div class="grid lg:grid-cols-2 gap-6">
+          <article class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5">
+            <h3 class="font-semibold mb-3">Heatmap performance</h3>
+            <div class="overflow-auto max-h-72">
+              <table class="min-w-full text-xs">
+                <thead>
+                  <tr>
+                    <th class="py-2 pr-4">Heure</th>
+                    <template x-for="cat in settings.categories" :key="'head'+cat"><th class="py-2 px-3" x-text="cat"></th></template>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="row in heatmap" :key="row.hh">
+                    <tr>
+                      <td class="py-2 pr-4 font-semibold" x-text="row.hh"></td>
+                      <template x-for="cell in row.cells" :key="cell.name">
+                        <td class="py-2 px-3"><div class="w-16 h-8 rounded-lg" :style="cell.style" :title="cell.title"></div></td>
+                      </template>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </article>
+          <article class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5">
+            <h3 class="font-semibold mb-3">Prédictions</h3>
+            <p class="text-sm text-slate-500">Projection basée sur tendance actuelle.</p>
+            <div class="mt-4 space-y-3">
+              <template x-for="forecast in forecasts" :key="forecast.id">
+                <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-between">
+                  <div>
+                    <p class="font-semibold" x-text="forecast.label"></p>
+                    <p class="text-xs text-slate-500" x-text="forecast.detail"></p>
+                  </div>
+                  <span class="text-lg font-bold" x-text="forecast.value"></span>
+                </div>
+              </template>
+            </div>
+          </article>
+        </div>
+        <footer class="flex flex-wrap gap-3">
+          <button type="button" class="px-4 py-2 rounded-xl bg-primary text-white" @click="exportCSV">Export CSV</button>
+          <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900" @click="exportJSON">Export JSON</button>
+          <button type="button" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800" @click="exportPDF">Export PDF</button>
+        </footer>
+      </article>
+    </section>
+    <section x-show="activeView==='team'" x-transition class="space-y-6">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+        <header class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-semibold">Gestion des équipes</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Drag & drop, notifications et chat</p>
+          </div>
+          <button type="button" class="px-4 py-2 rounded-xl bg-primary text-white" @click="openChat">Chat</button>
+        </header>
+        <div class="grid lg:grid-cols-3 gap-4 mt-6" @dragover.prevent>
+          <section class="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 p-4" @drop="dropOn('pool',$event)">
+            <h3 class="font-semibold mb-3">Réserve</h3>
+            <template x-for="person in teamPool" :key="person.id">
+              <div class="p-3 mb-2 rounded-2xl bg-slate-100 dark:bg-slate-900/60 cursor-move" draggable="true" @dragstart="dragPerson(person)">
+                <p class="font-semibold" x-text="person.name"></p>
+                <p class="text-xs text-slate-500" x-text="person.skill"></p>
+              </div>
+            </template>
+          </section>
+          <template x-for="shift in teamBoards" :key="shift.id">
+            <section class="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 min-h-[240px]" @drop="dropOn(shift.id,$event)">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-semibold" x-text="shift.name"></h3>
+                  <p class="text-xs text-slate-500" x-text="shift.range"></p>
+                </div>
+                <button type="button" class="px-3 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-xs" @click="notifyShift(shift.id)">Notifier</button>
+              </div>
+              <div class="mt-4 space-y-2">
+                <template x-for="member in shift.members" :key="member.id">
+                  <div class="p-3 rounded-2xl bg-primary/10 text-primary flex justify-between">
+                    <div>
+                      <p class="font-semibold" x-text="member.name"></p>
+                      <p class="text-xs" x-text="member.skill"></p>
+                    </div>
+                    <button type="button" class="px-3 py-1 rounded-lg bg-rose-100 text-rose-700 text-xs" @click="removeMember(shift.id,member.id)">Retirer</button>
+                  </div>
+                </template>
+              </div>
+            </section>
+          </template>
+        </div>
+      </article>
+    </section>
+    <section x-show="activeView==='settings'" x-transition class="space-y-6">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+        <header class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-semibold">Paramétrage intelligent</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Import/export, templates, sauvegarde quotidienne</p>
+          </div>
+          <button type="button" class="px-4 py-2 rounded-xl bg-amber-200 text-amber-900" @click="resetApp">Réinitialiser</button>
+        </header>
+        <div class="grid lg:grid-cols-2 gap-6 mt-6">
+          <section class="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 overflow-x-auto">
+            <h3 class="font-semibold mb-3">Shifts</h3>
+            <table class="min-w-full text-sm">
+              <thead class="text-xs uppercase text-slate-500">
+                <tr>
+                  <th class="py-2">Equipe</th>
+                  <th class="py-2">Début</th>
+                  <th class="py-2">Fin</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="shift in settings.shifts" :key="shift.name">
+                  <tr>
+                    <td class="py-2"><input class="bg-transparent" x-model="shift.name"></td>
+                    <td class="py-2"><input type="time" class="bg-transparent" x-model="shift.start"></td>
+                    <td class="py-2"><input type="time" class="bg-transparent" x-model="shift.end"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </section>
+          <section class="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 overflow-x-auto">
+            <h3 class="font-semibold mb-3">Templates de causes</h3>
+            <table class="min-w-full text-sm">
+              <thead class="text-xs uppercase text-slate-500">
+                <tr>
+                  <th class="py-2">Nom</th>
+                  <th class="py-2">Minutes</th>
+                  <th class="py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="tpl in templates" :key="tpl.id">
+                  <tr>
+                    <td class="py-2"><input class="bg-transparent" x-model="tpl.name"></td>
+                    <td class="py-2"><input type="number" class="bg-transparent" x-model.number="tpl.minutes"></td>
+                    <td class="py-2"><button type="button" class="px-3 py-1 rounded-lg bg-rose-100 text-rose-700" @click="removeTemplate(tpl.id)">Supprimer</button></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <button type="button" class="mt-3 px-4 py-2 rounded-xl bg-secondary text-slate-900" @click="addTemplate">Ajouter</button>
+          </section>
+        </div>
+        <footer class="flex flex-wrap gap-3 mt-6">
+          <button type="button" class="px-4 py-2 rounded-xl bg-primary text-white" @click="exportSettings">Export paramètres</button>
+          <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900" @click="importSettings">Import paramètres</button>
+          <button type="button" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800" @click="scheduleBackup">Backup quotidien</button>
+        </footer>
+      </article>
+    </section>
+  </main>
+</div>
+
+<div id="guide" x-show="guideOpen" x-transition.opacity x-cloak class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-40 flex items-center justify-center p-6">
+  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 space-y-4">
+    <header class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-semibold">Guide interactif</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Découvrez les nouveautés de la V3.</p>
+      </div>
+      <button type="button" class="px-3 py-1 rounded-lg bg-slate-200 dark:bg-slate-800" aria-label="Fermer le guide" @click="closeGuide">✕</button>
+    </header>
+    <ol class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+      <li><span class="font-semibold">Dashboard :</span> KPIs animés, alertes et météo.</li>
+      <li><span class="font-semibold">Heure en cours :</span> Timer, dictée vocale, templates.</li>
+      <li><span class="font-semibold">Analyse :</span> Filtres multi-critères et exports.</li>
+      <li><span class="font-semibold">Équipes :</span> Drag & drop et notifications.</li>
+      <li><span class="font-semibold">PWA :</span> Mode offline avec mise à jour.</li>
+    </ol>
+    <footer class="flex justify-end gap-3">
+      <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900" @click="closeGuide">Compris</button>
+    </footer>
+  </div>
+</div>
+<template id="toast-template">
+  <div class="pointer-events-auto bg-slate-900 text-white rounded-2xl px-4 py-3 shadow-2xl flex items-start gap-3">
+    <div class="w-2 rounded-full" data-role="accent"></div>
+    <div>
+      <p class="font-semibold" data-role="title"></p>
+      <p class="text-sm" data-role="message"></p>
+    </div>
+    <button type="button" class="ml-auto" data-role="close">✕</button>
+  </div>
+</template>
+<div id="toast-stack" class="fixed top-6 right-6 space-y-3 z-50"></div>
+
+  <script>
+    const STORAGE_KEY = 'pilotage-v3';
+    const GUIDE_KEY = 'pilotage-guide-v3';
+    function pushToast(title,message,level='info'){
+      const tpl=document.getElementById('toast-template');
+      if(!tpl) return;
+      const node=tpl.content.firstElementChild.cloneNode(true);
+      node.querySelector('[data-role="title"]').textContent=title;
+      node.querySelector('[data-role="message"]').textContent=message;
+      const accent=node.querySelector('[data-role="accent"]');
+      accent.classList.add(level==='danger'?'bg-rose-500':level==='success'?'bg-emerald-500':'bg-primary');
+      node.querySelector('[data-role="close"]').addEventListener('click',()=>node.remove());
+      document.getElementById('toast-stack').appendChild(node);
+      setTimeout(()=>node.remove(),6000);
+    }
+    function safeGet(key,fallback){
+      try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(err){console.warn('Lecture stockage impossible',err);return fallback;}
+    }
+    function safeSet(key,value){
+      try{localStorage.setItem(key,JSON.stringify(value));return true;}catch(err){console.warn('Ecriture stockage impossible',err);pushToast('Sauvegarde','Stockage local indisponible','danger');return false;}
+    }
+    function shell(){
+      return {
+        theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+        isOnline: navigator.onLine,
+        updateReady: false,
+        registration: null,
+        initShell(){
+          document.documentElement.classList.toggle('dark',this.theme==='dark');
+          window.addEventListener('online',()=>{this.isOnline=true;});
+          window.addEventListener('offline',()=>{this.isOnline=false;});
+          this.registerSW();
+        },
+        toggleTheme(){this.theme=this.theme==='dark'?'light':'dark';document.documentElement.classList.toggle('dark',this.theme==='dark');safeSet('pilotage-theme',this.theme);},
+        openGuide(){
+          // PATCH v3: protection si Alpine non chargé
+          const host=document.querySelector('[x-data="appState"]');
+          const scope=host && host.__x ? host.__x.$data : null;
+          if(scope&&typeof scope.openGuide==='function'){scope.openGuide();}
+        },
+        closeGuide(){
+          // PATCH v3: protection si Alpine non chargé
+          const host=document.querySelector('[x-data="appState"]');
+          const scope=host && host.__x ? host.__x.$data : null;
+          if(scope&&typeof scope.closeGuide==='function'){scope.closeGuide();}
+        },
+        triggerUpdate(){if(this.registration&&this.registration.waiting){this.registration.waiting.postMessage({type:'SKIP_WAITING'});}},
+        registerSW(){
+          if(!('serviceWorker'in navigator)) return;
+          window.addEventListener('load',()=>{
+            // PATCH v3: enregistrement SW classique depuis sw.js
+            navigator.serviceWorker.register('./sw.js').then(reg=>{
+              this.registration=reg;
+              const notify=()=>{this.updateReady=true;pushToast('Mise à jour','Nouvelle version disponible');};
+              if(reg.waiting) notify();
+              reg.addEventListener('updatefound',()=>{
+                reg.installing?.addEventListener('statechange',()=>{if(reg.waiting) notify();});
+              });
+              navigator.serviceWorker.addEventListener('controllerchange',()=>window.location.reload());
+            }).catch(err=>{
+              console.warn('SW registration failed',err);
+            });
+          });
+        }
+      };
+    }
+    const demoState = {
+      meta:{date:new Date().toISOString().slice(0,10),line:'L27',targetRate:16000},
+      heures:[
+        {hh:'06:00',good:15500,team:'Equipe A',causes:[{cat:'Technique',sub:'Réglage',minutes:8}],validated:true},
+        {hh:'07:00',good:16200,team:'Equipe A',causes:[{cat:'Organisation',sub:'Attente OF',minutes:4}],validated:true},
+        {hh:'08:00',good:14000,team:'Equipe A',causes:[{cat:'Technique',sub:'Panne',minutes:14}],validated:false},
+        {hh:'09:00',good:0,team:'Equipe A',causes:[],validated:false}
+      ],
+      templates:[
+        {id:'setup',name:'Réglage format',minutes:10,causes:[{cat:'Technique',sub:'Réglage',minutes:10}]},
+        {id:'quality',name:'Contrôle qualité',minutes:5,causes:[{cat:'Qualité',sub:'Contrôle',minutes:5}]}
+      ],
+      settings:{
+        categories:['Technique','Organisation','Qualité','HSE','Divers'],
+        subCategories:['Réglage','Panne','Attente OF','Contrôle','Nettoyage','Autre'],
+        shifts:[
+          {name:'Equipe A',start:'06:00',end:'14:00'},
+          {name:'Equipe B',start:'14:00',end:'22:00'},
+          {name:'Equipe C',start:'22:00',end:'06:00'}
+        ]
+      },
+      alerts:[
+        {id:1,title:'Attente matière',message:'OF 12345 en rupture dans 20 min',level:'high'},
+        {id:2,title:'Inspection qualité',message:'Audit prévu à 11:00',level:'medium'},
+        {id:3,title:'Maintenance préventive',message:'Vérifier coupleur ligne 3',level:'low'}
+      ],
+      team:{
+        pool:[
+          {id:'op1',name:'Marie',skill:'Réglage'},
+          {id:'op2',name:'Léo',skill:'Maintenance'},
+          {id:'op3',name:'Sofia',skill:'Qualité'}
+        ],
+        boards:[
+          {id:'shiftA',name:'Equipe A',range:'06:00-14:00',members:[{id:'lead',name:'Jonas',skill:'Conducteur'}]},
+          {id:'shiftB',name:'Equipe B',range:'14:00-22:00',members:[]}
+        ]
+      }
+    };
+    document.addEventListener('alpine:init',()=>{
+      // PATCH v3: confirme le chargement d'Alpine
+      window.HAS_ALPINE = true;
+      Alpine.data('appState',()=>({
+        theme:document.documentElement.classList.contains('dark')?'dark':'light',
+        nav:[
+          {id:'dashboard',label:'Dashboard',icon:'dashboard'},
+          {id:'currentHour',label:'Heure en cours',icon:'hour'},
+          {id:'operator',label:'Saisie opérateur',icon:'operator'},
+          {id:'analysis',label:'Analyse',icon:'analysis'},
+          {id:'team',label:'Équipes',icon:'team'},
+          {id:'settings',label:'Paramètres',icon:'settings'}
+        ],
+        activeView:'dashboard',
+        state:JSON.parse(JSON.stringify(safeGet(STORAGE_KEY,demoState))),
+        kpis:[],
+        progress:0,
+        alerts:[],
+        weather:{label:'Flux stable',badge:'bg-emerald-100 text-emerald-700'},
+        hours:[],
+        currentHour:{hh:'09:00',good:0,causes:[],comment:'',photo:null},
+        currentHourMetrics:{toJustify:0,delta:0,oee:'0%',valid:false,message:'Saisir les données'},
+        currentTimer:{display:'60:00'},
+        selectedTemplate:'',
+        templates:[],
+        settings:{categories:[],subCategories:[],shifts:[]},
+        teamPool:[],
+        teamBoards:[],
+        dragged:null,
+        filters:{range:'day',team:'all',category:'all'},
+        compare:50,
+        teamNames:[],
+        partialData:false,
+        analysisCards:[],
+        heatmap:[],
+        forecasts:[],
+        guideOpen:false,
+        charts:{},
+        debounce:null,
+        isOnline:navigator.onLine,
+        initApp(){
+          this.templates=this.state.templates;
+          this.settings=this.state.settings;
+          this.alerts=this.state.alerts;
+          this.teamPool=this.state.team.pool;
+          this.teamBoards=this.state.team.boards;
+          this.teamNames=this.settings.shifts.map(s=>s.name);
+          this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));
+          const firstOpen=this.state.heures.find(h=>!h.validated) || this.state.heures[0];
+          this.currentHour={...firstOpen,causes:JSON.parse(JSON.stringify(firstOpen.causes||[])),comment:firstOpen.comment||'',photo:null};
+          this.recalcCurrent();
+          this.computeKPIs();
+          this.renderCharts();
+          this.tickTimer();
+          window.addEventListener('online',()=>{this.isOnline=true;});
+          window.addEventListener('offline',()=>{this.isOnline=false;});
+          if(!safeGet(GUIDE_KEY,false)){setTimeout(()=>{this.guideOpen=true;safeSet(GUIDE_KEY,true);},500);}
+        },
+        openGuide(){this.guideOpen=true;},
+        closeGuide(){this.guideOpen=false;},
+        ackAlert(id){this.alerts=this.alerts.filter(a=>a.id!==id);this.persist();},
+        computeDelta(h){
+          const produced=Math.min(60,(h.good/this.state.meta.targetRate)*60);
+          const toJustify=Math.max(0,Math.round(60-produced));
+          const causes=h.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
+          return toJustify-causes;
+        },
+        computeKPIs(){
+          const totals=this.state.heures.reduce((acc,h)=>{
+            const delta=this.computeDelta(h);
+            acc.good+=h.good;acc.target+=this.state.meta.targetRate;acc.causes+=h.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
+            if(h.validated) acc.validated++;
+            return acc;
+          },{good:0,target:0,causes:0,validated:0});
+          const availability=totals.validated/this.state.heures.length;
+          const performance=totals.target?totals.good/(totals.target):0;
+          const quality=0.98;
+          const oee=availability*performance*quality;
+          this.progress=availability;
+          this.kpis=[
+            {id:'oee',label:'OEE global',value:(oee*100).toFixed(1)+'%',detail:'Objectif 85%',trend:+2.3},
+            {id:'perf',label:'Performance',value:(performance*100).toFixed(1)+'%',detail:'Good / Cible',trend:-1.2},
+            {id:'qual',label:'Qualité',value:(quality*100).toFixed(1)+'%',detail:'Bons / Total',trend:+0.4},
+            {id:'volume',label:'Volume bon',value:new Intl.NumberFormat('fr-FR').format(totals.good)+' u',detail:'Cumule jour',trend:+3.8}
+          ];
+          this.analysisCards=[
+            {id:'planned',label:'Heures validées',value:totals.validated+'h',detail:'Temps planifié'},
+            {id:'dispo',label:'Disponibilité',value:(availability*100).toFixed(1)+'%',detail:'Opérationnel/Planifié'},
+            {id:'perf',label:'Performance',value:(performance*100).toFixed(1)+'%',detail:'Good vs cible'},
+            {id:'qual',label:'Qualité',value:(quality*100).toFixed(1)+'%',detail:'Bons / Total'}
+          ];
+          this.heatmap=this.state.heures.map(hour=>({
+            hh:hour.hh,
+            cells:this.settings.categories.map(cat=>{
+              const minutes=hour.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0);
+              const percent=Math.min(100,minutes*3);
+              return {name:cat,style:`background:linear-gradient(90deg,rgba(37,99,235,${Math.min(1,minutes/20)}) ${percent}%,transparent ${percent}%)`,title:`${minutes} min`};
+            })
+          }));
+          this.forecasts=[
+            {id:'forecast1',label:'OEE projeté',value:(oee*100+1.5).toFixed(1)+'%',detail:'Projection IA locale'},
+            {id:'forecast2',label:'Fin OF estimée',value:'21:45',detail:'Basé sur tendance actuelle'}
+          ];
+        },
+        recalcCurrent(){
+          const produced=Math.min(60,(Number(this.currentHour.good||0)/this.state.meta.targetRate)*60);
+          const toJustify=Math.max(0,Math.round(60-produced));
+          const causes=this.currentHour.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
+          const delta=toJustify-causes;
+          const valid=this.currentHour.good>0 && delta===0;
+          this.currentHourMetrics={toJustify,delta,oee:((produced/60)*100).toFixed(1)+'%',valid,message:valid?'Delta équilibré':'Ajuster les causes'};
+        },
+        addCause(){this.currentHour.causes.push({uid:crypto.randomUUID(),cat:'Technique',sub:'Réglage',minutes:5});this.recalcCurrent();},
+        updateCause(idx,key,value){
+          const cause=this.currentHour.causes[idx];
+          if(key==='minutes'){cause.minutes=Math.max(0,Number(value||0));}else{cause[key]=value;}
+          this.recalcCurrent();
+        },
+        removeCause(idx){this.currentHour.causes.splice(idx,1);this.recalcCurrent();},
+        applyTemplate(){
+          const tpl=this.templates.find(t=>t.id===this.selectedTemplate);
+          if(!tpl) return;
+          this.currentHour.causes=tpl.causes.map(c=>({uid:crypto.randomUUID(),...c}));
+          this.recalcCurrent();
+        },
+        dictate(){
+          const Rec=window.SpeechRecognition||window.webkitSpeechRecognition;
+          if(!Rec){pushToast('Dictée','API non supportée','danger');return;}
+          const rec=new Rec();
+          rec.lang='fr-FR';
+          rec.onresult=e=>{this.currentHour.comment=e.results[0][0].transcript;};
+          rec.start();
+        },
+        handlePhoto(event){const file=event.target.files[0];if(file){this.currentHour.photo=file.name;pushToast('Photo','Image attachée','success');}},
+        submitHour(){
+          if(!this.currentHourMetrics.valid){pushToast('Validation','Equilibrer le delta', 'danger');return;}
+          const index=this.state.heures.findIndex(h=>h.hh===this.currentHour.hh);
+          if(index>-1){
+            this.state.heures[index]={...this.state.heures[index],good:this.currentHour.good,causes:JSON.parse(JSON.stringify(this.currentHour.causes)),validated:true,comment:this.currentHour.comment};
+            this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));
+            this.computeKPIs();
+            this.persist();
+            pushToast('Validation','Heure sauvegardée','success');
+          }
+        },
+        swipeHour(step){
+          const idx=this.state.heures.findIndex(h=>h.hh===this.currentHour.hh);
+          if(idx<0) return;
+          const next=this.state.heures[(idx+step+this.state.heures.length)%this.state.heures.length];
+          this.currentHour={...next,causes:JSON.parse(JSON.stringify(next.causes||[])),comment:next.comment||''};
+          this.recalcCurrent();
+        },
+        editHour(hour){this.activeView='currentHour';this.currentHour={...hour,causes:JSON.parse(JSON.stringify(hour.causes||[])),comment:hour.comment||''};this.recalcCurrent();},
+        invalidateHour(hh){const target=this.state.heures.find(h=>h.hh===hh);if(target){target.validated=false;this.persist();this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));}},
+        autoComplete(){this.state.heures.forEach(h=>{if(!h.validated){h.good=Math.round(this.state.meta.targetRate*0.95);}});this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));this.persist();},
+        syncCloud(){pushToast('Synchronisation','WebRTC à venir','info');},
+        renderCharts(){
+          // PATCH v3: fallback si Chart.js absent
+          const containers=document.querySelectorAll('[data-chart-container]');
+          if(typeof window.Chart==='undefined'){
+            window.HAS_CHART=false;
+            containers.forEach(container=>{
+              if(!container.querySelector('.chart-fallback')){
+                const note=document.createElement('div');
+                note.className='chart-fallback text-sm text-slate-500 dark:text-slate-400';
+                note.textContent='Graphiques indisponibles (module non chargé).';
+                container.appendChild(note);
+              }
+            });
+            return;
+          }
+          window.HAS_CHART=true;
+          containers.forEach(container=>{
+            const fallback=container.querySelector('.chart-fallback');
+            if(fallback) fallback.remove();
+          });
+          if(this.charts.production){this.charts.production.destroy();}
+          if(this.charts.pareto){this.charts.pareto.destroy();}
+          if(this.charts.progress){this.charts.progress.destroy();}
+          const ctxProd=document.getElementById('productionChart');
+          const ctxPareto=document.getElementById('paretoChart');
+          const ctxProg=document.getElementById('progressChart');
+          if(!ctxProd||!ctxPareto||!ctxProg) return;
+          this.charts.production=new Chart(ctxProd,{type:'line',data:{labels:this.state.heures.map(h=>h.hh),datasets:[{label:'Production',data:this.state.heures.map(h=>h.good),borderColor:'#2563eb',tension:0.3,fill:false},{label:'Théorique',data:this.state.heures.map(()=>this.state.meta.targetRate),borderColor:'#facc15',borderDash:[6,4],tension:0.1,fill:false}]},options:{responsive:true,plugins:{legend:{display:true}},interaction:{mode:'nearest',intersect:false}}});
+          this.charts.pareto=new Chart(ctxPareto,{type:'bar',data:{labels:this.settings.categories,datasets:[{label:'Minutes',data:this.settings.categories.map(cat=>this.state.heures.reduce((acc,h)=>acc+h.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0),0)),backgroundColor:'#f97316'}]},options:{responsive:true}});
+          this.charts.progress=new Chart(ctxProg,{type:'doughnut',data:{labels:['Validées','Restantes'],datasets:[{data:[this.state.heures.filter(h=>h.validated).length,this.state.heures.length-this.state.heures.filter(h=>h.validated).length],backgroundColor:['#10b981','#cbd5f5']} ]},options:{responsive:true,cutout:'70%'}});
+        },
+        toggleDataset(type){
+          if(!this.charts.production){
+            // PATCH v3: évite erreur si chart indisponible
+            pushToast('Graphiques','Module graphique indisponible','info');
+            return;
+          }
+          if(type==='causes'){this.renderPareto();return;}
+          const datasetIndex=type==='target'?1:0;
+          const meta=this.charts.production.getDatasetMeta(datasetIndex);
+          meta.hidden=!meta.hidden;
+          this.charts.production.update();
+        },
+        renderPareto(){
+          if(!this.charts.pareto){
+            // PATCH v3: évite erreur si chart indisponible
+            pushToast('Graphiques','Module graphique indisponible','info');
+            return;
+          }
+          this.charts.pareto.data.datasets[0].data=this.settings.categories.map(cat=>this.state.heures.reduce((acc,h)=>acc+h.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0),0));
+          this.charts.pareto.update();
+        },
+        tickTimer(){
+          const update=()=>{
+            const now=new Date();
+            const mins=59-now.getMinutes();
+            const secs=59-now.getSeconds();
+            this.currentTimer.display=`${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+          };
+          update();
+          setInterval(update,1000);
+        },
+        applyFilters(){
+          const filtered=this.state.heures.filter(h=>{
+            const teamMatch=this.filters.team==='all'||h.team===this.filters.team;
+            const catMatch=this.filters.category==='all'||h.causes.some(c=>c.cat===this.filters.category);
+            return teamMatch&&catMatch;
+          });
+          this.partialData=this.filters.range!=='day';
+          const totalGood=filtered.reduce((a,h)=>a+h.good,0);
+          const totalTarget=filtered.length*this.state.meta.targetRate;
+          const performance=totalTarget?totalGood/totalTarget:0;
+          const availability=filtered.filter(h=>h.validated).length/Math.max(1,filtered.length);
+          const quality=0.98;
+          this.analysisCards=[
+            {id:'planned',label:'Heures filtrées',value:filtered.length+'h',detail:'Périmètre actuel'},
+            {id:'dispo',label:'Disponibilité',value:(availability*100).toFixed(1)+'%',detail:'Opérationnel'},
+            {id:'perf',label:'Performance',value:(performance*100).toFixed(1)+'%',detail:'Good / Cible'},
+            {id:'qual',label:'Qualité',value:(quality*100).toFixed(1)+'%',detail:'Bons / Total'}
+          ];
+          this.heatmap=filtered.map(hour=>({hh:hour.hh,cells:this.settings.categories.map(cat=>{const minutes=hour.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0);const percent=Math.min(100,minutes*3);return {name:cat,style:`background:linear-gradient(90deg,rgba(37,99,235,${Math.min(1,minutes/20)}) ${percent}%,transparent ${percent}%)`,title:`${minutes} min`};})}));
+        },
+        dragPerson(person){this.dragged=person;},
+        dropOn(zone,event){event.preventDefault();if(!this.dragged) return;if(zone==='pool'){if(!this.teamPool.find(p=>p.id===this.dragged.id)){this.teamPool.push(this.dragged);}this.teamBoards.forEach(board=>board.members=board.members.filter(m=>m.id!==this.dragged.id));}else{const board=this.teamBoards.find(b=>b.id===zone);if(board&&!board.members.find(m=>m.id===this.dragged.id)){board.members.push(this.dragged);}this.teamPool=this.teamPool.filter(p=>p.id!==this.dragged.id);}this.dragged=null;this.persist();},
+        removeMember(shiftId,memberId){const board=this.teamBoards.find(b=>b.id===shiftId);if(!board) return;const member=board.members.find(m=>m.id===memberId);board.members=board.members.filter(m=>m.id!==memberId);if(member&&!this.teamPool.find(p=>p.id===member.id)){this.teamPool.push(member);}this.persist();},
+        notifyShift(id){pushToast('Notification',`Equipe ${id} informée`,'success');},
+        openChat(){pushToast('Chat','Chat collaboratif à venir','info');},
+        addTemplate(){this.templates.push({id:crypto.randomUUID(),name:'Nouvelle cause',minutes:5,causes:[{cat:'Divers',sub:'Autre',minutes:5}]});this.persist();},
+        removeTemplate(id){this.templates=this.templates.filter(t=>t.id!==id);this.persist();},
+        exportJSON(){const blob=new Blob([JSON.stringify(this.state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Pilotage_${this.state.meta.line}_${this.state.meta.date}.json`;a.click();},
+        exportCSV(){
+          const rows=['Date;Ligne;Equipe;Heure;Good;TargetRate;Minutes_A_Justifier;Catégorie;Sous_Catégorie;Minutes_Cause;Commentaire;OEE_h'];
+          this.state.heures.forEach(hour=>{
+            const toJustify=this.computeDelta({...hour,causes:[]})+hour.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
+            if(hour.causes.length===0){
+              rows.push(`${this.state.meta.date};${this.state.meta.line};${hour.team};${hour.hh};${hour.good};${this.state.meta.targetRate};${toJustify};Divers;Non renseigné;${toJustify};${hour.comment||''};${(hour.good/(this.state.meta.targetRate||1)).toFixed(3)}`);
+            }
+            hour.causes.forEach(cause=>{
+              rows.push(`${this.state.meta.date};${this.state.meta.line};${hour.team};${hour.hh};${hour.good};${this.state.meta.targetRate};${toJustify};${cause.cat};${cause.sub};${cause.minutes};${hour.comment||''};${(hour.good/(this.state.meta.targetRate||1)).toFixed(3)}`);
+            });
+          });
+          // PATCH v3: export CSV UTF-8 avec BOM et \n
+          const blob=new Blob([`\ufeff${rows.join('\n')}`],{type:'text/csv;charset=utf-8;'});
+          const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Pilotage_${this.state.meta.line}_${this.state.meta.date}.csv`;a.click();
+        },
+        exportSettings(){const blob=new Blob([JSON.stringify({templates:this.templates,settings:this.settings},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='settings.json';a.click();},
+        importSettings(){const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=event=>{const file=event.target.files[0];if(!file) return;file.text().then(text=>{try{const data=JSON.parse(text);if(!data.settings||!data.templates) throw new Error('Schéma invalide');this.settings=data.settings;this.templates=data.templates;this.persist();pushToast('Import','Paramètres chargés','success');}catch(err){pushToast('Import','Fichier non valide','danger');}});};input.click();},
+        scheduleBackup(){pushToast('Backup','Sauvegarde planifiée', 'info');},
+        exportPDF(){window.print();},
+        launchAR(){pushToast('Mode AR','Prototype WebXR à venir','info');},
+        persist(){if(this.debounce) cancelAnimationFrame(this.debounce);this.debounce=requestAnimationFrame(()=>safeSet(STORAGE_KEY,this.state));}
+      }));
+    });
+  </script>
+</body>
+</html>
