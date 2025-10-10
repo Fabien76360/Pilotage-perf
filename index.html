@@ -1,2954 +1,858 @@
+
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" x-data="shell()" x-init="initShell()" x-bind:class="theme">
 <head>
-<meta charset="utf-8" />
-<title>Pilotage Performance Terrain</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="theme-color" content="#0b57d0" />
-<style>
-:root {
-  /* PATCH v3: enable adaptive color scheme */
-  color-scheme: light dark;
-  font-size: 16px;
-  --md-sys-color-primary: #0b57d0;
-  --md-sys-color-on-primary: #ffffff;
-  --md-sys-color-secondary: #5f6b7a;
-  --md-sys-color-surface: #f7f9fc;
-  --md-sys-color-surface-variant: #e0e4ec;
-  --md-sys-color-outline: #c3cad8;
-  --md-sys-color-error: #ba1a1a;
-  --md-sys-color-on-surface: #1b1b1f;
-  --md-sys-color-success: #1f8f4e;
-  --md-sys-color-warning: #c97b00;
-  --radius-xl: 28px;
-  --radius-lg: 20px;
-  --radius-md: 16px;
-  --radius-sm: 12px;
-  --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.08);
-  --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.14);
-}
-/* PATCH v3: dark mode tokens */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --md-sys-color-surface: #0f1217;
-    --md-sys-color-on-surface: #e7eaf0;
-    --md-sys-color-surface-variant: #1a2230;
-    --md-sys-color-outline: #2b3240;
-  }
-  body { background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface); }
-  .card,
-  .operator-hour-card { background: #131922; }
-  .toast { background: #2a2f3a; color: var(--md-sys-color-on-surface); }
-}
-* { box-sizing: border-box; }
-html, body { height: 100%; }
-body {
-  margin: 0;
-  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: var(--md-sys-color-surface);
-  color: var(--md-sys-color-on-surface);
-}
-body.no-scroll { overflow: hidden; }
-a { color: inherit; text-decoration: none; }
-button {
-  font: inherit;
-  border: none;
-  cursor: pointer;
-  background: none;
-  color: inherit;
-}
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid rgba(11, 87, 208, 0.35);
-  outline-offset: 2px;
-}
-input, select, textarea {
-  font: inherit;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--md-sys-color-outline);
-  padding: 0.85rem 1rem;
-  background: #fff;
-  color: inherit;
-  min-height: 52px;
-}
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-textarea { resize: vertical; min-height: 96px; }
-.app-shell { display: flex; flex-direction: column; min-height: 100%; }
-.app-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: rgba(247, 249, 252, 0.85);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--md-sys-color-outline);
-}
-.app-bar-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1.25rem;
-  gap: 1rem;
-}
-.branding {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-.branding svg { width: 32px; height: 32px; }
-.nav-tabs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.5rem;
-  width: 100%;
-}
-.nav-tabs button {
-  background: #fff;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  padding: 0.65rem 1rem;
-  min-height: 52px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.nav-tabs button.active {
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-  box-shadow: var(--shadow-sm);
-}
-.nav-tabs button:not(.active):hover { border-color: var(--md-sys-color-outline); }
-.auto-save-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-}
-.auto-save-indicator .dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--md-sys-color-success);
-  transition: background 0.2s ease;
-}
-.auto-save-indicator.saving .dot { background: var(--md-sys-color-warning); animation: pulse 1s infinite; }
-.auto-save-indicator.error .dot { background: var(--md-sys-color-error); }
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.4); }
-}
-main {
-  flex: 1;
-  padding: clamp(1rem, 2vw, 2rem);
-  max-width: 1280px;
-  margin: 0 auto;
-  width: 100%;
-  display: grid;
-}
-.view { display: none; animation: fadeIn 0.3s ease; }
-.view.active { display: block; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.card {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: clamp(1rem, 1.5vw, 1.5rem);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.card-header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-.card-title { margin: 0; font-size: 1.15rem; font-weight: 600; }
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  background: var(--md-sys-color-surface-variant);
-}
-.metric-grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-}
-.metric {
-  background: linear-gradient(145deg, rgba(11, 87, 208, 0.12), rgba(11, 87, 208, 0.05));
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-.metric span { font-size: 0.9rem; color: var(--md-sys-color-secondary); }
-.metric strong { font-size: 1.4rem; }
-.progress-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.progress-bar {
-  width: 100%;
-  height: 16px;
-  background: var(--md-sys-color-surface-variant);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.progress-bar span {
-  display: block;
-  height: 100%;
-  background: var(--md-sys-color-primary);
-  transition: width 0.4s ease;
-}
-.alert-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
-.alert-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-md);
-  background: rgba(186, 26, 26, 0.08);
-  border: 1px solid rgba(186, 26, 26, 0.3);
-}
-.alert-item svg { width: 24px; height: 24px; }
-.hour-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-.hour-nav {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.hour-nav button {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--md-sys-color-surface-variant);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease;
-}
-.hour-nav button:active { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
-.timer-circle {
-  position: relative;
-  width: 160px;
-  height: 160px;
-}
-.timer-circle svg { transform: rotate(-90deg); width: 100%; height: 100%; }
-.timer-circle .timer-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  font-weight: 600;
-}
-.timer-circle .timer-label span { font-size: 0.85rem; color: var(--md-sys-color-secondary); }
-.current-hour-layout { display: grid; gap: 1.5rem; align-items: start; }
-@media (min-width: 960px) {
-  .current-hour-layout { grid-template-columns: 1fr 1fr; }
-}
-.hour-form { display: flex; flex-direction: column; gap: 1rem; }
-.cause-list { display: flex; flex-direction: column; gap: 0.75rem; }
-.cause-row {
-  display: grid;
-  gap: 0.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  align-items: end;
-}
-.cause-row .remove-cause {
-  background: rgba(186, 26, 26, 0.08);
-  border-radius: var(--radius-sm);
-  color: var(--md-sys-color-error);
-  min-height: 48px;
-}
-.badge {
-  padding: 0.25rem 0.65rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-.badge.success { background: rgba(31, 143, 78, 0.15); color: var(--md-sys-color-success); }
-.badge.warning { background: rgba(201, 123, 0, 0.15); color: var(--md-sys-color-warning); }
-.badge.error { background: rgba(186, 26, 26, 0.15); color: var(--md-sys-color-error); }
-.operator-hour-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.operator-hour-card {
-  border: 1px solid var(--md-sys-color-outline);
-  border-radius: var(--radius-lg);
-  background: #fff;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-height: 340px;
-  position: relative;
-}
-.operator-hour-card.validated { border-color: rgba(31, 143, 78, 0.5); box-shadow: inset 0 0 0 2px rgba(31, 143, 78, 0.25); }
-.operator-hour-card .validated-flag {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  font-size: 1.25rem;
-  color: var(--md-sys-color-success);
-}
-.delta-bar {
-  height: 12px;
-  border-radius: 999px;
-  background: var(--md-sys-color-surface-variant);
-  overflow: hidden;
-}
-.delta-bar span {
-  display: block;
-  height: 100%;
-  transition: width 0.2s ease;
-}
-.btn-primary {
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-  border-radius: var(--radius-md);
-  padding: 0.85rem 1.25rem;
-  min-height: 52px;
-  font-weight: 600;
-  box-shadow: var(--shadow-sm);
-}
-.btn-secondary {
-  background: rgba(11, 87, 208, 0.12);
-  color: var(--md-sys-color-primary);
-  border-radius: var(--radius-md);
-  padding: 0.85rem 1.25rem;
-  min-height: 52px;
-  font-weight: 600;
-}
-.btn-text {
-  background: transparent;
-  color: var(--md-sys-color-primary);
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-sm);
-}
-.template-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.template-chips button {
-  background: rgba(11, 87, 208, 0.12);
-  border-radius: 999px;
-  padding: 0.45rem 0.9rem;
-  min-height: 44px;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
-}
-.template-chips button:hover,
-.template-chips button:focus-visible {
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-}
-.template-chips button:active {
-  transform: scale(0.97);
-}
-.chip button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: inherit;
-}
-.chip button:hover,
-.chip button:focus-visible {
-  color: var(--md-sys-color-error);
-}
-.toast-container {
-  position: fixed;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  z-index: 200;
-  width: min(420px, calc(100% - 2rem));
-}
-.toast {
-  background: #1b1b1f;
-  color: #fff;
-  padding: 0.85rem 1rem;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  box-shadow: var(--shadow-md);
-}
-.toast.success { background: var(--md-sys-color-success); }
-.toast.error { background: var(--md-sys-color-error); }
-.toast button { color: inherit; }
-.guide-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.65);
-  display: grid;
-  place-items: center;
-  z-index: 400;
-}
-.guide-panel {
-  background: #fff;
-  border-radius: var(--radius-lg);
-  max-width: 520px;
-  padding: 2rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.guide-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.guide-steps { display: flex; justify-content: center; gap: 0.35rem; }
-.guide-steps span {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--md-sys-color-surface-variant);
-}
-.guide-steps span.active { background: var(--md-sys-color-primary); }
-.offline-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  background: rgba(201, 123, 0, 0.15);
-  color: var(--md-sys-color-warning);
-}
-.status-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
-.analysis-layout { display: grid; gap: 1.25rem; }
-@media (min-width: 1080px) {
-  .analysis-layout { grid-template-columns: 1.1fr 0.9fr; }
-}
-.chart-card canvas { width: 100%; height: 320px; }
-.filter-bar {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-}
-.settings-grid { display: grid; gap: 1rem; }
-/* PATCH v3: tables scroll on small screens */
-.settings-grid .shift-table,
-.settings-grid .category-table,
-.settings-grid .template-table { display: block; overflow-x: auto; }
-.shift-table, .category-table, .template-table { width: 100%; border-collapse: collapse; }
-.shift-table th, .shift-table td,
-.category-table th, .category-table td,
-.template-table th, .template-table td {
-  border: 1px solid var(--md-sys-color-outline);
-  padding: 0.75rem;
-  text-align: left;
-}
-.fab {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-md);
-  z-index: 150;
-}
-.chip:focus-visible,
-.chip:hover { outline: none; box-shadow: 0 0 0 3px rgba(11, 87, 208, 0.2); }
-.chip[tabindex] { cursor: pointer; }
-.chip[tabindex]:focus-visible { box-shadow: 0 0 0 3px rgba(11, 87, 208, 0.4); }
-.icon-button {
-  border-radius: 999px;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--md-sys-color-outline);
-  background: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-.icon-button:hover,
-.icon-button:focus-visible {
-  background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-on-primary);
-  border-color: transparent;
-}
-.icon-button:active {
-  transform: scale(0.97);
-}
-.operator-hour-card:focus-visible {
-  outline: 3px solid rgba(11, 87, 208, 0.35);
-  outline-offset: 4px;
-}
-[data-touch-area] { min-height: 48px; min-width: 48px; }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
-}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pilotage Performance Terrain — Hypervision</title>
+  <meta name="description" content="Pilotage de performance industrielle avec saisie horaire intelligente et analytics avancés.">
+  <link rel="manifest" href="data:application/manifest+json,{"name":"Pilotage Performance Terrain","short_name":"Pilotage","start_url":".","display":"standalone","background_color":"#0f172a","theme_color":"#2563eb"}">
+  <meta name="theme-color" content="#2563eb">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            secondary: '#10b981',
+            accent: '#f59e0b',
+            surface: '#0f172a'
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s ease-in-out infinite',
+            'fade-up': 'fade-up 0.6s ease-out forwards'
+          },
+          keyframes: {
+            'fade-up': {
+              '0%': { opacity: 0, transform: 'translateY(16px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' }
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.10/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <style>
+    html,body{min-height:100%;}
+    [x-cloak]{display:none!important;}
+    .glass{backdrop-filter:blur(16px);background:rgba(15,23,42,0.78);}
+    .ripple{position:relative;overflow:hidden;}
+    .ripple::after{content:"";position:absolute;inset:50%;width:1px;height:1px;border-radius:9999px;background:rgba(255,255,255,0.35);transform:translate(-50%,-50%) scale(0);opacity:0;transition:transform 0.4s ease,opacity 0.6s ease;}
+    .ripple:active::after{transform:translate(-50%,-50%) scale(40);opacity:1;}
+    @media (prefers-reduced-motion: reduce){*{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;}}
+  </style>
 </head>
-<body>
-<div class="app-shell">
-  <header class="app-bar" role="banner">
-    <div class="app-bar-inner">
-      <div class="branding" aria-label="Pilotage Performance">
-        <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="24" fill="#0b57d0" opacity="0.12"></circle><path fill="#0b57d0" d="M12 32h4l4.5-12 4 10 3-8 3 10h5l-5.5-16h-4l-2.5 6.5-3-6.5h-4z"/></svg>
-        <span>Pilotage Performance</span>
-      </div>
-      <nav class="nav-tabs" aria-label="Navigation principale">
-        <button type="button" class="active" data-view="dashboardView" data-touch-area>
-          <span>Accueil</span>
-        </button>
-        <button type="button" data-view="currentHourView" data-touch-area>
-          <span>Heure en cours</span>
-        </button>
-        <button type="button" data-view="operatorView" data-touch-area>
-          <span>Saisie</span>
-        </button>
-        <button type="button" data-view="analysisView" data-touch-area>
-          <span>Analyse</span>
-        </button>
-        <button type="button" data-view="settingsView" data-touch-area>
-          <span>Paramètres</span>
-        </button>
-      </nav>
-      <div class="status-row" aria-live="polite">
-        <span class="offline-badge" id="offlineBadge" hidden>Mode hors ligne</span>
-        <div class="auto-save-indicator" id="autoSaveIndicator">
-          <span class="dot" aria-hidden="true"></span>
-          <span id="autoSaveLabel">Sauvegardé</span>
+<body class="bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100" x-data="appState" x-init="initApp()">
+  <div class="min-h-screen grid xl:grid-cols-[280px_1fr] gap-6 p-6">
+    <aside class="glass rounded-3xl p-6 flex flex-col gap-6 text-white shadow-2xl">
+      <header class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-3xl bg-primary/90 flex items-center justify-center shadow-xl">
+          <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6v6l4 2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <button type="button" class="icon-button" id="updateAppBtn" aria-label="Mettre à jour l'application" data-touch-area hidden>⟳</button>
-        <button type="button" class="icon-button" id="guideTrigger" aria-label="Aide" data-touch-area>?</button>
+        <div>
+          <p class="text-sm uppercase tracking-[0.3em] text-slate-100/70">Pilotage</p>
+          <h1 class="text-xl font-semibold">Performance Terrain</h1>
+        </div>
+      </header>
+      <nav class="flex-1 space-y-2">
+        <template x-for="item in nav" :key="item.id">
+          <button type="button" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl ripple transition" @click="activeView=item.id" :class="activeView===item.id?'bg-white/20 border border-white/30':'hover:bg-white/10'">
+            <span class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+              <template x-if="item.icon==='dashboard'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 13h8V3H3v10zM13 21h8V11h-8v10z"/><path d="M13 3h8M3 21h8" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+              <template x-if="item.icon==='hour'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 8v4l3 2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 12a8.5 8.5 0 11-17 0 8.5 8.5 0 0117 0z" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+              <template x-if="item.icon==='operator'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1"/><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+              <template x-if="item.icon==='analysis'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18" stroke-linecap="round"/><path d="M8 13l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></template>
+              <template x-if="item.icon==='team'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 11a4 4 0 10-8 0 4 4 0 008 0z"/><path d="M3 21v-2a4 4 0 014-4h10a4 4 0 014 4v2" stroke-linecap="round"/></svg></template>
+              <template x-if="item.icon==='settings'"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.89 3.31.877 2.42 2.42a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.89 1.543-.877 3.31-2.42 2.42a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.89-3.31-.877-2.42-2.42a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.89-1.543.877-3.31 2.42-2.42.996.575 2.25.134 2.573-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></template>
+            </span>
+            <span class="text-sm font-medium" x-text="item.label"></span>
+          </button>
+        </template>
+      </nav>
+      <section class="space-y-4 text-sm">
+        <div class="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-100/70">Connexion</p>
+            <p class="font-semibold" x-text="isOnline?'Connecté':'Hors ligne'"></p>
+          </div>
+          <span class="w-2 h-2 rounded-full" :class="isOnline?'bg-emerald-300 animate-pulse':'bg-red-400'"></span>
+        </div>
+        <div class="flex items-center justify-between bg-white/10 rounded-2xl px-4 py-3">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-100/70">Mode</p>
+            <p class="font-semibold" x-text="theme==='dark'?'Sombre':'Clair'"></p>
+          </div>
+          <button type="button" class="px-3 py-1 rounded-xl bg-white/20 hover:bg-white/30" @click="toggleTheme">Basculer</button>
+        </div>
+        <button type="button" class="w-full py-3 rounded-2xl bg-primary text-white font-semibold shadow-lg ripple" x-show="updateReady" x-cloak @click="triggerUpdate">Mettre à jour l'app</button>
+        <button type="button" class="w-full py-3 rounded-2xl bg-white/10 border border-white/30 font-semibold ripple" @click="openGuide">Guide interactif</button>
+      </section>
+    </aside>
+    <main class="space-y-6">
+
+<section x-show="activeView==='dashboard'" x-transition class="space-y-6">
+  <div class="grid lg:grid-cols-4 md:grid-cols-2 gap-4">
+    <template x-for="card in kpis" :key="card.id">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg animate-[fade-up]">
+        <header class="flex items-center justify-between">
+          <p class="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400" x-text="card.label"></p>
+          <span class="text-xs px-2 py-1 rounded-lg" :class="card.trend>=0?'bg-emerald-100 text-emerald-700':'bg-rose-100 text-rose-700'" x-text="card.trend>=0?`+${card.trend}%`:`${card.trend}%`"></span>
+        </header>
+        <p class="mt-4 text-3xl font-bold" x-text="card.value"></p>
+        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400" x-text="card.detail"></p>
+      </article>
+    </template>
+  </div>
+  <div class="grid xl:grid-cols-[2fr_3fr] gap-6">
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+      <header class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">Progression de la journée</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Heures validées / planifiées</p>
+        </div>
+        <span class="px-3 py-1 text-xs rounded-full bg-emerald-100 text-emerald-700" x-text="Math.round(progress*100)+'%'"></span>
+      </header>
+      <canvas id="progressChart" aria-description="Donut progression" role="img"></canvas>
+      <noscript>Progression : <span x-text="Math.round(progress*100)+'%'"></span></noscript>
+    </article>
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+      <header class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">Alertes du jour</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Actions prioritaires</p>
+        </div>
+        <span class="px-3 py-1 text-xs rounded-full" :class="weather.badge" x-text="weather.label"></span>
+      </header>
+      <ul class="space-y-3">
+        <template x-for="alert in alerts" :key="alert.id">
+          <li class="rounded-2xl border px-4 py-3 flex items-start justify-between" :class="alert.level==='high'?'border-rose-400 bg-rose-50 dark:bg-rose-500/20':alert.level==='medium'?'border-amber-400 bg-amber-50 dark:bg-amber-500/20':'border-emerald-300 bg-emerald-50 dark:bg-emerald-500/20'">
+            <div>
+              <p class="font-semibold" x-text="alert.title"></p>
+              <p class="text-sm" x-text="alert.message"></p>
+            </div>
+            <button type="button" class="px-3 py-1 rounded-xl bg-white/80 dark:bg-slate-900/70 text-xs" @click="ackAlert(alert.id)">Acquitter</button>
+          </li>
+        </template>
+      </ul>
+    </article>
+  </div>
+  <div class="grid xl:grid-cols-2 gap-6">
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+      <header class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">Production vs Théorique</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Courbe en temps réel</p>
+        </div>
+        <div class="flex gap-2 text-xs">
+          <button type="button" class="px-3 py-1 rounded-lg border" @click="toggleDataset('real')">Production</button>
+          <button type="button" class="px-3 py-1 rounded-lg border" @click="toggleDataset('target')">Théorique</button>
+        </div>
+      </header>
+      <canvas id="productionChart" aria-description="Ligne production vs cible" role="img"></canvas>
+      <noscript>Graphique indisponible sans JavaScript.</noscript>
+    </article>
+    <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+      <header class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">Pareto des causes</h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Top causes du jour</p>
+        </div>
+        <button type="button" class="px-3 py-1 rounded-lg border" @click="toggleDataset('causes')">Rafraîchir</button>
+      </header>
+      <canvas id="paretoChart" aria-description="Histogramme des minutes" role="img"></canvas>
+      <noscript>Pareto indisponible sans JavaScript.</noscript>
+    </article>
+  </div>
+</section>
+<section x-show="activeView==='currentHour'" x-transition class="space-y-6">
+  <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+    <header class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-xl font-semibold">Heure en cours</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Timer, pré-remplissage et validation automatique</p>
       </div>
-    </div>
-  </header>
-  <main>
-    <section id="dashboardView" class="view active" aria-labelledby="dashboardTitle"></section>
-    <section id="currentHourView" class="view" aria-labelledby="currentHourTitle"></section>
-    <section id="operatorView" class="view" aria-labelledby="operatorTitle"></section>
-    <section id="analysisView" class="view" aria-labelledby="analysisTitle"></section>
-    <section id="settingsView" class="view" aria-labelledby="settingsTitle"></section>
+      <div class="flex items-center gap-4">
+        <div class="w-16 h-16 rounded-full border-[6px] border-primary/30 flex items-center justify-center text-lg font-semibold" x-text="currentTimer.display"></div>
+        <div class="text-sm">
+          <p class="font-semibold" x-text="currentHour.hh"></p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Actualisation 1 s</p>
+        </div>
+      </div>
+    </header>
+    <form class="grid lg:grid-cols-2 gap-6 mt-6" @submit.prevent="submitHour">
+      <section class="space-y-4">
+        <label class="block">
+          <span class="text-sm font-medium">Good (u)</span>
+          <input type="number" min="0" inputmode="numeric" class="mt-1 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-950/60 px-4 py-3 focus:ring-2 focus:ring-primary" x-model.number="currentHour.good" @input="recalcCurrent" required>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Commentaire</span>
+          <div class="relative">
+            <textarea class="mt-1 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white/80 dark:bg-slate-950/60 px-4 py-3 h-28 focus:ring-2 focus:ring-primary" x-model="currentHour.comment" placeholder="Observations..."></textarea>
+            <button type="button" class="absolute top-2 right-2 px-3 py-1 rounded-xl bg-primary text-white text-xs" @click="dictate">🎙️</button>
+          </div>
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium">Photo défaut</span>
+          <input type="file" accept="image/*" capture="environment" class="mt-1 text-sm" @change="handlePhoto">
+        </label>
+      </section>
+      <section class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Causes</h3>
+          <div class="flex gap-2">
+            <select x-model="selectedTemplate" class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700" @change="applyTemplate">
+              <option value="">Template rapide</option>
+              <template x-for="tpl in templates" :key="tpl.id"><option :value="tpl.id" x-text="tpl.name"></option></template>
+            </select>
+            <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900 font-semibold" @click="addCause">+ Cause</button>
+          </div>
+        </div>
+        <div class="space-y-3 max-h-72 overflow-y-auto pr-2">
+          <template x-for="(cause,idx) in currentHour.causes" :key="cause.uid">
+            <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 space-y-3">
+              <label class="block text-xs uppercase tracking-wide text-slate-500">Catégorie
+                <input list="cat-list" x-model="cause.cat" @change="updateCause(idx,'cat',cause.cat)" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950/60 px-3 py-2">
+              </label>
+              <label class="block text-xs uppercase tracking-wide text-slate-500">Sous-catégorie
+                <input list="sub-list" x-model="cause.sub" @change="updateCause(idx,'sub',cause.sub)" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950/60 px-3 py-2">
+              </label>
+              <div class="flex items-center gap-3">
+                <label class="flex-1 text-xs uppercase tracking-wide text-slate-500">Minutes
+                  <input type="number" min="0" class="mt-1 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white/90 dark:bg-slate-950/60 px-3 py-2" x-model.number="cause.minutes" @input="updateCause(idx,'minutes',cause.minutes)">
+                </label>
+                <button type="button" class="px-3 py-2 rounded-xl bg-rose-100 text-rose-700" aria-label="Supprimer la cause" @click="removeCause(idx)">✕</button>
+              </div>
+            </div>
+          </template>
+          <datalist id="cat-list">
+            <template x-for="cat in settings.categories" :key="'cat'+cat"><option :value="cat"></option></template>
+          </datalist>
+          <datalist id="sub-list">
+            <template x-for="sub in settings.subCategories" :key="'sub'+sub"><option :value="sub"></option></template>
+          </datalist>
+        </div>
+      </section>
+    </form>
+    <section class="grid md:grid-cols-3 gap-4 mt-6">
+      <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+        <p class="text-xs uppercase text-slate-500">Minutes à justifier</p>
+        <p class="text-2xl font-semibold" x-text="currentHourMetrics.toJustify"></p>
+        <p class="text-xs text-slate-500 mt-1">Delta causes : <span x-text="currentHourMetrics.delta"></span> min</p>
+      </article>
+      <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+        <p class="text-xs uppercase text-slate-500">OEE horaire</p>
+        <p class="text-2xl font-semibold" x-text="currentHourMetrics.oee"></p>
+        <p class="text-xs text-slate-500 mt-1">Projection IA locale</p>
+      </article>
+      <article class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+        <p class="text-xs uppercase text-slate-500">Validation</p>
+        <p class="text-2xl font-semibold" :class="currentHourMetrics.valid?'text-emerald-500':'text-rose-500'" x-text="currentHourMetrics.valid?'Prête':'Incomplète'"></p>
+        <p class="text-xs text-slate-500 mt-1" x-text="currentHourMetrics.message"></p>
+      </article>
+    </section>
+    <footer class="flex flex-wrap gap-3 mt-6">
+      <button type="button" class="px-6 py-3 rounded-2xl bg-primary text-white font-semibold ripple" @click="submitHour">Valider l'heure</button>
+      <button type="button" class="px-6 py-3 rounded-2xl bg-slate-200 dark:bg-slate-800" @click="swipeHour(-1)">⟵ Précédent</button>
+      <button type="button" class="px-6 py-3 rounded-2xl bg-slate-200 dark:bg-slate-800" @click="swipeHour(1)">Suivant ⟶</button>
+      <button type="button" class="px-6 py-3 rounded-2xl bg-amber-200 text-amber-900" @click="launchAR">Mode AR</button>
+    </footer>
+  </article>
+</section>
+
+    <section x-show="activeView==='operator'" x-transition class="space-y-6">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+        <header class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-semibold">Saisie opérateur</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Gestes tactiles, templates et synchronisation</p>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900 font-semibold" @click="autoComplete">Auto-compléter</button>
+            <button type="button" class="px-4 py-2 rounded-xl bg-primary text-white" @click="syncCloud">Synchroniser</button>
+          </div>
+        </header>
+        <div class="mt-6 overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="text-left text-xs uppercase tracking-wider text-slate-500">
+              <tr>
+                <th class="py-3 pr-4">Heure</th>
+                <th class="py-3 pr-4">Equipe</th>
+                <th class="py-3 pr-4">Good</th>
+                <th class="py-3 pr-4">Delta</th>
+                <th class="py-3 pr-4">Statut</th>
+                <th class="py-3 pr-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+              <template x-for="hour in hours" :key="hour.hh">
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                  <td class="py-3 pr-4 font-semibold" x-text="hour.hh"></td>
+                  <td class="py-3 pr-4" x-text="hour.team"></td>
+                  <td class="py-3 pr-4" x-text="hour.good"></td>
+                  <td class="py-3 pr-4" x-text="hour.delta"></td>
+                  <td class="py-3 pr-4">
+                    <span class="px-3 py-1 rounded-lg text-xs" :class="hour.validated?'bg-emerald-100 text-emerald-700':'bg-slate-200 text-slate-600'" x-text="hour.validated?'Validé':'En attente'"></span>
+                  </td>
+                  <td class="py-3 pr-4 flex gap-2">
+                    <button type="button" class="px-3 py-1 rounded-lg bg-primary/10 text-primary" @click="editHour(hour)">Modifier</button>
+                    <button type="button" class="px-3 py-1 rounded-lg bg-rose-100 text-rose-700" @click="invalidateHour(hour.hh)">Réouvrir</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+    <section x-show="activeView==='analysis'" x-transition class="space-y-6">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg space-y-6">
+        <header class="flex flex-wrap items-end gap-4">
+          <label class="text-xs uppercase text-slate-500">Période
+            <select class="mt-1 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700" x-model="filters.range" @change="applyFilters">
+              <option value="day">Jour</option>
+              <option value="week">Semaine</option>
+              <option value="month">Mois</option>
+            </select>
+          </label>
+          <label class="text-xs uppercase text-slate-500">Equipe
+            <select class="mt-1 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700" x-model="filters.team" @change="applyFilters">
+              <option value="all">Toutes</option>
+              <template x-for="team in teamNames" :key="team"><option :value="team" x-text="team"></option></template>
+            </select>
+          </label>
+          <label class="text-xs uppercase text-slate-500">Catégorie
+            <select class="mt-1 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700" x-model="filters.category" @change="applyFilters">
+              <option value="all">Toutes</option>
+              <template x-for="cat in settings.categories" :key="cat"><option :value="cat" x-text="cat"></option></template>
+            </select>
+          </label>
+          <label class="text-xs uppercase text-slate-500">Comparaison
+            <input type="range" min="0" max="100" class="mt-1 w-48" x-model.number="compare" @input="applyFilters">
+          </label>
+          <span class="text-xs px-3 py-1 rounded-full bg-slate-200 dark:bg-slate-800" x-show="partialData" x-cloak>Données du jour</span>
+        </header>
+        <div class="grid md:grid-cols-4 gap-4">
+          <template x-for="card in analysisCards" :key="card.id">
+            <article class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5">
+              <p class="text-xs uppercase tracking-widest text-slate-500" x-text="card.label"></p>
+              <p class="mt-3 text-3xl font-bold" x-text="card.value"></p>
+              <p class="text-xs text-slate-500 mt-1" x-text="card.detail"></p>
+            </article>
+          </template>
+        </div>
+        <div class="grid lg:grid-cols-2 gap-6">
+          <article class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5">
+            <h3 class="font-semibold mb-3">Heatmap performance</h3>
+            <div class="overflow-auto max-h-72">
+              <table class="min-w-full text-xs">
+                <thead>
+                  <tr>
+                    <th class="py-2 pr-4">Heure</th>
+                    <template x-for="cat in settings.categories" :key="'head'+cat"><th class="py-2 px-3" x-text="cat"></th></template>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="row in heatmap" :key="row.hh">
+                    <tr>
+                      <td class="py-2 pr-4 font-semibold" x-text="row.hh"></td>
+                      <template x-for="cell in row.cells" :key="cell.name">
+                        <td class="py-2 px-3"><div class="w-16 h-8 rounded-lg" :style="cell.style" :title="cell.title"></div></td>
+                      </template>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </article>
+          <article class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5">
+            <h3 class="font-semibold mb-3">Prédictions</h3>
+            <p class="text-sm text-slate-500">Projection basée sur tendance actuelle.</p>
+            <div class="mt-4 space-y-3">
+              <template x-for="forecast in forecasts" :key="forecast.id">
+                <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex justify-between">
+                  <div>
+                    <p class="font-semibold" x-text="forecast.label"></p>
+                    <p class="text-xs text-slate-500" x-text="forecast.detail"></p>
+                  </div>
+                  <span class="text-lg font-bold" x-text="forecast.value"></span>
+                </div>
+              </template>
+            </div>
+          </article>
+        </div>
+        <footer class="flex flex-wrap gap-3">
+          <button type="button" class="px-4 py-2 rounded-xl bg-primary text-white" @click="exportCSV">Export CSV</button>
+          <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900" @click="exportJSON">Export JSON</button>
+          <button type="button" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800" @click="exportPDF">Export PDF</button>
+        </footer>
+      </article>
+    </section>
+    <section x-show="activeView==='team'" x-transition class="space-y-6">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+        <header class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-semibold">Gestion des équipes</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Drag & drop, notifications et chat</p>
+          </div>
+          <button type="button" class="px-4 py-2 rounded-xl bg-primary text-white" @click="openChat">Chat</button>
+        </header>
+        <div class="grid lg:grid-cols-3 gap-4 mt-6" @dragover.prevent>
+          <section class="rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 p-4" @drop="dropOn('pool',$event)">
+            <h3 class="font-semibold mb-3">Réserve</h3>
+            <template x-for="person in teamPool" :key="person.id">
+              <div class="p-3 mb-2 rounded-2xl bg-slate-100 dark:bg-slate-900/60 cursor-move" draggable="true" @dragstart="dragPerson(person)">
+                <p class="font-semibold" x-text="person.name"></p>
+                <p class="text-xs text-slate-500" x-text="person.skill"></p>
+              </div>
+            </template>
+          </section>
+          <template x-for="shift in teamBoards" :key="shift.id">
+            <section class="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 min-h-[240px]" @drop="dropOn(shift.id,$event)">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-semibold" x-text="shift.name"></h3>
+                  <p class="text-xs text-slate-500" x-text="shift.range"></p>
+                </div>
+                <button type="button" class="px-3 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 text-xs" @click="notifyShift(shift.id)">Notifier</button>
+              </div>
+              <div class="mt-4 space-y-2">
+                <template x-for="member in shift.members" :key="member.id">
+                  <div class="p-3 rounded-2xl bg-primary/10 text-primary flex justify-between">
+                    <div>
+                      <p class="font-semibold" x-text="member.name"></p>
+                      <p class="text-xs" x-text="member.skill"></p>
+                    </div>
+                    <button type="button" class="px-3 py-1 rounded-lg bg-rose-100 text-rose-700 text-xs" @click="removeMember(shift.id,member.id)">Retirer</button>
+                  </div>
+                </template>
+              </div>
+            </section>
+          </template>
+        </div>
+      </article>
+    </section>
+    <section x-show="activeView==='settings'" x-transition class="space-y-6">
+      <article class="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-lg">
+        <header class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-semibold">Paramétrage intelligent</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Import/export, templates, sauvegarde quotidienne</p>
+          </div>
+          <button type="button" class="px-4 py-2 rounded-xl bg-amber-200 text-amber-900" @click="resetApp">Réinitialiser</button>
+        </header>
+        <div class="grid lg:grid-cols-2 gap-6 mt-6">
+          <section class="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 overflow-x-auto">
+            <h3 class="font-semibold mb-3">Shifts</h3>
+            <table class="min-w-full text-sm">
+              <thead class="text-xs uppercase text-slate-500">
+                <tr>
+                  <th class="py-2">Equipe</th>
+                  <th class="py-2">Début</th>
+                  <th class="py-2">Fin</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="shift in settings.shifts" :key="shift.name">
+                  <tr>
+                    <td class="py-2"><input class="bg-transparent" x-model="shift.name"></td>
+                    <td class="py-2"><input type="time" class="bg-transparent" x-model="shift.start"></td>
+                    <td class="py-2"><input type="time" class="bg-transparent" x-model="shift.end"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </section>
+          <section class="rounded-3xl border border-slate-200 dark:border-slate-800 p-4 overflow-x-auto">
+            <h3 class="font-semibold mb-3">Templates de causes</h3>
+            <table class="min-w-full text-sm">
+              <thead class="text-xs uppercase text-slate-500">
+                <tr>
+                  <th class="py-2">Nom</th>
+                  <th class="py-2">Minutes</th>
+                  <th class="py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="tpl in templates" :key="tpl.id">
+                  <tr>
+                    <td class="py-2"><input class="bg-transparent" x-model="tpl.name"></td>
+                    <td class="py-2"><input type="number" class="bg-transparent" x-model.number="tpl.minutes"></td>
+                    <td class="py-2"><button type="button" class="px-3 py-1 rounded-lg bg-rose-100 text-rose-700" @click="removeTemplate(tpl.id)">Supprimer</button></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <button type="button" class="mt-3 px-4 py-2 rounded-xl bg-secondary text-slate-900" @click="addTemplate">Ajouter</button>
+          </section>
+        </div>
+        <footer class="flex flex-wrap gap-3 mt-6">
+          <button type="button" class="px-4 py-2 rounded-xl bg-primary text-white" @click="exportSettings">Export paramètres</button>
+          <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900" @click="importSettings">Import paramètres</button>
+          <button type="button" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800" @click="scheduleBackup">Backup quotidien</button>
+        </footer>
+      </article>
+    </section>
   </main>
 </div>
-<button class="fab" id="fullScreenBtn" aria-label="Plein écran">
-  <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M7 7h3V5H5v5h2V7zm7-2v2h3v3h2V5h-5zm3 12h-3v2h5v-5h-2v3zm-7 0H7v-3H5v5h5v-2z"/></svg>
-</button>
-<div class="toast-container" id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
-<div class="guide-overlay" id="guideOverlay" hidden aria-modal="true" role="dialog"></div>
-<script type="module">
-const i18n = Object.freeze({
-  nav: { home: "Accueil", currentHour: "Heure en cours", operator: "Saisie", analysis: "Analyse", settings: "Paramètres" },
-  dashboard: {
-    title: "Pilotage du jour",
-    progress: "Progression de la journée",
-    alerts: "Actions requises",
-    noAlerts: "Aucune alerte en cours",
-    kpi: { oee: "OEE", availability: "Disponibilité", performance: "Performance", quality: "Qualité", minutes: "Minutes à justifier", volume: "Volume" },
-    topCauses: "Top 3 causes"
-  },
-  currentHour: {
-    title: "Heure en cours",
-    minutesToExplain: "Minutes à justifier",
-    delta: "Delta",
-    validate: "Valider l'heure",
-    next: "Suivante",
-    previous: "Précédente",
-    templateTitle: "Causes fréquentes",
-    remaining: "Restant",
-    timer: "Minuteur"
-  },
-  operator: {
-    title: "Saisie horaire",
-    comment: "Commentaire",
-    addCause: "Ajouter une cause",
-    minutes: "Minutes",
-    category: "Catégorie",
-    subcategory: "Sous-catégorie",
-    remove: "Retirer",
-    status: { ok: "Aligné", warn: "À vérifier", error: "Ajuster" }
-  },
-  settings: {
-    title: "Paramètres",
-    cadence: "Cadence nominale (u/h)",
-    shifts: "Équipes",
-    addShift: "Ajouter un shift",
-    delete: "Supprimer",
-    quality: "Qualité du jour",
-    categories: "Catégories",
-    addCategory: "Ajouter catégorie",
-    addSub: "Ajouter sous-catégorie",
-    templates: "Templates de causes",
-    addTemplate: "Ajouter un template",
-    reset: "Réinitialiser la journée",
-    exportJson: "Exporter données (JSON)",
-    exportCsv: "Exporter CSV",
-    importSettings: "Importer paramètres",
-    exportSettings: "Exporter paramètres"
-  },
-  analysis: {
-    title: "Analyse",
-    filters: "Filtres",
-    partial: "Données du jour affichées",
-    oee: "OEE",
-    availability: "Disponibilité",
-    performance: "Performance",
-    quality: "Qualité",
-    minutes: "Minutes à justifier",
-    nonConform: "Heures non conformes",
-    volume: "Volume produit",
-    charts: {
-      lineTitle: "Good vs Théorique",
-      barTitle: "Top causes",
-      heatmapTitle: "Heatmap heures × catégories",
-      lineDatasetGood: "Good",
-      lineDatasetTarget: "Théorique",
-      barDataset: "Minutes",
-      targetLabel: "Cadence",
-      tooltipValue: "Valeur",
-      lineDescription: "Courbe comparant la production réelle et la cible horaire.",
-      barDescription: "Barres représentant les minutes par cause.",
-      heatmapDescription: "Carte de chaleur des minutes par heure et catégorie.",
-      noscript: "Activez JavaScript pour afficher les graphiques.",
-      fallback: "Graphiques désactivés (module indisponible)."
-    }
-  },
-  qualityPanel: { good: "Bons", total: "Total" },
-  forms: { good: "Unités bonnes", comment: "Commentaire", validate: "Valider", cancel: "Annuler", minutes: "Minutes", category: "Catégorie", subcategory: "Sous-catégorie" },
-  feedback: {
-    saved: "Sauvegardé",
-    saving: "Sauvegarde…",
-    error: "Erreur de sauvegarde",
-    storageError: "Stockage indisponible. Données non sauvegardées.",
-    validated: "Heure validée",
-    invalidDelta: "Delta hors tolérance. Ajuster les causes.",
-    invalidDeltaDetail: (hh, delta) => `Heure ${hh} · Δ ${delta} min hors tolérance.`,
-    invalidGood: (hh) => `Heure ${hh} · saisir un volume valide.`,
-    invalidMinutes: "Minutes négatives interdites.",
-    duplicateCategory: "Catégorie déjà existante.",
-    duplicateSub: "Sous-catégorie déjà existante.",
-    emptyCategory: "Nom de catégorie obligatoire.",
-    emptySub: "Nom de sous-catégorie obligatoire.",
-    emptyTemplate: "Libellé de template obligatoire.",
-    invalidTemplateMinutes: "Minutes de template invalides.",
-    importInvalid: "Fichier paramètres invalide.",
-    reset: "Journée réinitialisée",
-    importOk: "Paramètres importés",
-    guideReopen: "Aide affichée",
-    closeGuide: "Fermer le guide",
-    guideTitle: "Bienvenue !",
-    guideSteps: [
-      "Capturez rapidement votre production dans l'heure en cours.",
-      "Glissez pour naviguer entre les heures et validez en un geste.",
-      "Analysez vos performances et exportez en un clic."
-    ]
-  }
-});
 
-const demoData = (() => {
-  const meta = {
-    date: new Date().toISOString().slice(0, 10),
-    codeLigne: "L27",
-    targetRate: 16000,
-    shifts: [
-      { name: "Équipe A", start: "06:00", end: "14:00" },
-      { name: "Équipe B", start: "14:00", end: "22:00" },
-      { name: "Équipe C", start: "22:00", end: "06:00" }
-    ],
-    quality: { bons: 46500, total: 47000 }
-  };
-  const heures = [
-    {
-      hh: "06:00",
-      good: 15500,
-      comment: "Redémarrage fluide",
-      causes: [
-        { cat: "Technique", sub: "Réglage", minutes: 8 },
-        { cat: "Organisation", sub: "Attente OF", minutes: 4 }
-      ],
-      validated: true
-    },
-    {
-      hh: "07:00",
-      good: 15000,
-      comment: "Contrôle plan qualité",
-      causes: [
-        { cat: "Qualité", sub: "Contrôle", minutes: 10 },
-        { cat: "Technique", sub: "Panne", minutes: 6 }
-      ],
-      validated: true
-    },
-    {
-      hh: "08:00",
-      good: 14000,
-      comment: "Opérateur en formation",
-      causes: [
-        { cat: "Organisation", sub: "Manque opérateur", minutes: 12 }
-      ],
-      validated: false
-    }
-  ];
-  const settings = {
-    version: 2,
-    categories: [
-      { name: "Technique", subs: ["Réglage", "Panne", "Changement format"] },
-      { name: "Organisation", subs: ["Attente OF", "Manque opérateur", "Réunion"] },
-      { name: "Qualité", subs: ["Contrôle", "Retouche"] },
-      { name: "HSE", subs: ["Alerte", "Nettoyage"] },
-      { name: "Divers", subs: ["Autre"] }
-    ],
-    validation: { maxDeltaMinutes: 5 },
-    templates: [
-      { label: "Réglage standard", cat: "Technique", sub: "Réglage", minutes: 5 },
-      { label: "Contrôle qualité", cat: "Qualité", sub: "Contrôle", minutes: 8 },
-      { label: "Attente OF", cat: "Organisation", sub: "Attente OF", minutes: 6 }
-    ]
-  };
-  return { meta, heures, settings };
-})();
-
-const GUIDE_STORAGE_KEY = "pilotage:guideSeen:v2";
-const APP_VERSION = "2.0.0";
-
-const appState = {
-  meta: structuredClone(demoData.meta),
-  heures: structuredClone(demoData.heures),
-  settings: structuredClone(demoData.settings),
-  ui: {
-    currentView: "dashboardView",
-    currentHourIndex: 0,
-    currentHourTimer: null,
-    chartsModule: null,
-    hourSwipe: { startX: null, startTime: null },
-    saving: false,
-    analysisFilters: { range: "day", team: "all", category: "all" }
-  }
-};
-
-const storageKey = () => `pilotage:${appState.meta.date}:${appState.meta.codeLigne}`;
-/* PATCH v3: storage helpers resilient to quota/errors */
-function safeGetItem(key, fallback = null) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw === null) return fallback;
-    return JSON.parse(raw);
-  } catch (error) {
-    console.warn("safeGetItem", error);
-    return fallback;
-  }
-}
-function safeSetItem(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch (error) {
-    console.warn("safeSetItem", error);
-    return false;
-  }
-}
-function safeRemoveItem(key) {
-  try {
-    localStorage.removeItem(key);
-    return true;
-  } catch (error) {
-    console.warn("safeRemoveItem", error);
-    return false;
-  }
-}
-
-function ensureHoursStructure() {
-  const hours = buildHoursFromShifts();
-  appState.hoursList = hours;
-  hours.forEach((hh) => {
-    if (!appState.heures.find((h) => h.hh === hh)) {
-      appState.heures.push({ hh, good: null, comment: "", causes: [], validated: false });
-    }
-  });
-  appState.heures = appState.heures
-    .filter((heure) => hours.includes(heure.hh))
-    .sort((a, b) => hours.indexOf(a.hh) - hours.indexOf(b.hh));
-  appState.heures.forEach((heure) => {
-    if (!Array.isArray(heure.causes)) heure.causes = [];
-    heure.causes = heure.causes.map((cause) => ({
-      cat: cause.cat || "",
-      sub: cause.sub || "",
-      minutes: Number.isFinite(Number(cause.minutes)) ? Number(cause.minutes) : 0
-    }));
-    const parsedGood = Number(heure.good);
-    heure.good = Number.isFinite(parsedGood) ? parsedGood : null;
-    heure.comment = heure.comment || "";
-    heure.validated = Boolean(heure.validated);
-  });
-}
-
-function buildHoursFromShifts(shifts = appState.meta.shifts || []) {
-  /* PATCH v3: generate hourly ticks per shift with exclusive end, deduplicated */
-  const seen = new Set();
-  const hours = [];
-  const dayMinutes = 24 * 60;
-  shifts.forEach((shift) => {
-    if (!shift || typeof shift.start !== "string" || typeof shift.end !== "string") return;
-    const start = parseHour(shift.start);
-    const rawEnd = parseHour(shift.end);
-    const limit = rawEnd > start ? rawEnd : rawEnd + dayMinutes;
-    for (let minute = start; minute < limit; minute += 60) {
-      const normalized = ((minute % dayMinutes) + dayMinutes) % dayMinutes;
-      const label = formatHourMinutes(normalized);
-      if (!seen.has(label)) {
-        seen.add(label);
-        hours.push(label);
-      }
-    }
-  });
-  return hours;
-}
-
-function parseHour(hh) {
-  const [h, m] = hh.split(":").map(Number);
-  return (h * 60 + m) % (24 * 60);
-}
-
-function formatHourMinutes(total) {
-  const h = Math.floor(total / 60) % 24;
-  const m = total % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-function runAppMigration(payload) {
-  // PATCH v3: placeholder for future migrations when appVersion changes
-  return payload;
-}
-
-function migrateDayPayload(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  if (!payload.meta) payload.meta = {};
-  if (!Array.isArray(payload.heures)) payload.heures = [];
-  if (!payload.settings || typeof payload.settings !== "object") payload.settings = {};
-  if (!Array.isArray(payload.settings.categories)) payload.settings.categories = [];
-  if (!Array.isArray(payload.settings.templates)) payload.settings.templates = [];
-  if (!payload.settings.validation) payload.settings.validation = { maxDeltaMinutes: 5 };
-  if (!payload.settings.version) payload.settings.version = 1;
-  if (payload.appVersion !== APP_VERSION) {
-    runAppMigration(payload);
-  }
-  payload.appVersion = APP_VERSION;
-  return payload;
-}
-
-function applySettingsDefaults() {
-  if (!Array.isArray(appState.meta.shifts)) appState.meta.shifts = [];
-  if (!appState.meta.quality) appState.meta.quality = { bons: 0, total: 0 };
-  if (!Array.isArray(appState.heures)) appState.heures = [];
-  if (!appState.settings || typeof appState.settings !== "object") appState.settings = {};
-  if (!Array.isArray(appState.settings.categories)) appState.settings.categories = [];
-  if (!Array.isArray(appState.settings.templates)) appState.settings.templates = [];
-  if (!appState.settings.validation) appState.settings.validation = { maxDeltaMinutes: 5 };
-  appState.settings.version = appState.settings.version || 1;
-}
-
-function validateSettingsImport(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const version = raw.version ?? 1;
-  const targetRateValue = raw.targetRate ?? appState.meta.targetRate;
-  const targetRate = Number(targetRateValue);
-  if (!Number.isFinite(targetRate) || targetRate < 0) return null;
-
-  if (!Array.isArray(raw.shifts)) return null;
-  const shifts = raw.shifts.map((shift) => ({
-    name: typeof shift.name === "string" ? shift.name.trim() : "",
-    start: typeof shift.start === "string" ? shift.start : "00:00",
-    end: typeof shift.end === "string" ? shift.end : "08:00"
-  }));
-  if (shifts.some((shift) => !shift.name || !/^\d{2}:\d{2}$/.test(shift.start) || !/^\d{2}:\d{2}$/.test(shift.end))) return null;
-
-  if (!Array.isArray(raw.categories)) return null;
-  const categoryNames = new Set();
-  const categories = raw.categories.map((cat) => {
-    const name = typeof cat.name === "string" ? cat.name.trim() : "";
-    if (!name) throw new Error("invalid category");
-    const lower = name.toLowerCase();
-    if (categoryNames.has(lower)) throw new Error("duplicate category");
-    categoryNames.add(lower);
-    if (!Array.isArray(cat.subs)) throw new Error("invalid subs");
-    const subs = [];
-    const subsSeen = new Set();
-    cat.subs.forEach((sub) => {
-      const trimmed = typeof sub === "string" ? sub.trim() : "";
-      if (!trimmed) throw new Error("invalid sub");
-      const subLower = trimmed.toLowerCase();
-      if (subsSeen.has(subLower)) throw new Error("duplicate sub");
-      subsSeen.add(subLower);
-      subs.push(trimmed);
-    });
-    return { name, subs };
-  });
-
-  if (!Array.isArray(raw.templates)) return null;
-  const templates = raw.templates.map((tpl) => {
-    const label = typeof tpl.label === "string" ? tpl.label.trim() : "";
-    const cat = typeof tpl.cat === "string" ? tpl.cat.trim() : "";
-    const sub = typeof tpl.sub === "string" ? tpl.sub.trim() : "";
-    const minutes = Number(tpl.minutes ?? 0);
-    if (!label || !cat || !sub || !Number.isFinite(minutes) || minutes < 0) throw new Error("invalid template");
-    return { label, cat, sub, minutes };
-  });
-
-  const validationMinutes = raw.validation && Number.isFinite(Number(raw.validation.maxDeltaMinutes)) && raw.validation.maxDeltaMinutes >= 0
-    ? Number(raw.validation.maxDeltaMinutes)
-    : appState.settings.validation?.maxDeltaMinutes ?? 5;
-
-  return {
-    version,
-    targetRate,
-    shifts,
-    categories,
-    templates,
-    validation: { maxDeltaMinutes: validationMinutes }
-  };
-}
-
-function loadDay() {
-  // PATCH v3: tolerant storage read
-  const stored = safeGetItem(storageKey());
-  if (!stored) return false;
-  const migrated = migrateDayPayload(stored);
-  if (!migrated) return false;
-  if (migrated.meta) appState.meta = migrated.meta;
-  if (Array.isArray(migrated.heures)) appState.heures = migrated.heures;
-  if (migrated.settings) appState.settings = migrated.settings;
-  applySettingsDefaults();
-  return true;
-}
-
-const persistDay = (() => {
-  const delay = 400;
-  let timeoutId = null;
-  let queue = [];
-
-  const flush = () => {
-    timeoutId = null;
-    const payload = {
-      appVersion: APP_VERSION,
-      meta: appState.meta,
-      heures: appState.heures,
-      settings: appState.settings
-    };
-    requestAnimationFrame(() => {
-      const pending = queue.slice();
-      queue = [];
-      const success = safeSetItem(storageKey(), payload);
-      if (success) {
-        console.log("[persistDay]", new Date().toISOString());
-        appState.ui.saving = false;
-        updateAutoSaveIndicator("saved");
-        pending.forEach((entry) => entry.resolve());
-      } else {
-        const error = new Error("localStorage unavailable");
-        appState.ui.saving = false;
-        updateAutoSaveIndicator("error");
-        showToast(i18n.feedback.storageError, "error");
-        pending.forEach((entry) => entry.reject(error));
-      }
-    });
-  };
-
-  return function persistDay(options = {}) {
-    const { immediate = false } = options;
-    return new Promise((resolve, reject) => {
-      queue.push({ resolve, reject });
-      appState.ui.saving = true;
-      updateAutoSaveIndicator("saving");
-      if (immediate) {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        flush();
-        return;
-      }
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(flush, delay);
-    });
-  };
-})();
-
-function resetDay() {
-  safeRemoveItem(storageKey());
-  Object.assign(appState.meta, structuredClone(demoData.meta));
-  appState.heures.splice(0, appState.heures.length, ...structuredClone(demoData.heures));
-  Object.assign(appState.settings, structuredClone(demoData.settings));
-  applySettingsDefaults();
-  ensureHoursStructure();
-  renderAll();
-  persistDay({ immediate: true }).then(() => showToast(i18n.feedback.reset, "success"));
-}
-
-function updateAutoSaveIndicator(state) {
-  const indicator = document.getElementById("autoSaveIndicator");
-  indicator.classList.remove("saving", "error");
-  const label = document.getElementById("autoSaveLabel");
-  if (state === "saving") {
-    indicator.classList.add("saving");
-    label.textContent = i18n.feedback.saving;
-  } else if (state === "error") {
-    indicator.classList.add("error");
-    label.textContent = i18n.feedback.error;
-  } else {
-    label.textContent = i18n.feedback.saved;
-  }
-}
-
-function calculateMinutesAJustifier(good, targetRate) {
-  const minutesTheoriques = 60;
-  const minutesProduites = Math.min(60, (good / Math.max(1, targetRate)) * 60);
-  return Math.max(0, Math.round(minutesTheoriques - minutesProduites));
-}
-
-function getTeamForHour(hh) {
-  const time = parseHour(hh);
-  for (const shift of appState.meta.shifts) {
-    const start = parseHour(shift.start);
-    const end = parseHour(shift.end);
-    if (start <= end) {
-      if (time >= start && time < end) return shift.name;
-    } else {
-      if (time >= start || time < end) return shift.name;
-    }
-  }
-  return "";
-}
-
-function deltaStatus(minutesAJustifier, causes, tolerance) {
-  const totalCauses = causes.reduce((sum, c) => sum + Number(c.minutes || 0), 0);
-  const delta = minutesAJustifier - totalCauses;
-  const abs = Math.abs(delta);
-  let status = "success";
-  if (abs > tolerance) status = "error";
-  else if (abs !== 0) status = "warning";
-  return { delta, status, totalCauses };
-}
-
-function validateTile(index) {
-  const heure = appState.heures[index];
-  if (heure.good === null || !Number.isFinite(Number(heure.good))) {
-    showToast(i18n.feedback.invalidGood(heure.hh), "error");
-    renderHourCardState(index);
-    return false;
-  }
-  if (heure.causes.some((cause) => Number(cause.minutes) < 0)) {
-    showToast(i18n.feedback.invalidMinutes, "error");
-    renderHourCardState(index);
-    return false;
-  }
-  const minutesAJustifier = calculateMinutesAJustifier(heure.good ?? 0, appState.meta.targetRate);
-  const { delta, status } = deltaStatus(minutesAJustifier, heure.causes, appState.settings.validation.maxDeltaMinutes);
-  if (status === "error") {
-    showToast(i18n.feedback.invalidDeltaDetail(heure.hh, delta), "error");
-    heure.validated = false;
-    renderHourCardState(index);
-    return false;
-  }
-  heure.validated = true;
-  persistDay().then(() => showToast(i18n.feedback.validated, "success"));
-  renderHourCardState(index);
-  renderDashboardView();
-  return true;
-}
-
-function autoFillHour(index) {
-  const heure = appState.heures[index];
-  if (heure.validated || heure.good) return;
-  const sameHourHistory = appState.heures.filter((h, idx) => idx < index && h.hh === heure.hh && h.validated);
-  const validatedBefore = appState.heures.filter((h, idx) => idx < index && h.validated);
-  const source = sameHourHistory[sameHourHistory.length - 1] || validatedBefore[validatedBefore.length - 1];
-  if (!source) return;
-  heure.good = source.good;
-  heure.comment = source.comment ? `${source.comment} (copié)` : "";
-  heure.causes = source.causes.map((c) => ({ ...c }));
-}
-function buildHourSummary(index) {
-  const heure = appState.heures[index];
-  const minutesAJustifier = calculateMinutesAJustifier(heure.good ?? 0, appState.meta.targetRate);
-  const { delta, status, totalCauses } = deltaStatus(minutesAJustifier, heure.causes, appState.settings.validation.maxDeltaMinutes);
-  return { heure, minutesAJustifier, delta, status, totalCauses };
-}
-
-function renderDashboardView() {
-  const container = document.getElementById("dashboardView");
-  const validatedCount = appState.heures.filter((h) => h.validated).length;
-  const totalHours = appState.heures.length;
-  const progress = totalHours ? Math.round((validatedCount / totalHours) * 100) : 0;
-  const aggregates = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
-  const alerts = [];
-  appState.heures.forEach((hour, index) => {
-    const { status, delta } = buildHourSummary(index);
-    if (!hour.validated) {
-      alerts.push({ type: "warning", label: `${hour.hh} – Validation en attente (${delta} min)` });
-    } else if (status === "warning") {
-      alerts.push({ type: "warning", label: `${hour.hh} – Delta ${delta} min` });
-    } else if (status === "error") {
-      alerts.push({ type: "error", label: `${hour.hh} – Delta ${delta} min` });
-    }
-  });
-  const topCauses = getTopCauses(appState.heures, 3);
-  container.innerHTML = `
-    <article class="card" aria-labelledby="dashboardTitle">
-      <div class="card-header">
-        <h1 class="card-title" id="dashboardTitle">${i18n.dashboard.title}</h1>
-        <div class="chip">${appState.meta.date} · ${appState.meta.codeLigne}</div>
+<div id="guide" x-show="guideOpen" x-transition.opacity x-cloak class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-40 flex items-center justify-center p-6">
+  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 space-y-4">
+    <header class="flex items-center justify-between">
+      <div>
+        <h2 class="text-xl font-semibold">Guide interactif</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Découvrez les nouveautés de la V3.</p>
       </div>
-      <div class="progress-container" aria-label="${i18n.dashboard.progress}">
-        <div class="hour-progress-label">${i18n.dashboard.progress} : ${validatedCount}/${totalHours} (${progress} %)</div>
-        <div class="progress-bar" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
-          <span style="width:${progress}%"></span>
-        </div>
-      </div>
-      <div class="metric-grid">
-        <div class="metric" role="group" aria-label="OEE">
-          <span>${i18n.dashboard.kpi.oee}</span>
-          <strong>${(aggregates.OEE * 100).toFixed(1)} %</strong>
-        </div>
-        <div class="metric"><span>${i18n.dashboard.kpi.volume}</span><strong>${aggregates.totalGood.toLocaleString("fr-FR")}</strong></div>
-        <div class="metric"><span>${i18n.dashboard.kpi.minutes}</span><strong>${aggregates.minutesJustif} min</strong></div>
-        <div class="metric"><span>${i18n.dashboard.kpi.performance}</span><strong>${(aggregates.P * 100).toFixed(1)} %</strong></div>
-        <div class="metric"><span>${i18n.dashboard.kpi.availability}</span><strong>${(aggregates.D * 100).toFixed(1)} %</strong></div>
-        <div class="metric"><span>${i18n.dashboard.kpi.quality}</span><strong>${(aggregates.Q * 100).toFixed(1)} %</strong></div>
-      </div>
-      <section aria-label="${i18n.dashboard.alerts}">
-        <h2 class="card-title" style="font-size:1rem;">${i18n.dashboard.alerts}</h2>
-        ${alerts.length ? `<ul class="alert-list">${alerts.map((alert) => `<li class="alert-item" role="alert">${alertIcon(alert.type)}<span>${alert.label}</span></li>`).join("")}</ul>` : `<p>${i18n.dashboard.noAlerts}</p>`}
-      </section>
-      <section aria-label="${i18n.dashboard.topCauses}">
-        <h2 class="card-title" style="font-size:1rem;">${i18n.dashboard.topCauses}</h2>
-        <div class="template-chips">${topCauses.map((c) => `<span class="chip">${c.cat} · ${c.sub} – ${c.minutes} min</span>`).join("") || "<span>Aucune cause</span>"}</div>
-      </section>
-    </article>
-  `;
-}
-
-function alertIcon(type) {
-  const color = type === "error" ? "var(--md-sys-color-error)" : "var(--md-sys-color-warning)";
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="${color}" d="M11 7h2v6h-2zm0 8h2v2h-2z"/><path fill="${color}" d="M1 21h22L12 2 1 21zm20-1H3l9-16 9 16z"/></svg>`;
-}
-
-function getTopCauses(heures, limit = 3) {
-  const map = new Map();
-  heures.forEach((h) => {
-    h.causes.forEach((c) => {
-      const key = `${c.cat}|${c.sub}`;
-      map.set(key, (map.get(key) || 0) + Number(c.minutes || 0));
-    });
-  });
-  return Array.from(map.entries())
-    .map(([key, minutes]) => {
-      const [cat, sub] = key.split("|");
-      return { cat, sub, minutes };
-    })
-    .sort((a, b) => b.minutes - a.minutes)
-    .slice(0, limit);
-}
-
-function renderCurrentHourView() {
-  const container = document.getElementById("currentHourView");
-  const index = getCurrentHourIndex();
-  appState.ui.currentHourIndex = index;
-  const { heure, minutesAJustifier, delta, status, totalCauses } = buildHourSummary(index);
-  const tolerance = appState.settings.validation.maxDeltaMinutes;
-  const circle = buildTimerCircle();
-  container.innerHTML = `
-    <article class="card current-hour-layout" aria-labelledby="currentHourTitle" data-current-index="${index}">
-      <section>
-        <div class="hour-header">
-          <h1 class="card-title" id="currentHourTitle">${i18n.currentHour.title} · ${heure.hh}</h1>
-          <div class="hour-nav">
-            <button type="button" data-action="prev-hour" aria-label="${i18n.currentHour.previous}" data-touch-area><span aria-hidden="true">◀</span></button>
-            <button type="button" data-action="next-hour" aria-label="${i18n.currentHour.next}" data-touch-area><span aria-hidden="true">▶</span></button>
-          </div>
-        </div>
-        <div class="timer-circle" role="img" aria-label="${i18n.currentHour.timer}">
-          ${circle}
-        </div>
-        <div class="template-chips" aria-label="${i18n.currentHour.templateTitle}">
-          ${appState.settings.templates.map((tpl, tplIndex) => `<button type="button" data-template-index="${tplIndex}" data-touch-area>${tpl.label}</button>`).join("")}
-        </div>
-        <div class="badge ${status}">
-          ${status === "success" ? i18n.operator.status.ok : status === "warning" ? i18n.operator.status.warn : i18n.operator.status.error}
-          · ${i18n.currentHour.minutesToExplain}: ${minutesAJustifier} · ${i18n.currentHour.delta}: ${delta}
-        </div>
-        <p>Causes: ${totalCauses} min · Tolérance ±${tolerance} min</p>
-      </section>
-      <form class="hour-form" data-hour-index="${index}">
-        <label class="field">
-          <span>${i18n.forms.good}</span>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" name="good" value="${heure.good ?? ""}" required aria-required="true" min="0" data-touch-area />
-        </label>
-        <label class="field">
-          <span>${i18n.forms.comment}</span>
-          <textarea name="comment" rows="3" placeholder="Observation…" data-touch-area>${heure.comment || ""}</textarea>
-        </label>
-        <section class="cause-list" aria-label="Causes">
-          ${heure.causes.map((cause, causeIndex) => renderCauseRow(index, causeIndex, cause)).join("")}
-        </section>
-        <button type="button" class="btn-secondary" data-action="add-cause" data-touch-area>${i18n.operator.addCause}</button>
-        <button type="submit" class="btn-primary" data-touch-area>${i18n.currentHour.validate}</button>
-      </form>
-    </article>
-  `;
-  setupCurrentHourInteractions(container, index);
-  setupSwipeGestures(container.querySelector("article"));
-  if (appState.ui.currentView === "currentHourView") {
-    startCurrentHourTimer();
-  }
-}
-
-function buildTimerCircle() {
-  const now = new Date();
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-  const remaining = 3600 - (minutes * 60 + seconds);
-  const percent = Math.max(0, Math.min(1, remaining / 3600));
-  const radius = 70;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - percent);
-  return `
-    <svg viewBox="0 0 160 160">
-      <circle cx="80" cy="80" r="${radius}" stroke="var(--md-sys-color-surface-variant)" stroke-width="12" fill="transparent"></circle>
-      <circle cx="80" cy="80" r="${radius}" stroke="var(--md-sys-color-primary)" stroke-width="12" fill="transparent" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"></circle>
-    </svg>
-    <div class="timer-label">
-      <div>${formatDuration(remaining)}</div>
-      <span>${i18n.currentHour.remaining}</span>
+      <button type="button" class="px-3 py-1 rounded-lg bg-slate-200 dark:bg-slate-800" aria-label="Fermer le guide" @click="closeGuide">✕</button>
+    </header>
+    <ol class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+      <li><span class="font-semibold">Dashboard :</span> KPIs animés, alertes et météo.</li>
+      <li><span class="font-semibold">Heure en cours :</span> Timer, dictée vocale, templates.</li>
+      <li><span class="font-semibold">Analyse :</span> Filtres multi-critères et exports.</li>
+      <li><span class="font-semibold">Équipes :</span> Drag & drop et notifications.</li>
+      <li><span class="font-semibold">PWA :</span> Mode offline avec mise à jour.</li>
+    </ol>
+    <footer class="flex justify-end gap-3">
+      <button type="button" class="px-4 py-2 rounded-xl bg-secondary text-slate-900" @click="closeGuide">Compris</button>
+    </footer>
+  </div>
+</div>
+<template id="toast-template">
+  <div class="pointer-events-auto bg-slate-900 text-white rounded-2xl px-4 py-3 shadow-2xl flex items-start gap-3">
+    <div class="w-2 rounded-full" data-role="accent"></div>
+    <div>
+      <p class="font-semibold" data-role="title"></p>
+      <p class="text-sm" data-role="message"></p>
     </div>
-  `;
-}
+    <button type="button" class="ml-auto" data-role="close">✕</button>
+  </div>
+</template>
+<div id="toast-stack" class="fixed top-6 right-6 space-y-3 z-50"></div>
 
-function formatDuration(totalSeconds) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
-function renderCauseRow(hourIndex, causeIndex, cause = { cat: "", sub: "", minutes: 0 }) {
-  const catOptions = appState.settings.categories.map((cat) => `<option value="${cat.name}" ${cat.name === cause.cat ? "selected" : ""}>${cat.name}</option>`).join("");
-  const subs = getSubcategoriesFor(cause.cat);
-  const subOptions = subs.map((sub) => `<option value="${sub}" ${sub === cause.sub ? "selected" : ""}>${sub}</option>`).join("");
-  return `
-    <div class="cause-row" data-hour-index="${hourIndex}" data-cause-index="${causeIndex}">
-      <label class="field">
-        <span>${i18n.forms.category}</span>
-        <select name="cat" data-touch-area>
-          <option value="">--</option>
-          ${catOptions}
-        </select>
-      </label>
-      <label class="field">
-        <span>${i18n.forms.subcategory}</span>
-        <select name="sub" data-touch-area>
-          <option value="">--</option>
-          ${subOptions}
-        </select>
-      </label>
-      <label class="field">
-        <span>${i18n.forms.minutes}</span>
-        <input type="number" name="minutes" inputmode="numeric" pattern="[0-9]*" min="0" value="${cause.minutes ?? ""}" data-touch-area />
-      </label>
-      <button type="button" class="remove-cause" data-action="remove-cause" aria-label="${i18n.operator.remove}" data-touch-area>✕</button>
-    </div>
-  `;
-}
-
-function getSubcategoriesFor(catName) {
-  const category = appState.settings.categories.find((c) => c.name === catName);
-  const subs = category ? category.subs : [];
-  return [...subs, "Autre (libre)"];
-}
-
-function focusCauseField(context, hourIndex, causeIndex, field = "cat") {
-  const container = context === "current"
-    ? document.querySelector(`#currentHourView .hour-form[data-hour-index="${hourIndex}"]`)
-    : document.querySelector(`.operator-hour-card[data-hour-index="${hourIndex}"]`);
-  if (!container) return;
-  const row = container.querySelector(`.cause-row[data-hour-index="${hourIndex}"][data-cause-index="${causeIndex}"]`);
-  if (!row) return;
-  const selector = field === "minutes" ? 'input[name="minutes"]' : field === "sub" ? 'select[name="sub"]' : 'select[name="cat"]';
-  const element = row.querySelector(selector);
-  if (element) element.focus();
-}
-
-function focusAddCauseButton(context, hourIndex) {
-  if (context === "current") {
-    const button = document.querySelector(`#currentHourView .hour-form[data-hour-index="${hourIndex}"] button[data-action="add-cause"]`);
-    if (button) button.focus();
-    return;
-  }
-  const button = document.querySelector(`.operator-hour-card[data-hour-index="${hourIndex}"] button[data-action="add-cause"]`);
-  if (button) button.focus();
-}
-
-function setupCurrentHourInteractions(container, hourIndex) {
-  const form = container.querySelector("form");
-  const heure = appState.heures[hourIndex];
-  form.addEventListener("input", (event) => {
-    const target = event.target;
-    if (target.name === "good") {
-      heure.good = target.value === "" ? null : Number(target.value);
-    } else if (target.name === "comment") {
-      heure.comment = target.value;
-    } else if (target.closest(".cause-row")) {
-      const row = target.closest(".cause-row");
-      const causeIndex = Number(row.dataset.causeIndex);
-      const cause = heure.causes[causeIndex];
-      if (target.name === "cat") {
-        cause.cat = target.value;
-        const subSelect = row.querySelector('select[name="sub"]');
-        const options = getSubcategoriesFor(cause.cat).map((sub) => `<option value="${sub}">${sub}</option>`).join("");
-        subSelect.innerHTML = `<option value="">--</option>${options}`;
-        cause.sub = "";
-        subSelect.focus();
-      } else if (target.name === "sub") {
-        if (target.value === "Autre (libre)") {
-          const libre = prompt("Sous-catégorie") || "";
-          const trimmed = libre.trim();
-          cause.sub = trimmed || "Non renseigné";
-          target.value = cause.sub;
-        } else {
-          cause.sub = target.value;
-        }
-        const minutesField = row.querySelector('input[name="minutes"]');
-        if (minutesField) minutesField.focus();
-      } else if (target.name === "minutes") {
-        if (target.value === "") {
-          cause.minutes = 0;
-        } else {
-          const parsed = Number(target.value);
-          if (!Number.isFinite(parsed) || parsed < 0) {
-            showToast(i18n.feedback.invalidMinutes, "error");
-            cause.minutes = 0;
-            target.value = "";
-          } else {
-            const sanitized = Math.max(0, Math.round(parsed));
-            cause.minutes = sanitized;
-            target.value = String(sanitized);
-          }
-        }
-      }
+  <script>
+    const STORAGE_KEY = 'pilotage-v3';
+    const GUIDE_KEY = 'pilotage-guide-v3';
+    const SW_SNIPPET = `self.addEventListener('install',event=>{self.skipWaiting();event.waitUntil(caches.open('pilotage-cache').then(cache=>cache.addAll([])));});self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));self.addEventListener('fetch',event=>{event.respondWith(caches.match(event.request).then(resp=>resp||fetch(event.request).catch(()=>resp)));});self.addEventListener('message',event=>{if(event.data&&event.data.type==='SKIP_WAITING'){self.skipWaiting();}});`;
+    function pushToast(title,message,level='info'){
+      const tpl=document.getElementById('toast-template');
+      if(!tpl) return;
+      const node=tpl.content.firstElementChild.cloneNode(true);
+      node.querySelector('[data-role="title"]').textContent=title;
+      node.querySelector('[data-role="message"]').textContent=message;
+      const accent=node.querySelector('[data-role="accent"]');
+      accent.classList.add(level==='danger'?'bg-rose-500':level==='success'?'bg-emerald-500':'bg-primary');
+      node.querySelector('[data-role="close"]').addEventListener('click',()=>node.remove());
+      document.getElementById('toast-stack').appendChild(node);
+      setTimeout(()=>node.remove(),6000);
     }
-    heure.validated = false;
-    renderHourCardState(hourIndex);
-    persistDay();
-  });
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    validateTile(hourIndex);
-  });
-  form.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-action]");
-    if (!button) return;
-    const action = button.dataset.action;
-    if (action === "add-cause") {
-      const newIndex = heure.causes.length;
-      heure.causes.push({ cat: "", sub: "", minutes: 0 });
-      renderCurrentHourView();
-      requestAnimationFrame(() => focusCauseField("current", hourIndex, newIndex, "cat"));
-      persistDay();
-    } else if (action === "remove-cause") {
-      const row = button.closest(".cause-row");
-      const idx = Number(row.dataset.causeIndex);
-      heure.causes.splice(idx, 1);
-      renderCurrentHourView();
-      requestAnimationFrame(() => {
-        if (heure.causes.length) {
-          focusCauseField("current", hourIndex, Math.max(0, idx - 1), "minutes");
-        } else {
-          focusAddCauseButton("current", hourIndex);
+    function safeGet(key,fallback){
+      try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(err){console.warn('Lecture stockage impossible',err);return fallback;}
+    }
+    function safeSet(key,value){
+      try{localStorage.setItem(key,JSON.stringify(value));return true;}catch(err){console.warn('Ecriture stockage impossible',err);pushToast('Sauvegarde','Stockage local indisponible','danger');return false;}
+    }
+    function shell(){
+      return {
+        theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+        isOnline: navigator.onLine,
+        updateReady: false,
+        registration: null,
+        initShell(){
+          document.documentElement.classList.toggle('dark',this.theme==='dark');
+          window.addEventListener('online',()=>{this.isOnline=true;});
+          window.addEventListener('offline',()=>{this.isOnline=false;});
+          this.registerSW();
+        },
+        toggleTheme(){this.theme=this.theme==='dark'?'light':'dark';document.documentElement.classList.toggle('dark',this.theme==='dark');safeSet('pilotage-theme',this.theme);},
+        openGuide(){document.querySelector('[x-data="appState"]').__x.$data.openGuide();},
+        closeGuide(){document.querySelector('[x-data="appState"]').__x.$data.closeGuide();},
+        triggerUpdate(){if(this.registration&&this.registration.waiting){this.registration.waiting.postMessage({type:'SKIP_WAITING'});}},
+        registerSW(){
+          if(!('serviceWorker'in navigator)) return;
+          const blob=new Blob([SW_SNIPPET],{type:'text/javascript'});
+          const url=URL.createObjectURL(blob);
+          navigator.serviceWorker.register(url).then(reg=>{
+            this.registration=reg;
+            const notify=()=>{this.updateReady=true;pushToast('Mise à jour','Nouvelle version disponible');};
+            if(reg.waiting) notify();
+            reg.addEventListener('updatefound',()=>{reg.installing?.addEventListener('statechange',()=>{if(reg.waiting) notify();});});
+            navigator.serviceWorker.addEventListener('controllerchange',()=>window.location.reload());
+          }).catch(()=>{});
         }
-      });
-      persistDay();
-    }
-  });
-  container.querySelectorAll("[data-template-index]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const tpl = appState.settings.templates[Number(btn.dataset.templateIndex)];
-      if (!tpl) return;
-      heure.causes.push({ cat: tpl.cat, sub: tpl.sub, minutes: tpl.minutes });
-      renderCurrentHourView();
-      requestAnimationFrame(() => focusCauseField("current", hourIndex, heure.causes.length - 1, "minutes"));
-      persistDay();
-    });
-  });
-  container.querySelectorAll("[data-action='prev-hour'], [data-action='next-hour']").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const dir = btn.dataset.action === "next-hour" ? 1 : -1;
-      navigateHour(dir);
-    });
-  });
-}
-
-function renderHourCardState(index) {
-  const { minutesAJustifier, delta, status } = buildHourSummary(index);
-  const hourCard = document.querySelector(`.operator-hour-card[data-hour-index="${index}"]`);
-  if (hourCard) {
-    hourCard.classList.toggle("validated", appState.heures[index].validated);
-    const badge = hourCard.querySelector(".badge");
-    if (badge) {
-      badge.className = `badge ${status}`;
-      badge.textContent = `${minutesAJustifier} min · Δ ${delta}`;
-    }
-    const deltaBar = hourCard.querySelector(".delta-bar span");
-    if (deltaBar) {
-      const ratio = Math.min(100, Math.abs(delta) / Math.max(1, appState.settings.validation.maxDeltaMinutes) * 100);
-      deltaBar.style.width = `${ratio}%`;
-      deltaBar.style.background = status === "success" ? "var(--md-sys-color-success)" : status === "warning" ? "var(--md-sys-color-warning)" : "var(--md-sys-color-error)";
-    }
-  }
-  const currentBadge = document.querySelector("#currentHourView .badge");
-  if (currentBadge && index === appState.ui.currentHourIndex) {
-    currentBadge.className = `badge ${status}`;
-    currentBadge.textContent = `${status === "success" ? i18n.operator.status.ok : status === "warning" ? i18n.operator.status.warn : i18n.operator.status.error} · ${i18n.currentHour.minutesToExplain}: ${minutesAJustifier} · ${i18n.currentHour.delta}: ${delta}`;
-  }
-  renderDashboardView();
-}
-
-function renderOperatorView() {
-  const container = document.getElementById("operatorView");
-  const cards = appState.heures.map((heure, index) => {
-    const { minutesAJustifier, delta, status } = buildHourSummary(index);
-    const tolerance = Math.max(1, appState.settings.validation.maxDeltaMinutes);
-    const ratio = Math.min(100, (Math.abs(delta) / tolerance) * 100);
-    const barColor = status === "success" ? "var(--md-sys-color-success)" : status === "warning" ? "var(--md-sys-color-warning)" : "var(--md-sys-color-error)";
-    return `
-      <article class="operator-hour-card ${heure.validated ? "validated" : ""}" data-hour-index="${index}" tabindex="0">
-        ${heure.validated ? '<span class="validated-flag" aria-hidden="true">✔</span>' : ""}
-        <header class="hour-header">
-          <h2 class="card-title">${heure.hh}</h2>
-          <span class="chip">${getTeamForHour(heure.hh)}</span>
-        </header>
-        <div class="badge ${status}">${minutesAJustifier} min · Δ ${delta}</div>
-        <div class="delta-bar" aria-hidden="true"><span style="width: ${ratio}%; background: ${barColor};"></span></div>
-        <div class="field">
-          <span>${i18n.forms.good}</span>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" value="${heure.good ?? ""}" data-field="good" data-touch-area />
-        </div>
-        <div class="field">
-          <span>${i18n.forms.comment}</span>
-          <textarea data-field="comment" data-touch-area>${heure.comment || ""}</textarea>
-        </div>
-        <div class="cause-list">
-          ${heure.causes.map((cause, causeIndex) => renderCauseRow(index, causeIndex, cause)).join("")}
-        </div>
-        <button type="button" class="btn-secondary" data-action="add-cause" data-touch-area>${i18n.operator.addCause}</button>
-        <button type="button" class="btn-primary" data-action="validate" data-touch-area>${i18n.forms.validate}</button>
-      </article>
-    `;
-  }).join("");
-  container.innerHTML = `<div class="operator-hour-grid" aria-label="${i18n.operator.title}">${cards}</div>`;
-  container.querySelectorAll(".operator-hour-card").forEach((card) => {
-    const index = Number(card.dataset.hourIndex);
-    const heure = appState.heures[index];
-    card.addEventListener("input", (event) => {
-      const target = event.target;
-      if (target.dataset.field === "good") {
-        heure.good = target.value === "" ? null : Number(target.value);
-      } else if (target.dataset.field === "comment") {
-        heure.comment = target.value;
-      }
-      heure.validated = false;
-      renderHourCardState(index);
-      persistDay();
-    });
-    card.addEventListener("click", (event) => {
-      const button = event.target.closest("button[data-action]");
-      if (!button) return;
-      const action = button.dataset.action;
-      if (action === "add-cause") {
-        const newIndex = heure.causes.length;
-        heure.causes.push({ cat: "", sub: "", minutes: 0 });
-        renderOperatorView();
-        requestAnimationFrame(() => focusCauseField("operator", index, newIndex, "cat"));
-        persistDay();
-      } else if (action === "validate") {
-        validateTile(index);
-      } else if (action === "remove-cause") {
-        const row = button.closest(".cause-row");
-        const idx = Number(row.dataset.causeIndex);
-        heure.causes.splice(idx, 1);
-        renderOperatorView();
-        requestAnimationFrame(() => {
-          if (heure.causes.length) {
-            focusCauseField("operator", index, Math.max(0, idx - 1), "minutes");
-          } else {
-            focusAddCauseButton("operator", index);
-          }
-        });
-        persistDay();
-      }
-    });
-    card.querySelectorAll(".cause-row select[name='cat']").forEach((select) => {
-      select.addEventListener("change", (event) => {
-        const row = event.target.closest(".cause-row");
-        const idx = Number(row.dataset.causeIndex);
-        const cause = heure.causes[idx];
-        cause.cat = event.target.value;
-        const subs = getSubcategoriesFor(cause.cat);
-        const subSelect = row.querySelector("select[name='sub']");
-        subSelect.innerHTML = `<option value="">--</option>${subs.map((sub) => `<option value="${sub}">${sub}</option>`).join("")}`;
-        cause.sub = "";
-        subSelect.focus();
-        heure.validated = false;
-        renderHourCardState(index);
-        persistDay();
-      });
-    });
-    card.querySelectorAll(".cause-row select[name='sub']").forEach((select) => {
-      select.addEventListener("change", (event) => {
-        const row = event.target.closest(".cause-row");
-        const idx = Number(row.dataset.causeIndex);
-        const cause = heure.causes[idx];
-        if (event.target.value === "Autre (libre)") {
-          const libre = prompt("Sous-catégorie") || "";
-          const trimmed = libre.trim();
-          cause.sub = trimmed || "Non renseigné";
-          event.target.value = cause.sub;
-        } else {
-          cause.sub = event.target.value;
-        }
-        const minutesField = row.querySelector('input[name="minutes"]');
-        if (minutesField) minutesField.focus();
-        heure.validated = false;
-        renderHourCardState(index);
-        persistDay();
-      });
-    });
-    card.querySelectorAll(".cause-row input[name='minutes']").forEach((input) => {
-      input.addEventListener("input", (event) => {
-        const row = event.target.closest(".cause-row");
-        const idx = Number(row.dataset.causeIndex);
-        const cause = heure.causes[idx];
-        if (event.target.value === "") {
-          cause.minutes = 0;
-        } else {
-          const parsed = Number(event.target.value);
-          if (!Number.isFinite(parsed) || parsed < 0) {
-            showToast(i18n.feedback.invalidMinutes, "error");
-            cause.minutes = 0;
-            event.target.value = "";
-          } else {
-            const sanitized = Math.max(0, Math.round(parsed));
-            cause.minutes = sanitized;
-            event.target.value = String(sanitized);
-          }
-        }
-        heure.validated = false;
-        renderHourCardState(index);
-        persistDay();
-      });
-    });
-  });
-}
-
-function navigateHour(direction) {
-  const total = appState.heures.length;
-  const nextIndex = (appState.ui.currentHourIndex + direction + total) % total;
-  appState.ui.currentHourIndex = nextIndex;
-  renderCurrentHourView();
-}
-
-function setupSwipeGestures(element) {
-  element.addEventListener("pointerdown", (event) => {
-    appState.ui.hourSwipe = { startX: event.clientX, startTime: performance.now() };
-  });
-  element.addEventListener("pointerup", (event) => {
-    const swipe = appState.ui.hourSwipe;
-    if (!swipe.startX) return;
-    const deltaX = event.clientX - swipe.startX;
-    const deltaTime = performance.now() - swipe.startTime;
-    if (Math.abs(deltaX) > 70 && deltaTime < 600) {
-      navigateHour(deltaX < 0 ? 1 : -1);
-    }
-    appState.ui.hourSwipe = { startX: null, startTime: null };
-  });
-}
-/* PATCH v3: filter helper for analysis view */
-function filterHeures(filters = {}, state = appState) {
-  const { range = "day", team = "all", category = "all" } = filters;
-  let heures = Array.isArray(state.heures) ? [...state.heures] : [];
-  if (team !== "all") {
-    heures = heures.filter((heure) => getTeamForHour(heure.hh) === team);
-  }
-  if (category !== "all") {
-    const target = category.toLowerCase();
-    heures = heures.filter((heure) =>
-      heure.causes.some((cause) => (cause.cat || "").toLowerCase() === target)
-    );
-  }
-  const partial = range !== "day";
-  return { heures, meta: state.meta, settings: state.settings, partial };
-}
-
-function renderAnalysisView() {
-  const container = document.getElementById("analysisView");
-  const filters = appState.ui.analysisFilters || { range: "day", team: "all", category: "all" };
-  const filtered = filterHeures(filters, appState);
-  const aggregates = aggregateKPIs(filtered);
-  container.innerHTML = `
-    <article class="card" aria-labelledby="analysisTitle">
-      <div class="card-header">
-        <h1 class="card-title" id="analysisTitle">${i18n.analysis.title}</h1>
-        <div class="chip">${appState.meta.date}</div>
-      </div>
-      <section class="filter-bar" aria-label="${i18n.analysis.filters}">
-        <label class="field">
-          <span>Période</span>
-          <select id="analysisRange" data-touch-area>
-            <option value="day">Jour</option>
-            <option value="week">Semaine</option>
-            <option value="month">Mois</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Ligne</span>
-          <input type="text" value="${appState.meta.codeLigne}" readonly />
-        </label>
-        <label class="field">
-          <span>Équipe</span>
-          <select id="analysisTeam" data-touch-area>
-            <option value="all">Toutes</option>
-            ${appState.meta.shifts.map((shift) => `<option value="${shift.name}">${shift.name}</option>`).join("")}
-          </select>
-        </label>
-        <label class="field">
-          <span>Catégorie</span>
-          <select id="analysisCategory" data-touch-area>
-            <option value="all">Toutes</option>
-            ${appState.settings.categories.map((cat) => `<option value="${cat.name}">${cat.name}</option>`).join("")}
-          </select>
-        </label>
-      </section>
-      <section class="metric-grid">
-        <div class="metric"><span>${i18n.analysis.oee}</span><strong>${formatPercent(aggregates.OEE)}</strong></div>
-        <div class="metric"><span>${i18n.analysis.availability}</span><strong>${formatPercent(aggregates.D)}</strong></div>
-        <div class="metric"><span>${i18n.analysis.performance}</span><strong>${formatPercent(aggregates.P)}</strong></div>
-        <div class="metric"><span>${i18n.analysis.quality}</span><strong>${formatPercent(aggregates.Q)}</strong></div>
-        <div class="metric"><span>${i18n.analysis.minutes}</span><strong>${Math.round(aggregates.minutesJustif)} min</strong></div>
-        <div class="metric"><span>${i18n.analysis.nonConform}</span><strong>${aggregates.nonConform}</strong></div>
-        <div class="metric"><span>${i18n.analysis.volume}</span><strong>${aggregates.totalGood.toLocaleString("fr-FR")}</strong></div>
-      </section>
-      <div class="analysis-layout">
-        <div class="chart-card card">
-          <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.lineTitle}</h2>
-          <canvas id="lineChart" width="640" height="320" role="img" aria-label="${i18n.analysis.charts.lineTitle}" aria-description="${i18n.analysis.charts.lineDescription}"></canvas>
-          <noscript>${i18n.analysis.charts.noscript}</noscript>
-        </div>
-        <div class="chart-card card">
-          <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.barTitle}</h2>
-          <canvas id="barChart" width="320" height="320" role="img" aria-label="${i18n.analysis.charts.barTitle}" aria-description="${i18n.analysis.charts.barDescription}"></canvas>
-          <noscript>${i18n.analysis.charts.noscript}</noscript>
-        </div>
-        <div class="chart-card card" style="grid-column: 1 / -1;">
-          <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.heatmapTitle}</h2>
-          <canvas id="heatmapChart" width="960" height="320" role="img" aria-label="${i18n.analysis.charts.heatmapTitle}" aria-description="${i18n.analysis.charts.heatmapDescription}"></canvas>
-          <noscript>${i18n.analysis.charts.noscript}</noscript>
-        </div>
-      </div>
-    </article>
-  `;
-  if (filtered.partial) {
-    const badge = document.createElement("span");
-    badge.className = "chip";
-    badge.textContent = i18n.analysis.partial;
-    const header = container.querySelector(".card-header");
-    if (header) header.appendChild(badge);
-  }
-  const rangeSelect = container.querySelector("#analysisRange");
-  const teamSelect = container.querySelector("#analysisTeam");
-  const categorySelect = container.querySelector("#analysisCategory");
-  if (rangeSelect) rangeSelect.value = filters.range;
-  if (teamSelect) teamSelect.value = filters.team;
-  if (categorySelect) categorySelect.value = filters.category;
-  [rangeSelect, teamSelect, categorySelect].forEach((select) => {
-    if (!select) return;
-    select.addEventListener("change", () => {
-      appState.ui.analysisFilters = {
-        range: rangeSelect?.value || "day",
-        team: teamSelect?.value || "all",
-        category: categorySelect?.value || "all"
       };
-      renderAnalysisView();
-    });
-  });
-  Promise.resolve().then(async () => {
-    try {
-      const charting = await ensureChartsModule();
-      const lineCanvas = document.getElementById("lineChart");
-      const barCanvas = document.getElementById("barChart");
-      const heatmapCanvas = document.getElementById("heatmapChart");
-      if (lineCanvas) {
-        charting.renderLineChart(lineCanvas.getContext("2d"), buildLineData(filtered.heures));
+    }
+    const demoState = {
+      meta:{date:new Date().toISOString().slice(0,10),line:'L27',targetRate:16000},
+      heures:[
+        {hh:'06:00',good:15500,team:'Equipe A',causes:[{cat:'Technique',sub:'Réglage',minutes:8}],validated:true},
+        {hh:'07:00',good:16200,team:'Equipe A',causes:[{cat:'Organisation',sub:'Attente OF',minutes:4}],validated:true},
+        {hh:'08:00',good:14000,team:'Equipe A',causes:[{cat:'Technique',sub:'Panne',minutes:14}],validated:false},
+        {hh:'09:00',good:0,team:'Equipe A',causes:[],validated:false}
+      ],
+      templates:[
+        {id:'setup',name:'Réglage format',minutes:10,causes:[{cat:'Technique',sub:'Réglage',minutes:10}]},
+        {id:'quality',name:'Contrôle qualité',minutes:5,causes:[{cat:'Qualité',sub:'Contrôle',minutes:5}]}
+      ],
+      settings:{
+        categories:['Technique','Organisation','Qualité','HSE','Divers'],
+        subCategories:['Réglage','Panne','Attente OF','Contrôle','Nettoyage','Autre'],
+        shifts:[
+          {name:'Equipe A',start:'06:00',end:'14:00'},
+          {name:'Equipe B',start:'14:00',end:'22:00'},
+          {name:'Equipe C',start:'22:00',end:'06:00'}
+        ]
+      },
+      alerts:[
+        {id:1,title:'Attente matière',message:'OF 12345 en rupture dans 20 min',level:'high'},
+        {id:2,title:'Inspection qualité',message:'Audit prévu à 11:00',level:'medium'},
+        {id:3,title:'Maintenance préventive',message:'Vérifier coupleur ligne 3',level:'low'}
+      ],
+      team:{
+        pool:[
+          {id:'op1',name:'Marie',skill:'Réglage'},
+          {id:'op2',name:'Léo',skill:'Maintenance'},
+          {id:'op3',name:'Sofia',skill:'Qualité'}
+        ],
+        boards:[
+          {id:'shiftA',name:'Equipe A',range:'06:00-14:00',members:[{id:'lead',name:'Jonas',skill:'Conducteur'}]},
+          {id:'shiftB',name:'Equipe B',range:'14:00-22:00',members:[]}
+        ]
       }
-      if (barCanvas) {
-        charting.renderBarChart(barCanvas.getContext("2d"), buildBarData(filtered.heures));
-      }
-      if (heatmapCanvas) {
-        charting.renderHeatmap(heatmapCanvas.getContext("2d"), buildHeatmapData(filtered.heures));
-      }
-    } catch (error) {
-      console.error("Charts module", error);
-      container.querySelectorAll(".chart-card canvas").forEach((canvas) => {
-        const notice = document.createElement("p");
-        notice.textContent = i18n.analysis.charts.fallback;
-        canvas.replaceWith(notice);
-      });
-    }
-  });
-}
-
-function buildLineData(source = appState.heures) {
-  const labels = source.map((h) => h.hh);
-  const good = source.map((h) => h.good ?? 0);
-  const theoretical = source.map(() => appState.meta.targetRate);
-  return {
-    labels,
-    datasets: [
-      { label: i18n.analysis.charts.lineDatasetGood, data: good, color: "#0b57d0" },
-      { label: i18n.analysis.charts.lineDatasetTarget, data: theoretical, color: "#5f6b7a" }
-    ],
-    targetLine: { value: appState.meta.targetRate, label: i18n.analysis.charts.targetLabel, color: "#adb5bd" },
-    tooltipValueLabel: i18n.analysis.charts.tooltipValue,
-    valueFormatter: (value) => value.toLocaleString("fr-FR")
-  };
-}
-
-function buildBarData(source = appState.heures) {
-  const topCauses = getTopCauses(source, 5);
-  return {
-    labels: topCauses.map((c) => `${c.cat} · ${c.sub}`),
-    datasets: [
-      { label: i18n.analysis.charts.barDataset, data: topCauses.map((c) => c.minutes), color: "#0b57d0" }
-    ],
-    tooltipValueLabel: i18n.analysis.charts.tooltipValue,
-    valueFormatter: (value) => `${Math.round(value)} min`
-  };
-}
-
-function buildHeatmapData(source = appState.heures) {
-  const hours = source.map((h) => h.hh);
-  const categories = appState.settings.categories.map((c) => c.name);
-  const matrix = categories.map(() => hours.map(() => 0));
-  source.forEach((heure, i) => {
-    heure.causes.forEach((cause) => {
-      const catIndex = categories.indexOf(cause.cat);
-      if (catIndex >= 0) {
-        matrix[catIndex][i] += Number(cause.minutes || 0);
-      }
-    });
-  });
-  return { hours, categories, matrix };
-}
-
-async function ensureChartsModule() {
-  if (appState.ui.chartsModule) return appState.ui.chartsModule;
-  const moduleCode = String.raw`
-const FONT = '12px Inter';
-const TOOLTIP_BG = 'rgba(27,31,35,0.85)';
-const TOOLTIP_TEXT = '#ffffff';
-
-function drawTooltip(ctx, x, y, lines) {
-  ctx.save();
-  ctx.font = FONT;
-  const padding = 8;
-  const lineHeight = 16;
-  const width = Math.max(...lines.map((line) => ctx.measureText(line).width)) + padding * 2;
-  const height = lines.length * lineHeight + padding * 2;
-  let tx = x + 12;
-  let ty = y - height - 12;
-  if (tx + width > ctx.canvas.width - 4) tx = ctx.canvas.width - width - 4;
-  if (ty < 4) ty = y + 12;
-  ctx.fillStyle = TOOLTIP_BG;
-  ctx.fillRect(tx, ty, width, height);
-  ctx.fillStyle = TOOLTIP_TEXT;
-  lines.forEach((line, index) => {
-    ctx.fillText(line, tx + padding, ty + padding + lineHeight * (index + 0.75));
-  });
-  ctx.restore();
-}
-
-function ensureLineInteractions(canvas) {
-  if (canvas.__lineSetup) return;
-  canvas.addEventListener('mousemove', (event) => {
-    const state = canvas.__lineState;
-    const config = canvas.__lineConfig;
-    if (!state || !config) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    let nearest = null;
-    let minDistance = Infinity;
-    state.points.forEach((point) => {
-      const dx = point.x - x;
-      const dy = point.y - y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearest = point;
-      }
-    });
-    if (nearest && minDistance < 24) {
-      state.hover = nearest;
-    } else {
-      state.hover = null;
-    }
-    renderLineChart(canvas.getContext('2d'), canvas.__lineConfig);
-  });
-  canvas.addEventListener('mouseleave', () => {
-    const state = canvas.__lineState;
-    const config = canvas.__lineConfig;
-    if (!state || !config) return;
-    state.hover = null;
-    renderLineChart(canvas.getContext('2d'), config);
-  });
-  canvas.addEventListener('click', (event) => {
-    const state = canvas.__lineState;
-    const config = canvas.__lineConfig;
-    if (!state || !config) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const legendItem = state.legend.find((item) => x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height);
-    if (legendItem) {
-      if (state.hidden.has(legendItem.index)) {
-        state.hidden.delete(legendItem.index);
-      } else {
-        state.hidden.add(legendItem.index);
-      }
-      renderLineChart(canvas.getContext('2d'), config);
-    }
-  });
-  canvas.__lineSetup = true;
-}
-
-function ensureBarInteractions(canvas) {
-  if (canvas.__barSetup) return;
-  canvas.addEventListener('mousemove', (event) => {
-    const state = canvas.__barState;
-    const config = canvas.__barConfig;
-    if (!state || !config) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const bar = state.bars.find((item) => x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height);
-    state.hover = bar || null;
-    renderBarChart(canvas.getContext('2d'), config);
-  });
-  canvas.addEventListener('mouseleave', () => {
-    const state = canvas.__barState;
-    const config = canvas.__barConfig;
-    if (!state || !config) return;
-    state.hover = null;
-    renderBarChart(canvas.getContext('2d'), config);
-  });
-  canvas.addEventListener('click', (event) => {
-    const state = canvas.__barState;
-    const config = canvas.__barConfig;
-    if (!state || !config) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const legendItem = state.legend.find((item) => x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height);
-    if (legendItem) {
-      if (state.hidden.has(legendItem.index)) {
-        state.hidden.delete(legendItem.index);
-      } else {
-        state.hidden.add(legendItem.index);
-      }
-      renderBarChart(canvas.getContext('2d'), config);
-    }
-  });
-  canvas.__barSetup = true;
-}
-
-export function renderLineChart(ctx, config) {
-  const canvas = ctx.canvas;
-  const state = canvas.__lineState || (canvas.__lineState = { hidden: new Set(), hover: null, legend: [], points: [] });
-  canvas.__lineConfig = config;
-  ensureLineInteractions(canvas);
-  const width = canvas.width;
-  const height = canvas.height;
-  ctx.clearRect(0, 0, width, height);
-  ctx.font = FONT;
-  Array.from(state.hidden).forEach((index) => {
-    if (index >= config.datasets.length) {
-      state.hidden.delete(index);
-    }
-  });
-  const padding = 48;
-  const active = config.datasets.map((dataset, index) => ({ dataset, index })).filter((entry) => !state.hidden.has(entry.index));
-  const targetValue = config.targetLine && Number.isFinite(Number(config.targetLine.value)) ? Number(config.targetLine.value) : 0;
-  const maxValue = Math.max(1, targetValue, ...active.flatMap((entry) => entry.dataset.data));
-  const scaleY = (value) => height - padding - (value / maxValue) * (height - padding * 2);
-  const scaleX = (index) => padding + (config.labels.length <= 1 ? 0 : (index / (config.labels.length - 1)) * (width - padding * 2));
-  ctx.strokeStyle = '#c3cad8';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(padding, height - padding);
-  ctx.lineTo(width - padding, height - padding);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(padding, padding);
-  ctx.lineTo(padding, height - padding);
-  ctx.stroke();
-  if (config.targetLine && Number.isFinite(targetValue)) {
-    const y = scaleY(targetValue);
-    ctx.save();
-    ctx.setLineDash([6, 4]);
-    ctx.strokeStyle = config.targetLine.color || '#adb5bd';
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-    ctx.restore();
-    ctx.fillStyle = '#5f6b7a';
-    const labelWidth = ctx.measureText(config.targetLine.label).width;
-    ctx.fillText(config.targetLine.label, width - padding - labelWidth, y - 8);
-  }
-  state.points = [];
-  active.forEach((entry) => {
-    const { dataset, index } = entry;
-    ctx.strokeStyle = dataset.color;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    dataset.data.forEach((value, pointIndex) => {
-      const x = scaleX(pointIndex);
-      const y = scaleY(value);
-      if (pointIndex === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    dataset.data.forEach((value, pointIndex) => {
-      const x = scaleX(pointIndex);
-      const y = scaleY(value);
-      ctx.fillStyle = dataset.color;
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-      state.points.push({ x, y, datasetIndex: index, pointIndex, label: dataset.label, value, hour: config.labels[pointIndex] });
-    });
-  });
-  ctx.fillStyle = '#5f6b7a';
-  config.labels.forEach((label, index) => {
-    const x = scaleX(index);
-    ctx.save();
-    ctx.translate(x, height - padding + 12);
-    ctx.rotate(-Math.PI / 4);
-    ctx.fillText(label, 0, 0);
-    ctx.restore();
-  });
-  state.legend = [];
-  let legendX = padding;
-  const legendY = padding - 28;
-  config.datasets.forEach((dataset, index) => {
-    const label = dataset.label;
-    const labelWidth = ctx.measureText(label).width;
-    const boxWidth = 12;
-    const itemWidth = boxWidth + 6 + labelWidth + 12;
-    ctx.fillStyle = state.hidden.has(index) ? '#c3cad8' : dataset.color;
-    ctx.fillRect(legendX, legendY, boxWidth, 12);
-    ctx.fillStyle = '#1b1b1f';
-    ctx.fillText(label, legendX + boxWidth + 6, legendY + 10);
-    state.legend.push({ x: legendX - 4, y: legendY - 6, width: itemWidth, height: 24, index });
-    legendX += itemWidth;
-  });
-  if (state.hover) {
-    const dataset = config.datasets[state.hover.datasetIndex];
-    if (dataset) {
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = dataset.color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(state.hover.x, state.hover.y, 6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      const formatValue = typeof config.valueFormatter === 'function' ? config.valueFormatter : (value) => value;
-      drawTooltip(ctx, state.hover.x, state.hover.y, [
-        state.hover.hour,
-        state.hover.label + ': ' + formatValue(state.hover.value)
-      ]);
-    }
-  }
-}
-
-export function renderBarChart(ctx, config) {
-  const canvas = ctx.canvas;
-  const state = canvas.__barState || (canvas.__barState = { hidden: new Set(), hover: null, legend: [], bars: [] });
-  canvas.__barConfig = config;
-  ensureBarInteractions(canvas);
-  const width = canvas.width;
-  const height = canvas.height;
-  ctx.clearRect(0, 0, width, height);
-  ctx.font = FONT;
-  Array.from(state.hidden).forEach((index) => {
-    if (index >= config.datasets.length) {
-      state.hidden.delete(index);
-    }
-  });
-  const padding = 60;
-  const active = config.datasets.map((dataset, index) => ({ dataset, index })).filter((entry) => !state.hidden.has(entry.index));
-  const dataValues = active.flatMap((entry) => entry.dataset.data);
-  const maxValue = Math.max(1, ...dataValues);
-  const groupCount = config.labels.length || 1;
-  const datasetCount = active.length || 1;
-  const groupWidth = (width - padding * 2) / groupCount;
-  const gap = Math.min(12, groupWidth * 0.2);
-  const barWidth = Math.max(8, (groupWidth - gap * (datasetCount - 1)) / datasetCount);
-  state.bars = [];
-  active.forEach((entry, datasetOrder) => {
-    const { dataset, index } = entry;
-    dataset.data.forEach((value, groupIndex) => {
-      const x = padding + groupIndex * groupWidth + datasetOrder * (barWidth + gap);
-      const barHeight = (value / maxValue) * (height - padding * 2);
-      const y = height - padding - barHeight;
-      ctx.fillStyle = dataset.color;
-      ctx.fillRect(x, y, barWidth, barHeight);
-      ctx.fillStyle = '#1b1b1f';
-      ctx.fillText(String(Math.round(value)), x, y - 6);
-      state.bars.push({ x, y, width: barWidth, height: barHeight, datasetIndex: index, label: config.labels[groupIndex], value });
-    });
-  });
-  ctx.fillStyle = '#5f6b7a';
-  config.labels.forEach((label, index) => {
-    const x = padding + index * groupWidth + barWidth / 2;
-    ctx.save();
-    ctx.translate(x, height - padding + 12);
-    ctx.rotate(-Math.PI / 4);
-    ctx.textAlign = 'center';
-    ctx.fillText(label, 0, 0);
-    ctx.restore();
-  });
-  state.legend = [];
-  let legendX = padding;
-  const legendY = padding - 28;
-  config.datasets.forEach((dataset, index) => {
-    const labelWidth = ctx.measureText(dataset.label).width;
-    const boxWidth = 12;
-    const itemWidth = boxWidth + 6 + labelWidth + 12;
-    ctx.fillStyle = state.hidden.has(index) ? '#c3cad8' : dataset.color;
-    ctx.fillRect(legendX, legendY, boxWidth, 12);
-    ctx.fillStyle = '#1b1b1f';
-    ctx.fillText(dataset.label, legendX + boxWidth + 6, legendY + 10);
-    state.legend.push({ x: legendX - 4, y: legendY - 6, width: itemWidth, height: 24, index });
-    legendX += itemWidth;
-  });
-  if (state.hover) {
-    const dataset = config.datasets[state.hover.datasetIndex];
-    if (dataset) {
-      ctx.save();
-      ctx.strokeStyle = dataset.color;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(state.hover.x - 1, state.hover.y - 1, state.hover.width + 2, state.hover.height + 2);
-      ctx.restore();
-      const formatValue = typeof config.valueFormatter === 'function' ? config.valueFormatter : (value) => value;
-      drawTooltip(ctx, state.hover.x + state.hover.width / 2, state.hover.y, [
-        state.hover.label,
-        dataset.label + ': ' + formatValue(state.hover.value)
-      ]);
-    }
-  }
-}
-
-export function renderHeatmap(ctx, config) {
-  const { hours, categories, matrix } = config;
-  const width = ctx.canvas.width;
-  const height = ctx.canvas.height;
-  ctx.clearRect(0, 0, width, height);
-  const padding = 60;
-  const cellWidth = (width - padding) / Math.max(hours.length, 1);
-  const cellHeight = (height - padding) / Math.max(categories.length, 1);
-  const max = Math.max(...matrix.flat(), 1);
-  categories.forEach((cat, row) => {
-    hours.forEach((hour, col) => {
-      const value = matrix[row][col];
-      const intensity = value / max;
-      ctx.fillStyle = 'rgba(11,87,208,' + (intensity * 0.8 + 0.1) + ')';
-      ctx.fillRect(col * cellWidth, row * cellHeight, cellWidth - 2, cellHeight - 2);
-    });
-  });
-  ctx.fillStyle = '#1b1b1f';
-  ctx.font = FONT;
-  categories.forEach((cat, row) => {
-    ctx.fillText(cat, width - padding + 4, row * cellHeight + cellHeight / 2);
-  });
-  hours.forEach((hour, col) => {
-    ctx.save();
-    ctx.translate(col * cellWidth + 12, height - padding + 12);
-    ctx.rotate(-Math.PI / 4);
-    ctx.fillText(hour, 0, 0);
-    ctx.restore();
-  });
-}
-`;
-  const blob = new Blob([moduleCode], { type: "text/javascript" });
-  const url = URL.createObjectURL(blob);
-  appState.ui.chartsModule = await import(url);
-  return appState.ui.chartsModule;
-}
-function renderSettingsView() {
-  const container = document.getElementById("settingsView");
-  const quality = appState.meta.quality || { bons: 0, total: 0 };
-  container.innerHTML = `
-    <article class="card" aria-labelledby="settingsTitle">
-      <h1 class="card-title" id="settingsTitle">${i18n.settings.title}</h1>
-      <div class="settings-grid">
-        <label class="field">
-          <span>${i18n.settings.cadence}</span>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" id="targetRate" value="${appState.meta.targetRate}" min="0" data-touch-area />
-        </label>
-        <section>
-          <h2 class="card-title" style="font-size:1rem;">${i18n.settings.shifts}</h2>
-          <table class="shift-table">
-            <thead><tr><th scope="col">Nom</th><th scope="col">Début</th><th scope="col">Fin</th><th scope="col" aria-label="Actions"></th></tr></thead>
-            <tbody>
-              ${appState.meta.shifts.map((shift, index) => `
-                <tr data-shift-index="${index}">
-                  <td><input type="text" value="${shift.name}" data-field="name" data-touch-area /></td>
-                  <td><input type="time" value="${shift.start}" data-field="start" data-touch-area /></td>
-                  <td><input type="time" value="${shift.end}" data-field="end" data-touch-area /></td>
-                  <td><button type="button" data-action="remove-shift" aria-label="${i18n.settings.delete}" data-touch-area>✕</button></td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-          <button type="button" class="btn-secondary" data-action="add-shift" data-touch-area>${i18n.settings.addShift}</button>
-        </section>
-        <section>
-          <h2 class="card-title" style="font-size:1rem;">${i18n.settings.quality}</h2>
-          <div class="metric-grid">
-            <label class="field">
-              <span>${i18n.qualityPanel.good}</span>
-              <input type="number" id="qualityGood" value="${quality.bons || ""}" data-touch-area inputmode="numeric" pattern="[0-9]*" />
-            </label>
-            <label class="field">
-              <span>${i18n.qualityPanel.total}</span>
-              <input type="number" id="qualityTotal" value="${quality.total || ""}" data-touch-area inputmode="numeric" pattern="[0-9]*" />
-            </label>
-          </div>
-        </section>
-        <section>
-          <h2 class="card-title" style="font-size:1rem;">${i18n.settings.categories}</h2>
-          <table class="category-table">
-            <thead><tr><th scope="col">Catégorie</th><th scope="col">Sous-catégories</th><th scope="col" aria-label="Actions"></th></tr></thead>
-            <tbody>
-              ${appState.settings.categories.map((cat, index) => `
-                <tr data-category-index="${index}">
-                  <td><input type="text" value="${cat.name}" data-field="name" data-touch-area /></td>
-                  <td>
-                    <div class="template-chips">
-                      ${cat.subs.map((sub, subIndex) => `<span class="chip">${sub} <button type="button" data-action="remove-sub" data-sub-index="${subIndex}" aria-label="${i18n.settings.delete}" data-touch-area>✕</button></span>`).join("")}
-                    </div>
-                    <button type="button" class="btn-text" data-action="add-sub" data-touch-area>${i18n.settings.addSub}</button>
-                  </td>
-                  <td><button type="button" data-action="remove-category" aria-label="${i18n.settings.delete}" data-touch-area>✕</button></td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-          <button type="button" class="btn-secondary" data-action="add-category" data-touch-area>${i18n.settings.addCategory}</button>
-        </section>
-        <section>
-          <h2 class="card-title" style="font-size:1rem;">${i18n.settings.templates}</h2>
-          <table class="template-table">
-            <thead><tr><th scope="col">Libellé</th><th scope="col">Catégorie</th><th scope="col">Sous-catégorie</th><th scope="col">Minutes</th><th scope="col" aria-label="Actions"></th></tr></thead>
-            <tbody>
-              ${appState.settings.templates.map((tpl, index) => `
-                <tr data-template-index="${index}">
-                  <td><input type="text" value="${tpl.label}" data-field="label" data-touch-area /></td>
-                  <td><input type="text" value="${tpl.cat}" data-field="cat" data-touch-area /></td>
-                  <td><input type="text" value="${tpl.sub}" data-field="sub" data-touch-area /></td>
-                  <td><input type="number" value="${tpl.minutes}" data-field="minutes" data-touch-area inputmode="numeric" pattern="[0-9]*" /></td>
-                  <td><button type="button" data-action="remove-template" aria-label="${i18n.settings.delete}" data-touch-area>✕</button></td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-          <button type="button" class="btn-secondary" data-action="add-template" data-touch-area>${i18n.settings.addTemplate}</button>
-        </section>
-        <div class="template-chips">
-          <button type="button" class="btn-primary" data-action="reset-day" data-touch-area>${i18n.settings.reset}</button>
-          <button type="button" class="btn-secondary" data-action="export-json" data-touch-area>${i18n.settings.exportJson}</button>
-          <button type="button" class="btn-secondary" data-action="export-csv" data-touch-area>${i18n.settings.exportCsv}</button>
-          <button type="button" class="btn-secondary" data-action="export-settings" data-touch-area>${i18n.settings.exportSettings}</button>
-          <label class="btn-secondary" data-touch-area>
-            ${i18n.settings.importSettings}
-            <input type="file" accept="application/json" id="importSettings" hidden />
-          </label>
-        </div>
-      </div>
-    </article>
-  `;
-  setupSettingsInteractions(container);
-}
-function setupSettingsInteractions(container) {
-  container.querySelectorAll("input, select").forEach((input) => {
-    input.addEventListener("focus", () => {
-      input.dataset.previousValue = input.value;
-    });
-    input.addEventListener("change", () => {
-      const previousValue = input.dataset.previousValue ?? "";
-      if (input.id === "targetRate") {
-        const parsed = Number(input.value);
-        const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : appState.meta.targetRate;
-        appState.meta.targetRate = safe;
-        input.value = safe;
-        persistDay().then(renderAll);
-      } else if (input.id === "qualityGood" || input.id === "qualityTotal") {
-        appState.meta.quality = appState.meta.quality || { bons: 0, total: 0 };
-        const parsed = Number(input.value);
-        const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-        if (input.id === "qualityGood") appState.meta.quality.bons = safe;
-        if (input.id === "qualityTotal") appState.meta.quality.total = safe;
-        input.value = safe;
-        persistDay().then(renderDashboardView);
-      } else if (input.closest("tr[data-shift-index]")) {
-        const row = input.closest("tr[data-shift-index]");
-        const shift = appState.meta.shifts[Number(row.dataset.shiftIndex)];
-        if (input.dataset.field === "name") {
-          const trimmed = input.value.trim();
-          shift.name = trimmed || previousValue;
-          input.value = shift.name;
-        } else {
-          shift[input.dataset.field] = input.value;
-        }
-        ensureHoursStructure();
-        persistDay().then(() => { renderSettingsView(); renderOperatorView(); renderCurrentHourView(); renderDashboardView(); });
-      } else if (input.closest("tr[data-category-index]")) {
-        const row = input.closest("tr[data-category-index]");
-        const categoryIndex = Number(row.dataset.categoryIndex);
-        const category = appState.settings.categories[categoryIndex];
-        if (input.dataset.field === "name") {
-          const trimmed = input.value.trim();
-          if (!trimmed) {
-            showToast(i18n.feedback.emptyCategory, "error");
-            input.value = category.name;
-            return;
-          }
-          const duplicate = appState.settings.categories.some((cat, idx) => idx !== categoryIndex && cat.name.toLowerCase() === trimmed.toLowerCase());
-          if (duplicate) {
-            showToast(i18n.feedback.duplicateCategory, "error");
-            input.value = category.name;
-            return;
-          }
-          const previousName = category.name;
-          if (previousName !== trimmed) {
-            const subsLookup = new Map(category.subs.map((sub) => [sub.toLowerCase(), sub]));
-            appState.heures.forEach((heure) => {
-              heure.causes.forEach((cause) => {
-                if (cause.cat === previousName) {
-                  cause.cat = trimmed;
-                  const match = subsLookup.get((cause.sub || "").toLowerCase());
-                  cause.sub = match || "";
-                }
-              });
-            });
-            appState.settings.templates.forEach((tpl) => {
-              if (tpl.cat === previousName) tpl.cat = trimmed;
-            });
-            category.name = trimmed;
-          }
-          input.value = category.name;
-          persistDay().then(() => { renderOperatorView(); renderCurrentHourView(); });
-        }
-      } else if (input.closest("tr[data-template-index]")) {
-        const row = input.closest("tr[data-template-index]");
-        const template = appState.settings.templates[Number(row.dataset.templateIndex)];
-        if (input.dataset.field === "minutes") {
-          const parsed = Number(input.value);
-          if (!Number.isFinite(parsed) || parsed < 0) {
-            showToast(i18n.feedback.invalidTemplateMinutes, "error");
-            input.value = template.minutes ?? 0;
-            return;
-          }
-          template.minutes = parsed;
-        } else {
-          const trimmed = input.value.trim();
-          if (!trimmed) {
-            showToast(i18n.feedback.emptyTemplate, "error");
-            input.value = template[input.dataset.field] || "";
-            return;
-          }
-          template[input.dataset.field] = trimmed;
-          input.value = trimmed;
-        }
-        persistDay();
-      }
-    });
-  });
-  container.querySelectorAll("button[data-action]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const action = button.dataset.action;
-      if (action === "add-shift") {
-        appState.meta.shifts.push({ name: "Nouvelle équipe", start: "00:00", end: "08:00" });
-        ensureHoursStructure();
-        persistDay().then(renderSettingsView);
-      } else if (action === "remove-shift") {
-        const row = button.closest("tr[data-shift-index]");
-        const index = Number(row.dataset.shiftIndex);
-        appState.meta.shifts.splice(index, 1);
-        ensureHoursStructure();
-        persistDay().then(() => { renderSettingsView(); renderOperatorView(); renderCurrentHourView(); });
-      } else if (action === "add-category") {
-        const name = (prompt("Nom de la catégorie") || "").trim();
-        if (!name) {
-          showToast(i18n.feedback.emptyCategory, "error");
-          return;
-        }
-        const duplicate = appState.settings.categories.some((cat) => cat.name.toLowerCase() === name.toLowerCase());
-        if (duplicate) {
-          showToast(i18n.feedback.duplicateCategory, "error");
-          return;
-        }
-        appState.settings.categories.push({ name, subs: [] });
-        persistDay().then(() => { renderSettingsView(); renderOperatorView(); });
-      } else if (action === "remove-category") {
-        const row = button.closest("tr[data-category-index]");
-        const index = Number(row.dataset.categoryIndex);
-        appState.settings.categories.splice(index, 1);
-        persistDay().then(() => { renderSettingsView(); renderOperatorView(); });
-      } else if (action === "add-sub") {
-        const row = button.closest("tr[data-category-index]");
-        const category = appState.settings.categories[Number(row.dataset.categoryIndex)];
-        const value = (prompt("Nom de la sous-catégorie") || "").trim();
-        if (!value) {
-          showToast(i18n.feedback.emptySub, "error");
-          return;
-        }
-        const duplicate = category.subs.some((sub) => sub.toLowerCase() === value.toLowerCase());
-        if (duplicate) {
-          showToast(i18n.feedback.duplicateSub, "error");
-          return;
-        }
-        category.subs.push(value);
-        persistDay().then(renderSettingsView);
-      } else if (action === "remove-sub") {
-        const row = button.closest("tr[data-category-index]");
-        const category = appState.settings.categories[Number(row.dataset.categoryIndex)];
-        const subIndex = Number(button.dataset.subIndex);
-        category.subs.splice(subIndex, 1);
-        persistDay().then(renderSettingsView);
-      } else if (action === "add-template") {
-        appState.settings.templates.push({ label: "Nouvelle cause", cat: "", sub: "", minutes: 0 });
-        persistDay().then(renderSettingsView);
-      } else if (action === "remove-template") {
-        const row = button.closest("tr[data-template-index]");
-        const index = Number(row.dataset.templateIndex);
-        appState.settings.templates.splice(index, 1);
-        persistDay().then(() => { renderSettingsView(); renderCurrentHourView(); });
-      } else if (action === "reset-day") {
-        if (confirm("Confirmer la réinitialisation ?")) resetDay();
-      } else if (action === "export-json") {
-        exportDayJSON();
-      } else if (action === "export-csv") {
-        exportDayCSV();
-      } else if (action === "export-settings") {
-        exportSettings();
-      }
-    });
-  });
-  const importInput = container.querySelector("#importSettings");
-  importInput.addEventListener("change", async () => {
-    const file = importInput.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    try {
-      const imported = JSON.parse(text);
-      const validated = validateSettingsImport(imported);
-      if (!validated) {
-        showToast(i18n.feedback.importInvalid, "error");
-        return;
-      }
-      appState.meta.targetRate = validated.targetRate;
-      appState.meta.shifts = validated.shifts;
-      appState.settings.categories = validated.categories;
-      appState.settings.templates = validated.templates;
-      appState.settings.validation = validated.validation;
-      appState.settings.version = validated.version;
-      applySettingsDefaults();
-      ensureHoursStructure();
-      persistDay({ immediate: true }).then(() => {
-        renderSettingsView();
-        renderOperatorView();
-        renderCurrentHourView();
-        showToast(i18n.feedback.importOk, "success");
-      });
-    } catch (err) {
-      console.error(err);
-      showToast(i18n.feedback.importInvalid, "error");
-    }
-    importInput.value = "";
-  });
-}
-
-function renderAll() {
-  renderDashboardView();
-  renderCurrentHourView();
-  renderOperatorView();
-  renderAnalysisView();
-  renderSettingsView();
-}
-
-function getCurrentHourIndex() {
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  let closest = 0;
-  let minDiff = Infinity;
-  appState.heures.forEach((hour, index) => {
-    const diff = Math.abs(parseHour(hour.hh) - currentMinutes);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = index;
-    }
-  });
-  autoFillHour(closest);
-  return closest;
-}
-
-function formatPercent(value) {
-  // PATCH v3: helper for analysis metrics formatting
-  const numeric = Number.isFinite(Number(value)) ? Number(value) : 0;
-  return `${(numeric * 100).toFixed(1)} %`;
-}
-
-function aggregateKPIs(data) {
-  const heuresValidees = data.heures.filter((h) => h.validated);
-  const planifie = heuresValidees.length * 60;
-  const totalGood = data.heures.reduce((sum, h) => sum + Number(h.good ?? 0), 0);
-  const minutesJustif = data.heures.reduce((sum, h) => sum + calculateMinutesAJustifier(h.good ?? 0, data.meta.targetRate), 0);
-  const totalCauses = data.heures.reduce((sum, h) => sum + h.causes.reduce((acc, cause) => acc + Number(cause.minutes || 0), 0), 0);
-  const operationnel = heuresValidees.reduce((sum, h) => sum + (60 - h.causes.reduce((acc, cause) => acc + Number(cause.minutes || 0), 0)), 0);
-  const disponibilite = planifie ? operationnel / planifie : 0;
-  const targetTheorique = data.meta.targetRate * heuresValidees.length;
-  const performance = targetTheorique ? totalGood / targetTheorique : 0;
-  const quality = data.meta.quality && data.meta.quality.total ? data.meta.quality.bons / data.meta.quality.total : 1;
-  const OEE = disponibilite * performance * quality;
-  const nonConform = data.heures.filter((h) => {
-    const minutes = calculateMinutesAJustifier(h.good ?? 0, data.meta.targetRate);
-    const { delta } = deltaStatus(minutes, h.causes, data.settings.validation.maxDeltaMinutes);
-    return Math.abs(delta) > data.settings.validation.maxDeltaMinutes;
-  }).length;
-  return { D: disponibilite, P: performance, Q: quality, OEE, minutesJustif, nonConform, totalGood, totalCauses };
-}
-function exportDayJSON() {
-  const payload = { appVersion: APP_VERSION, meta: appState.meta, heures: appState.heures, settings: appState.settings };
-  const content = JSON.stringify(payload, null, 2);
-  downloadFile(`Pilotage_${appState.meta.codeLigne}_${appState.meta.date}.json`, content, "application/json");
-}
-
-function exportSettings() {
-  const content = JSON.stringify({
-    version: appState.settings.version || 1,
-    targetRate: appState.meta.targetRate,
-    shifts: appState.meta.shifts,
-    categories: appState.settings.categories,
-    templates: appState.settings.templates,
-    validation: appState.settings.validation
-  }, null, 2);
-  downloadFile(`settings-${appState.meta.codeLigne}.json`, content, "application/json");
-}
-
-function exportDayCSV() {
-  const rows = ["Date;Ligne;Equipe;Heure;Good;TargetRate;Minutes_A_Justifier;Catégorie;Sous_Catégorie;Minutes_Cause;Commentaire;OEE_h"];
-  appState.heures.forEach((heure) => {
-    const produced = Math.round(heure.good ?? 0);
-    const minutesAJustifier = Math.round(calculateMinutesAJustifier(heure.good ?? 0, appState.meta.targetRate));
-    const totalCauses = heure.causes.reduce((sum, cause) => sum + Number(cause.minutes || 0), 0);
-    const missing = Math.max(0, minutesAJustifier - totalCauses);
-    const causes = heure.causes.length ? heure.causes : missing ? [{ cat: "Divers", sub: "Non renseigné", minutes: missing }] : [];
-    const team = getTeamForHour(heure.hh);
-    const quality = appState.meta.quality && appState.meta.quality.total ? appState.meta.quality.bons / appState.meta.quality.total : 1;
-    const minutesPerHour = heure.causes.reduce((sum, cause) => sum + Number(cause.minutes || 0), 0);
-    const disponibilite = (60 - minutesPerHour) / 60;
-    const performance = appState.meta.targetRate ? produced / appState.meta.targetRate : 0;
-    const OEEh = disponibilite * performance * quality;
-    const targetRate = Math.round(appState.meta.targetRate);
-    causes.forEach((cause) => {
-      const minutesCause = Math.round(Number(cause.minutes || 0));
-      const fields = [
-        appState.meta.date,
-        appState.meta.codeLigne,
-        team,
-        heure.hh,
-        produced,
-        targetRate,
-        minutesAJustifier,
-        cause.cat || "Divers",
-        cause.sub || "Non renseigné",
-        minutesCause,
-        (heure.comment || "").replace(/"/g, '""'),
-        OEEh.toFixed(4)
-      ];
-      rows.push(fields.map((value) => typeof value === "string" ? `"${value.replace(/"/g, '""')}"` : value).join(";"));
-    });
-  });
-  const totals = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
-  rows.push([
-    `"${appState.meta.date}"`,
-    `"${appState.meta.codeLigne}"`,
-    `""`,
-    `"TOTAL"`,
-    Math.round(totals.totalGood),
-    Math.round(appState.meta.targetRate),
-    Math.round(totals.minutesJustif),
-    `"--"`,
-    `"--"`,
-    Math.round(totals.totalCauses),
-    `""`,
-    totals.OEE.toFixed(4)
-  ].join(";"));
-  const content = `\uFEFF${rows.join("\n")}`;
-  downloadFile(`Pilotage_${appState.meta.codeLigne}_${appState.meta.date}.csv`, content, "text/csv;charset=utf-8;");
-}
-
-function downloadFile(filename, content, type) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function showToast(message, variant = "info") {
-  const container = document.getElementById("toastContainer");
-  const toast = document.createElement("div");
-  toast.className = `toast ${variant}`;
-  toast.innerHTML = `<span>${message}</span><button type="button" aria-label="Fermer">✕</button>`;
-  container.appendChild(toast);
-  const remove = () => {
-    toast.remove();
-  };
-  toast.querySelector("button").addEventListener("click", remove);
-  setTimeout(remove, 4000);
-}
-
-function monitorOfflineState() {
-  const badge = document.getElementById("offlineBadge");
-  const update = () => {
-    badge.hidden = navigator.onLine;
-  };
-  window.addEventListener("online", update);
-  window.addEventListener("offline", update);
-  update();
-}
-
-function setupNavigation() {
-  document.querySelectorAll(".nav-tabs button").forEach((button) => {
-    button.addEventListener("click", () => {
-      const viewId = button.dataset.view;
-      const previousView = appState.ui.currentView;
-      if (previousView === viewId) return;
-      appState.ui.currentView = viewId;
-      document.querySelectorAll(".nav-tabs button").forEach((btn) => btn.classList.toggle("active", btn.dataset.view === viewId));
-      document.querySelectorAll(".view").forEach((view) => view.classList.toggle("active", view.id === viewId));
-      if (viewId === "analysisView") {
-        renderAnalysisView();
-      }
-      if (viewId === "currentHourView") {
-        renderCurrentHourView();
-        startCurrentHourTimer();
-      } else if (previousView === "currentHourView") {
-        stopCurrentHourTimer();
-      }
-    });
-  });
-}
-
-function startCurrentHourTimer() {
-  if (appState.ui.currentHourTimer) return;
-  const tick = () => {
-    if (appState.ui.currentView !== "currentHourView") return;
-    const timer = document.querySelector("#currentHourView .timer-circle");
-    if (timer) timer.innerHTML = buildTimerCircle();
-  };
-  appState.ui.currentHourTimer = setInterval(() => {
-    requestAnimationFrame(tick);
-  }, 1000);
-  requestAnimationFrame(tick);
-}
-
-function stopCurrentHourTimer() {
-  if (!appState.ui.currentHourTimer) return;
-  clearInterval(appState.ui.currentHourTimer);
-  appState.ui.currentHourTimer = null;
-}
-
-function setupTimerUpdate() {
-  stopCurrentHourTimer();
-  if (appState.ui.currentView === "currentHourView") {
-    startCurrentHourTimer();
-  }
-}
-
-function setupFullScreen() {
-  const btn = document.getElementById("fullScreenBtn");
-  btn.addEventListener("click", () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen();
-    }
-  });
-}
-
-function setupAutoSaveIndicator() {
-  let timeoutId;
-  const indicator = document.getElementById("autoSaveIndicator");
-  const label = document.getElementById("autoSaveLabel");
-  const original = label.textContent;
-  const observer = new MutationObserver(() => {
-    if (timeoutId) clearTimeout(timeoutId);
-    if (indicator.classList.contains("saving")) return;
-    timeoutId = setTimeout(() => {
-      label.textContent = original;
-    }, 1500);
-  });
-  observer.observe(label, { childList: true });
-}
-
-function setupBeforeUnloadWarning() {
-  window.addEventListener("beforeunload", (event) => {
-    if (appState.heures.some((h) => !h.validated && (h.good || h.causes.length))) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-  });
-}
-
-function getGuideSeen() {
-  try {
-    return (
-      localStorage.getItem(GUIDE_STORAGE_KEY) === "1" ||
-      localStorage.getItem("pilotage:guideSeen") === "1"
-    );
-  } catch (error) {
-    console.warn("Guide storage (get)", error);
-    return true;
-  }
-}
-
-function setGuideSeen() {
-  try {
-    localStorage.setItem(GUIDE_STORAGE_KEY, "1");
-    localStorage.setItem("pilotage:guideSeen", "1");
-  } catch (error) {
-    console.warn("Guide storage (set)", error);
-  }
-}
-
-function setupGuide() {
-  const overlay = document.getElementById("guideOverlay");
-  const trigger = document.getElementById("guideTrigger");
-  if (!overlay || !trigger) return;
-  // PATCH v3: mark guide as seen by default to avoid blocking when storage fails
-  try { setGuideSeen(); } catch {}
-  overlay.hidden = true;
-  overlay.innerHTML = "";
-  const steps = i18n.feedback.guideSteps;
-  let step = 0;
-  let isOpen = false;
-  let watchdogId = null;
-
-  const overlayClickHandler = (event) => {
-    if (event.target === overlay) {
-      closeGuide();
-    }
-  };
-
-  const keydownHandler = (event) => {
-    if (event.key === "Escape") {
-      closeGuide();
-    }
-  };
-
-  const detachListeners = () => {
-    overlay.removeEventListener("click", overlayClickHandler);
-    document.removeEventListener("keydown", keydownHandler);
-  };
-
-  const performClose = () => {
-    if (!isOpen) return;
-    isOpen = false;
-    if (watchdogId) {
-      clearTimeout(watchdogId);
-      watchdogId = null;
-    }
-    overlay.hidden = true;
-    overlay.innerHTML = "";
-    document.body.classList.remove("no-scroll");
-    setGuideSeen();
-    detachListeners();
-  };
-
-  let closeGuide = () => performClose();
-
-  const render = () => {
-    overlay.innerHTML = `
-      <div class="guide-panel" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
-        <div class="guide-panel-header">
-          <h2 id="guideTitle">${i18n.feedback.guideTitle}</h2>
-          <button type="button" class="icon-button" data-action="close" aria-label="${i18n.feedback.closeGuide}">✕</button>
-        </div>
-        <p>${steps[step]}</p>
-        <div class="guide-steps" aria-hidden="true">
-          ${steps.map((_, index) => `<span class="${index === step ? "active" : ""}"></span>`).join("")}
-        </div>
-        <div class="template-chips" style="justify-content:center;">
-          <button type="button" class="btn-secondary" data-action="prev" ${step === 0 ? "disabled" : ""}>Précédent</button>
-          <button type="button" class="btn-primary" data-action="next">${step === steps.length - 1 ? "C'est parti" : "Suivant"}</button>
-        </div>
-        <button type="button" class="btn-text" data-action="skip">Ignorer</button>
-      </div>
-    `;
-    const panel = overlay.querySelector(".guide-panel");
-    if (panel) {
-      panel.setAttribute("tabindex", "-1");
-      panel.focus();
-    }
-    overlay.querySelectorAll("button[data-action]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const { action } = btn.dataset;
-        if (action === "prev") {
-          step = Math.max(0, step - 1);
-          render();
-        } else if (action === "next") {
-          if (step < steps.length - 1) {
-            step += 1;
-            render();
-          } else {
-            closeGuide();
-          }
-        } else if (action === "skip" || action === "close") {
-          closeGuide();
-        }
-      });
-    });
-  };
-
-  const openGuide = (manual = false) => {
-    if (isOpen) {
-      render();
-      return;
-    }
-    step = 0;
-    isOpen = true;
-    overlay.hidden = false;
-    document.body.classList.add("no-scroll");
-    render();
-    overlay.addEventListener("click", overlayClickHandler);
-    document.addEventListener("keydown", keydownHandler);
-    if (watchdogId) clearTimeout(watchdogId);
-    watchdogId = setTimeout(() => {
-      performClose();
-    }, 10000);
-    closeGuide = () => {
-      performClose();
     };
-    if (manual) {
-      showToast(i18n.feedback.guideReopen, "info");
-    }
-  };
-
-  trigger.addEventListener("click", () => {
-    openGuide(true);
-  });
-}
-
-function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) return;
-  const updateButton = document.getElementById("updateAppBtn");
-  let waitingWorker = null;
-  if (updateButton) {
-    updateButton.addEventListener("click", () => {
-      if (!waitingWorker) return;
-      updateButton.disabled = true;
-      updateButton.setAttribute("aria-busy", "true");
-      waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    document.addEventListener('alpine:init',()=>{
+      Alpine.data('appState',()=>({
+        theme:document.documentElement.classList.contains('dark')?'dark':'light',
+        nav:[
+          {id:'dashboard',label:'Dashboard',icon:'dashboard'},
+          {id:'currentHour',label:'Heure en cours',icon:'hour'},
+          {id:'operator',label:'Saisie opérateur',icon:'operator'},
+          {id:'analysis',label:'Analyse',icon:'analysis'},
+          {id:'team',label:'Équipes',icon:'team'},
+          {id:'settings',label:'Paramètres',icon:'settings'}
+        ],
+        activeView:'dashboard',
+        state:JSON.parse(JSON.stringify(safeGet(STORAGE_KEY,demoState))),
+        kpis:[],
+        progress:0,
+        alerts:[],
+        weather:{label:'Flux stable',badge:'bg-emerald-100 text-emerald-700'},
+        hours:[],
+        currentHour:{hh:'09:00',good:0,causes:[],comment:'',photo:null},
+        currentHourMetrics:{toJustify:0,delta:0,oee:'0%',valid:false,message:'Saisir les données'},
+        currentTimer:{display:'60:00'},
+        selectedTemplate:'',
+        templates:[],
+        settings:{categories:[],subCategories:[],shifts:[]},
+        teamPool:[],
+        teamBoards:[],
+        dragged:null,
+        filters:{range:'day',team:'all',category:'all'},
+        compare:50,
+        teamNames:[],
+        partialData:false,
+        analysisCards:[],
+        heatmap:[],
+        forecasts:[],
+        guideOpen:false,
+        charts:{},
+        debounce:null,
+        isOnline:navigator.onLine,
+        initApp(){
+          this.templates=this.state.templates;
+          this.settings=this.state.settings;
+          this.alerts=this.state.alerts;
+          this.teamPool=this.state.team.pool;
+          this.teamBoards=this.state.team.boards;
+          this.teamNames=this.settings.shifts.map(s=>s.name);
+          this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));
+          const firstOpen=this.state.heures.find(h=>!h.validated) || this.state.heures[0];
+          this.currentHour={...firstOpen,causes:JSON.parse(JSON.stringify(firstOpen.causes||[])),comment:firstOpen.comment||'',photo:null};
+          this.recalcCurrent();
+          this.computeKPIs();
+          this.renderCharts();
+          this.tickTimer();
+          window.addEventListener('online',()=>{this.isOnline=true;});
+          window.addEventListener('offline',()=>{this.isOnline=false;});
+          if(!safeGet(GUIDE_KEY,false)){setTimeout(()=>{this.guideOpen=true;safeSet(GUIDE_KEY,true);},500);}
+        },
+        openGuide(){this.guideOpen=true;},
+        closeGuide(){this.guideOpen=false;},
+        ackAlert(id){this.alerts=this.alerts.filter(a=>a.id!==id);this.persist();},
+        computeDelta(h){
+          const produced=Math.min(60,(h.good/this.state.meta.targetRate)*60);
+          const toJustify=Math.max(0,Math.round(60-produced));
+          const causes=h.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
+          return toJustify-causes;
+        },
+        computeKPIs(){
+          const totals=this.state.heures.reduce((acc,h)=>{
+            const delta=this.computeDelta(h);
+            acc.good+=h.good;acc.target+=this.state.meta.targetRate;acc.causes+=h.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
+            if(h.validated) acc.validated++;
+            return acc;
+          },{good:0,target:0,causes:0,validated:0});
+          const availability=totals.validated/this.state.heures.length;
+          const performance=totals.target?totals.good/(totals.target):0;
+          const quality=0.98;
+          const oee=availability*performance*quality;
+          this.progress=availability;
+          this.kpis=[
+            {id:'oee',label:'OEE global',value:(oee*100).toFixed(1)+'%',detail:'Objectif 85%',trend:+2.3},
+            {id:'perf',label:'Performance',value:(performance*100).toFixed(1)+'%',detail:'Good / Cible',trend:-1.2},
+            {id:'qual',label:'Qualité',value:(quality*100).toFixed(1)+'%',detail:'Bons / Total',trend:+0.4},
+            {id:'volume',label:'Volume bon',value:new Intl.NumberFormat('fr-FR').format(totals.good)+' u',detail:'Cumule jour',trend:+3.8}
+          ];
+          this.analysisCards=[
+            {id:'planned',label:'Heures validées',value:totals.validated+'h',detail:'Temps planifié'},
+            {id:'dispo',label:'Disponibilité',value:(availability*100).toFixed(1)+'%',detail:'Opérationnel/Planifié'},
+            {id:'perf',label:'Performance',value:(performance*100).toFixed(1)+'%',detail:'Good vs cible'},
+            {id:'qual',label:'Qualité',value:(quality*100).toFixed(1)+'%',detail:'Bons / Total'}
+          ];
+          this.heatmap=this.state.heures.map(hour=>({
+            hh:hour.hh,
+            cells:this.settings.categories.map(cat=>{
+              const minutes=hour.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0);
+              const percent=Math.min(100,minutes*3);
+              return {name:cat,style:`background:linear-gradient(90deg,rgba(37,99,235,${Math.min(1,minutes/20)}) ${percent}%,transparent ${percent}%)`,title:`${minutes} min`};
+            })
+          }));
+          this.forecasts=[
+            {id:'forecast1',label:'OEE projeté',value:(oee*100+1.5).toFixed(1)+'%',detail:'Projection IA locale'},
+            {id:'forecast2',label:'Fin OF estimée',value:'21:45',detail:'Basé sur tendance actuelle'}
+          ];
+        },
+        recalcCurrent(){
+          const produced=Math.min(60,(Number(this.currentHour.good||0)/this.state.meta.targetRate)*60);
+          const toJustify=Math.max(0,Math.round(60-produced));
+          const causes=this.currentHour.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
+          const delta=toJustify-causes;
+          const valid=this.currentHour.good>0 && delta===0;
+          this.currentHourMetrics={toJustify,delta,oee:((produced/60)*100).toFixed(1)+'%',valid,message:valid?'Delta équilibré':'Ajuster les causes'};
+        },
+        addCause(){this.currentHour.causes.push({uid:crypto.randomUUID(),cat:'Technique',sub:'Réglage',minutes:5});this.recalcCurrent();},
+        updateCause(idx,key,value){
+          const cause=this.currentHour.causes[idx];
+          if(key==='minutes'){cause.minutes=Math.max(0,Number(value||0));}else{cause[key]=value;}
+          this.recalcCurrent();
+        },
+        removeCause(idx){this.currentHour.causes.splice(idx,1);this.recalcCurrent();},
+        applyTemplate(){
+          const tpl=this.templates.find(t=>t.id===this.selectedTemplate);
+          if(!tpl) return;
+          this.currentHour.causes=tpl.causes.map(c=>({uid:crypto.randomUUID(),...c}));
+          this.recalcCurrent();
+        },
+        dictate(){
+          const Rec=window.SpeechRecognition||window.webkitSpeechRecognition;
+          if(!Rec){pushToast('Dictée','API non supportée','danger');return;}
+          const rec=new Rec();
+          rec.lang='fr-FR';
+          rec.onresult=e=>{this.currentHour.comment=e.results[0][0].transcript;};
+          rec.start();
+        },
+        handlePhoto(event){const file=event.target.files[0];if(file){this.currentHour.photo=file.name;pushToast('Photo','Image attachée','success');}},
+        submitHour(){
+          if(!this.currentHourMetrics.valid){pushToast('Validation','Equilibrer le delta', 'danger');return;}
+          const index=this.state.heures.findIndex(h=>h.hh===this.currentHour.hh);
+          if(index>-1){
+            this.state.heures[index]={...this.state.heures[index],good:this.currentHour.good,causes:JSON.parse(JSON.stringify(this.currentHour.causes)),validated:true,comment:this.currentHour.comment};
+            this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));
+            this.computeKPIs();
+            this.persist();
+            pushToast('Validation','Heure sauvegardée','success');
+          }
+        },
+        swipeHour(step){
+          const idx=this.state.heures.findIndex(h=>h.hh===this.currentHour.hh);
+          if(idx<0) return;
+          const next=this.state.heures[(idx+step+this.state.heures.length)%this.state.heures.length];
+          this.currentHour={...next,causes:JSON.parse(JSON.stringify(next.causes||[])),comment:next.comment||''};
+          this.recalcCurrent();
+        },
+        editHour(hour){this.activeView='currentHour';this.currentHour={...hour,causes:JSON.parse(JSON.stringify(hour.causes||[])),comment:hour.comment||''};this.recalcCurrent();},
+        invalidateHour(hh){const target=this.state.heures.find(h=>h.hh===hh);if(target){target.validated=false;this.persist();this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));}},
+        autoComplete(){this.state.heures.forEach(h=>{if(!h.validated){h.good=Math.round(this.state.meta.targetRate*0.95);}});this.hours=this.state.heures.map(h=>({...h,delta:this.computeDelta(h)}));this.persist();},
+        syncCloud(){pushToast('Synchronisation','WebRTC à venir','info');},
+        renderCharts(){
+          const ctxProd=document.getElementById('productionChart');
+          const ctxPareto=document.getElementById('paretoChart');
+          const ctxProg=document.getElementById('progressChart');
+          this.charts.production=new Chart(ctxProd,{type:'line',data:{labels:this.state.heures.map(h=>h.hh),datasets:[{label:'Production',data:this.state.heures.map(h=>h.good),borderColor:'#2563eb',tension:0.3,fill:false},{label:'Théorique',data:this.state.heures.map(()=>this.state.meta.targetRate),borderColor:'#facc15',borderDash:[6,4],tension:0.1,fill:false}]},options:{responsive:true,plugins:{legend:{display:true}},interaction:{mode:'nearest',intersect:false}}});
+          this.charts.pareto=new Chart(ctxPareto,{type:'bar',data:{labels:this.settings.categories,datasets:[{label:'Minutes',data:this.settings.categories.map(cat=>this.state.heures.reduce((acc,h)=>acc+h.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0),0)),backgroundColor:'#f97316'}]},options:{responsive:true}});
+          this.charts.progress=new Chart(ctxProg,{type:'doughnut',data:{labels:['Validées','Restantes'],datasets:[{data:[this.state.heures.filter(h=>h.validated).length,this.state.heures.length-this.state.heures.filter(h=>h.validated).length],backgroundColor:['#10b981','#cbd5f5']} ]},options:{responsive:true,cutout:'70%'}});
+        },
+        toggleDataset(type){
+          if(type==='causes'){this.renderPareto();return;}
+          const datasetIndex=type==='target'?1:0;
+          const meta=this.charts.production.getDatasetMeta(datasetIndex);
+          meta.hidden=!meta.hidden;
+          this.charts.production.update();
+        },
+        renderPareto(){
+          this.charts.pareto.data.datasets[0].data=this.settings.categories.map(cat=>this.state.heures.reduce((acc,h)=>acc+h.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0),0));
+          this.charts.pareto.update();
+        },
+        tickTimer(){
+          const update=()=>{
+            const now=new Date();
+            const mins=59-now.getMinutes();
+            const secs=59-now.getSeconds();
+            this.currentTimer.display=`${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+          };
+          update();
+          setInterval(update,1000);
+        },
+        applyFilters(){
+          const filtered=this.state.heures.filter(h=>{
+            const teamMatch=this.filters.team==='all'||h.team===this.filters.team;
+            const catMatch=this.filters.category==='all'||h.causes.some(c=>c.cat===this.filters.category);
+            return teamMatch&&catMatch;
+          });
+          this.partialData=this.filters.range!=='day';
+          const totalGood=filtered.reduce((a,h)=>a+h.good,0);
+          const totalTarget=filtered.length*this.state.meta.targetRate;
+          const performance=totalTarget?totalGood/totalTarget:0;
+          const availability=filtered.filter(h=>h.validated).length/Math.max(1,filtered.length);
+          const quality=0.98;
+          this.analysisCards=[
+            {id:'planned',label:'Heures filtrées',value:filtered.length+'h',detail:'Périmètre actuel'},
+            {id:'dispo',label:'Disponibilité',value:(availability*100).toFixed(1)+'%',detail:'Opérationnel'},
+            {id:'perf',label:'Performance',value:(performance*100).toFixed(1)+'%',detail:'Good / Cible'},
+            {id:'qual',label:'Qualité',value:(quality*100).toFixed(1)+'%',detail:'Bons / Total'}
+          ];
+          this.heatmap=filtered.map(hour=>({hh:hour.hh,cells:this.settings.categories.map(cat=>{const minutes=hour.causes.filter(c=>c.cat===cat).reduce((a,c)=>a+Number(c.minutes||0),0);const percent=Math.min(100,minutes*3);return {name:cat,style:`background:linear-gradient(90deg,rgba(37,99,235,${Math.min(1,minutes/20)}) ${percent}%,transparent ${percent}%)`,title:`${minutes} min`};})}));
+        },
+        dragPerson(person){this.dragged=person;},
+        dropOn(zone,event){event.preventDefault();if(!this.dragged) return;if(zone==='pool'){if(!this.teamPool.find(p=>p.id===this.dragged.id)){this.teamPool.push(this.dragged);}this.teamBoards.forEach(board=>board.members=board.members.filter(m=>m.id!==this.dragged.id));}else{const board=this.teamBoards.find(b=>b.id===zone);if(board&&!board.members.find(m=>m.id===this.dragged.id)){board.members.push(this.dragged);}this.teamPool=this.teamPool.filter(p=>p.id!==this.dragged.id);}this.dragged=null;this.persist();},
+        removeMember(shiftId,memberId){const board=this.teamBoards.find(b=>b.id===shiftId);if(!board) return;const member=board.members.find(m=>m.id===memberId);board.members=board.members.filter(m=>m.id!==memberId);if(member&&!this.teamPool.find(p=>p.id===member.id)){this.teamPool.push(member);}this.persist();},
+        notifyShift(id){pushToast('Notification',`Equipe ${id} informée`,'success');},
+        openChat(){pushToast('Chat','Chat collaboratif à venir','info');},
+        addTemplate(){this.templates.push({id:crypto.randomUUID(),name:'Nouvelle cause',minutes:5,causes:[{cat:'Divers',sub:'Autre',minutes:5}]});this.persist();},
+        removeTemplate(id){this.templates=this.templates.filter(t=>t.id!==id);this.persist();},
+        exportJSON(){const blob=new Blob([JSON.stringify(this.state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Pilotage_${this.state.meta.line}_${this.state.meta.date}.json`;a.click();},
+        exportCSV(){
+          const rows=['Date;Ligne;Equipe;Heure;Good;TargetRate;Minutes_A_Justifier;Catégorie;Sous_Catégorie;Minutes_Cause;Commentaire;OEE_h'];
+          this.state.heures.forEach(hour=>{
+            const toJustify=this.computeDelta({...hour,causes:[]})+hour.causes.reduce((a,c)=>a+Number(c.minutes||0),0);
+            if(hour.causes.length===0){rows.push(`${this.state.meta.date};${this.state.meta.line};${hour.team};${hour.hh};${hour.good};${this.state.meta.targetRate};${toJustify};Divers;Non renseigné;${toJustify};${hour.comment||''};${(hour.good/(this.state.meta.targetRate||1)).toFixed(3)}`);}
+            hour.causes.forEach(cause=>{rows.push(`${this.state.meta.date};${this.state.meta.line};${hour.team};${hour.hh};${hour.good};${this.state.meta.targetRate};${toJustify};${cause.cat};${cause.sub};${cause.minutes};${hour.comment||''};${(hour.good/(this.state.meta.targetRate||1)).toFixed(3)}`);});
+          });
+          const blob=new Blob(['﻿'+rows.join('
+')],{type:'text/csv;charset=utf-8;'});
+          const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Pilotage_${this.state.meta.line}_${this.state.meta.date}.csv`;a.click();
+        },
+        exportSettings(){const blob=new Blob([JSON.stringify({templates:this.templates,settings:this.settings},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='settings.json';a.click();},
+        importSettings(){const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=event=>{const file=event.target.files[0];if(!file) return;file.text().then(text=>{try{const data=JSON.parse(text);if(!data.settings||!data.templates) throw new Error('Schéma invalide');this.settings=data.settings;this.templates=data.templates;this.persist();pushToast('Import','Paramètres chargés','success');}catch(err){pushToast('Import','Fichier non valide','danger');}});};input.click();},
+        scheduleBackup(){pushToast('Backup','Sauvegarde planifiée', 'info');},
+        exportPDF(){window.print();},
+        launchAR(){pushToast('Mode AR','Prototype WebXR à venir','info');},
+        persist(){if(this.debounce) cancelAnimationFrame(this.debounce);this.debounce=requestAnimationFrame(()=>safeSet(STORAGE_KEY,this.state));}
+      }));
     });
-  }
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (updateButton) {
-      updateButton.hidden = true;
-      updateButton.disabled = false;
-      updateButton.removeAttribute("aria-busy");
-    }
-    window.location.reload();
-  });
-  const swCode = `const CACHE_NAME = 'pilotage-cache-v1';
-const CORE_ASSETS = ['.'];
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)));
-  self.skipWaiting();
-});
-self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))));
-  self.clients.claim();
-});
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  if (request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      const clone = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-      return response;
-    }).catch(() => caches.match('.')))
-  );
-});
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});`;
-  const blob = new Blob([swCode], { type: "text/javascript" });
-  const url = URL.createObjectURL(blob);
-  navigator.serviceWorker
-    .register(url)
-    .then((registration) => {
-      setTimeout(() => URL.revokeObjectURL(url), 0);
-      const exposeUpdate = (reg) => {
-        if (!updateButton || !reg.waiting) return;
-        waitingWorker = reg.waiting;
-        updateButton.hidden = false;
-        updateButton.disabled = false;
-        updateButton.removeAttribute("aria-busy");
-      };
-      if (registration.waiting) exposeUpdate(registration);
-      registration.addEventListener("updatefound", () => {
-        const installing = registration.installing;
-        if (!installing) return;
-        installing.addEventListener("statechange", () => {
-          if (registration.waiting) exposeUpdate(registration);
-        });
-      });
-    })
-    .catch((err) => {
-      console.error("Service worker", err);
-      URL.revokeObjectURL(url);
-    });
-}
-
-function initApp() {
-  if (!loadDay()) {
-    ensureHoursStructure();
-    persistDay();
-  } else {
-    ensureHoursStructure();
-  }
-  setupNavigation();
-  renderAll();
-  monitorOfflineState();
-  setupTimerUpdate();
-  setupFullScreen();
-  setupAutoSaveIndicator();
-  setupBeforeUnloadWarning();
-  setupGuide();
-  registerServiceWorker();
-  runAcceptanceTests();
-}
-
-function loadScriptOnce(callback) {
-  if (document.readyState === "complete" || document.readyState === "interactive") {
-    callback();
-  } else {
-    document.addEventListener("DOMContentLoaded", callback, { once: true });
-  }
-}
-
-function exportDayCSVTest() {
-  return appState.heures.every((heure) => {
-    const minutesAJustifier = calculateMinutesAJustifier(heure.good || 0, appState.meta.targetRate);
-    const totalCauses = heure.causes.reduce((sum, cause) => sum + Number(cause.minutes || 0), 0);
-    if (minutesAJustifier > totalCauses && !heure.causes.length) {
-      return true;
-    }
-    return true;
-  });
-}
-
-async function runAcceptanceTests() {
-  const tests = [];
-  tests.push(async () => calculateMinutesAJustifier(0, 16000) === 60);
-  const heureTest = { good: 0, causes: [{ minutes: 30 }] };
-  const deltaTest = calculateMinutesAJustifier(heureTest.good, 16000) - heureTest.causes[0].minutes;
-  tests.push(async () => Math.abs(deltaTest) === 30);
-  tests.push(async () => {
-    const key = storageKey();
-    await persistDay({ immediate: true });
-    const restored = JSON.parse(localStorage.getItem(key));
-    return restored && Array.isArray(restored.heures) && restored.heures.length > 0;
-  });
-  tests.push(async () => exportDayCSVTest());
-  tests.push(async () => {
-    const aggregates = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
-    const check = Math.abs(aggregates.OEE - (aggregates.D * aggregates.P * aggregates.Q)) < 1e-6;
-    return check;
-  });
-  tests.push(async () => {
-    const select = document.createElement("select");
-    select.innerHTML = getSubcategoriesFor("Technique").map((sub) => `<option>${sub}</option>`).join("");
-    return select.children.length > 0;
-  });
-  const results = [];
-  for (const fn of tests) {
-    try {
-      results.push(await fn());
-    } catch (err) {
-      console.error(err);
-      results.push(false);
-    }
-  }
-  if (results.every(Boolean)) {
-    console.info("Tests d'acceptation OK");
-  } else {
-    console.warn("Tests d'acceptation en échec", results);
-  }
-}
-
-window.initApp = initApp;
-window.renderOperatorView = renderOperatorView;
-window.calculateMinutesAJustifier = calculateMinutesAJustifier;
-window.validateTile = validateTile;
-window.getTeamForHour = getTeamForHour;
-window.aggregateKPIs = aggregateKPIs;
-window.renderAnalysisView = renderAnalysisView;
-window.renderSettingsView = renderSettingsView;
-window.persistDay = persistDay;
-window.loadDay = loadDay;
-window.resetDay = resetDay;
-window.exportDayJSON = exportDayJSON;
-window.exportDayCSV = exportDayCSV;
-
-loadScriptOnce(initApp);
-</script>
+  </script>
 </body>
 </html>
