@@ -331,6 +331,25 @@ main {
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
   min-height: 44px;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+.template-chips button:hover,
+.template-chips button:focus-visible {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}
+.template-chips button:active {
+  transform: scale(0.97);
+}
+.chip button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}
+.chip button:hover,
+.chip button:focus-visible {
+  color: var(--md-sys-color-error);
 }
 .toast-container {
   position: fixed;
@@ -373,6 +392,12 @@ main {
   text-align: center;
   display: flex;
   flex-direction: column;
+  gap: 1rem;
+}
+.guide-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 1rem;
 }
 .guide-steps { display: flex; justify-content: center; gap: 0.35rem; }
@@ -429,9 +454,32 @@ main {
   color: var(--md-sys-color-on-primary);
   display: inline-flex;
   align-items: center;
-  justify-align: center;
+  justify-content: center;
   box-shadow: var(--shadow-md);
   z-index: 150;
+}
+.icon-button {
+  border-radius: 999px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--md-sys-color-outline);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.icon-button:hover,
+.icon-button:focus-visible {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-color: transparent;
+}
+.icon-button:active {
+  transform: scale(0.97);
+}
+.operator-hour-card:focus-visible {
+  outline: 3px solid rgba(11, 87, 208, 0.35);
+  outline-offset: 4px;
 }
 [data-touch-area] { min-height: 48px; min-width: 48px; }
 @media (prefers-reduced-motion: reduce) {
@@ -470,6 +518,7 @@ main {
           <span class="dot" aria-hidden="true"></span>
           <span id="autoSaveLabel">Sauvegardé</span>
         </div>
+        <button type="button" class="icon-button" id="guideTrigger" aria-label="Aide" data-touch-area>?</button>
       </div>
     </div>
   </header>
@@ -504,7 +553,9 @@ const i18n = Object.freeze({
     validate: "Valider l'heure",
     next: "Suivante",
     previous: "Précédente",
-    templateTitle: "Causes fréquentes"
+    templateTitle: "Causes fréquentes",
+    remaining: "Restant",
+    timer: "Minuteur"
   },
   operator: {
     title: "Saisie horaire",
@@ -543,7 +594,21 @@ const i18n = Object.freeze({
     quality: "Qualité",
     minutes: "Minutes à justifier",
     nonConform: "Heures non conformes",
-    volume: "Volume produit"
+    volume: "Volume produit",
+    charts: {
+      lineTitle: "Good vs Théorique",
+      barTitle: "Top causes",
+      heatmapTitle: "Heatmap heures × catégories",
+      lineDatasetGood: "Good",
+      lineDatasetTarget: "Théorique",
+      barDataset: "Minutes",
+      targetLabel: "Cadence",
+      tooltipValue: "Valeur",
+      lineDescription: "Courbe comparant la production réelle et la cible horaire.",
+      barDescription: "Barres représentant les minutes par cause.",
+      heatmapDescription: "Carte de chaleur des minutes par heure et catégorie.",
+      noscript: "Activez JavaScript pour afficher les graphiques."
+    }
   },
   qualityPanel: { good: "Bons", total: "Total" },
   forms: { good: "Unités bonnes", comment: "Commentaire", validate: "Valider", cancel: "Annuler", minutes: "Minutes", category: "Catégorie", subcategory: "Sous-catégorie" },
@@ -553,8 +618,20 @@ const i18n = Object.freeze({
     error: "Erreur de sauvegarde",
     validated: "Heure validée",
     invalidDelta: "Delta hors tolérance. Ajuster les causes.",
+    invalidDeltaDetail: (hh, delta) => `Heure ${hh} · Δ ${delta} min hors tolérance.`,
+    invalidGood: (hh) => `Heure ${hh} · saisir un volume valide.`,
+    invalidMinutes: "Minutes négatives interdites.",
+    duplicateCategory: "Catégorie déjà existante.",
+    duplicateSub: "Sous-catégorie déjà existante.",
+    emptyCategory: "Nom de catégorie obligatoire.",
+    emptySub: "Nom de sous-catégorie obligatoire.",
+    emptyTemplate: "Libellé de template obligatoire.",
+    invalidTemplateMinutes: "Minutes de template invalides.",
+    importInvalid: "Fichier paramètres invalide.",
     reset: "Journée réinitialisée",
     importOk: "Paramètres importés",
+    guideReopen: "Aide affichée",
+    closeGuide: "Fermer le guide",
     guideTitle: "Bienvenue !",
     guideSteps: [
       "Capturez rapidement votre production dans l'heure en cours.",
@@ -608,6 +685,7 @@ const demoData = (() => {
     }
   ];
   const settings = {
+    version: 2,
     categories: [
       { name: "Technique", subs: ["Réglage", "Panne", "Changement format"] },
       { name: "Organisation", subs: ["Attente OF", "Manque opérateur", "Réunion"] },
@@ -626,6 +704,7 @@ const demoData = (() => {
 })();
 
 const GUIDE_STORAGE_KEY = "pilotage:guideSeen:v2";
+const APP_VERSION = "2.0.0";
 
 const appState = {
   meta: structuredClone(demoData.meta),
@@ -648,33 +727,45 @@ function ensureHoursStructure() {
   appState.hoursList = hours;
   hours.forEach((hh) => {
     if (!appState.heures.find((h) => h.hh === hh)) {
-      appState.heures.push({ hh, good: 0, comment: "", causes: [], validated: false });
+      appState.heures.push({ hh, good: null, comment: "", causes: [], validated: false });
     }
   });
-  appState.heures.sort((a, b) => hours.indexOf(a.hh) - hours.indexOf(b.hh));
+  appState.heures = appState.heures
+    .filter((heure) => hours.includes(heure.hh))
+    .sort((a, b) => hours.indexOf(a.hh) - hours.indexOf(b.hh));
+  appState.heures.forEach((heure) => {
+    if (!Array.isArray(heure.causes)) heure.causes = [];
+    heure.causes = heure.causes.map((cause) => ({
+      cat: cause.cat || "",
+      sub: cause.sub || "",
+      minutes: Number.isFinite(Number(cause.minutes)) ? Number(cause.minutes) : 0
+    }));
+    const parsedGood = Number(heure.good);
+    heure.good = Number.isFinite(parsedGood) ? parsedGood : null;
+    heure.comment = heure.comment || "";
+    heure.validated = Boolean(heure.validated);
+  });
 }
 
-function buildHoursFromShifts() {
-  const result = [];
-  appState.meta.shifts.forEach((shift) => {
+function buildHoursFromShifts(shifts = appState.meta.shifts || []) {
+  const seen = new Set();
+  const hours = [];
+  const dayMinutes = 24 * 60;
+  shifts.forEach((shift) => {
+    if (!shift || typeof shift.start !== "string" || typeof shift.end !== "string") return;
     const start = parseHour(shift.start);
-    const end = parseHour(shift.end);
-    let current = start;
-    const limit = 24 * 60;
-    while (true) {
-      result.push(formatHourMinutes(current));
-      current = (current + 60) % limit;
-      if (start < end) {
-        if (current >= end) break;
-      } else {
-        if (current === start) break;
-        const crossedMidnight = current === end;
-        if (crossedMidnight) break;
+    const rawEnd = parseHour(shift.end);
+    const limit = rawEnd > start ? rawEnd : rawEnd + dayMinutes;
+    for (let minute = start; minute < limit; minute += 60) {
+      const normalized = ((minute % dayMinutes) + dayMinutes) % dayMinutes;
+      const label = formatHourMinutes(normalized);
+      if (!seen.has(label)) {
+        seen.add(label);
+        hours.push(label);
       }
-      if (result.length > 48) break;
     }
   });
-  return [...new Set(result)];
+  return hours;
 }
 
 function parseHour(hh) {
@@ -688,15 +779,105 @@ function formatHourMinutes(total) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function migrateDayPayload(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  if (!payload.meta) payload.meta = {};
+  if (!Array.isArray(payload.heures)) payload.heures = [];
+  if (!payload.settings || typeof payload.settings !== "object") payload.settings = {};
+  if (!Array.isArray(payload.settings.categories)) payload.settings.categories = [];
+  if (!Array.isArray(payload.settings.templates)) payload.settings.templates = [];
+  if (!payload.settings.validation) payload.settings.validation = { maxDeltaMinutes: 5 };
+  if (!payload.settings.version) payload.settings.version = 1;
+  if (payload.appVersion !== APP_VERSION) {
+    // future migrations can transform payload here
+  }
+  payload.appVersion = APP_VERSION;
+  return payload;
+}
+
+function applySettingsDefaults() {
+  if (!Array.isArray(appState.meta.shifts)) appState.meta.shifts = [];
+  if (!appState.meta.quality) appState.meta.quality = { bons: 0, total: 0 };
+  if (!Array.isArray(appState.heures)) appState.heures = [];
+  if (!appState.settings || typeof appState.settings !== "object") appState.settings = {};
+  if (!Array.isArray(appState.settings.categories)) appState.settings.categories = [];
+  if (!Array.isArray(appState.settings.templates)) appState.settings.templates = [];
+  if (!appState.settings.validation) appState.settings.validation = { maxDeltaMinutes: 5 };
+  appState.settings.version = appState.settings.version || 1;
+}
+
+function validateSettingsImport(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const version = raw.version ?? 1;
+  const targetRateValue = raw.targetRate ?? appState.meta.targetRate;
+  const targetRate = Number(targetRateValue);
+  if (!Number.isFinite(targetRate) || targetRate < 0) return null;
+
+  if (!Array.isArray(raw.shifts)) return null;
+  const shifts = raw.shifts.map((shift) => ({
+    name: typeof shift.name === "string" ? shift.name.trim() : "",
+    start: typeof shift.start === "string" ? shift.start : "00:00",
+    end: typeof shift.end === "string" ? shift.end : "08:00"
+  }));
+  if (shifts.some((shift) => !shift.name || !/^\d{2}:\d{2}$/.test(shift.start) || !/^\d{2}:\d{2}$/.test(shift.end))) return null;
+
+  if (!Array.isArray(raw.categories)) return null;
+  const categoryNames = new Set();
+  const categories = raw.categories.map((cat) => {
+    const name = typeof cat.name === "string" ? cat.name.trim() : "";
+    if (!name) throw new Error("invalid category");
+    const lower = name.toLowerCase();
+    if (categoryNames.has(lower)) throw new Error("duplicate category");
+    categoryNames.add(lower);
+    if (!Array.isArray(cat.subs)) throw new Error("invalid subs");
+    const subs = [];
+    const subsSeen = new Set();
+    cat.subs.forEach((sub) => {
+      const trimmed = typeof sub === "string" ? sub.trim() : "";
+      if (!trimmed) throw new Error("invalid sub");
+      const subLower = trimmed.toLowerCase();
+      if (subsSeen.has(subLower)) throw new Error("duplicate sub");
+      subsSeen.add(subLower);
+      subs.push(trimmed);
+    });
+    return { name, subs };
+  });
+
+  if (!Array.isArray(raw.templates)) return null;
+  const templates = raw.templates.map((tpl) => {
+    const label = typeof tpl.label === "string" ? tpl.label.trim() : "";
+    const cat = typeof tpl.cat === "string" ? tpl.cat.trim() : "";
+    const sub = typeof tpl.sub === "string" ? tpl.sub.trim() : "";
+    const minutes = Number(tpl.minutes ?? 0);
+    if (!label || !cat || !sub || !Number.isFinite(minutes) || minutes < 0) throw new Error("invalid template");
+    return { label, cat, sub, minutes };
+  });
+
+  const validationMinutes = raw.validation && Number.isFinite(Number(raw.validation.maxDeltaMinutes)) && raw.validation.maxDeltaMinutes >= 0
+    ? Number(raw.validation.maxDeltaMinutes)
+    : appState.settings.validation?.maxDeltaMinutes ?? 5;
+
+  return {
+    version,
+    targetRate,
+    shifts,
+    categories,
+    templates,
+    validation: { maxDeltaMinutes: validationMinutes }
+  };
+}
+
 function loadDay() {
   try {
     const raw = localStorage.getItem(storageKey());
     if (!raw) return false;
     const parsed = JSON.parse(raw);
-    if (parsed.meta) appState.meta = parsed.meta;
-    if (Array.isArray(parsed.heures)) appState.heures = parsed.heures;
-    if (parsed.settings) appState.settings = parsed.settings;
-    ensureHoursStructure();
+    const migrated = migrateDayPayload(parsed);
+    if (!migrated) return false;
+    if (migrated.meta) appState.meta = migrated.meta;
+    if (Array.isArray(migrated.heures)) appState.heures = migrated.heures;
+    if (migrated.settings) appState.settings = migrated.settings;
+    applySettingsDefaults();
     return true;
   } catch (err) {
     console.error(err);
@@ -704,27 +885,66 @@ function loadDay() {
   }
 }
 
-function persistDay() {
-  appState.ui.saving = true;
-  updateAutoSaveIndicator("saving");
-  return new Promise((resolve) => {
+const persistDay = (() => {
+  const delay = 400;
+  let timeoutId = null;
+  let queue = [];
+
+  const flush = () => {
+    timeoutId = null;
+    const payload = {
+      appVersion: APP_VERSION,
+      meta: appState.meta,
+      heures: appState.heures,
+      settings: appState.settings
+    };
     requestAnimationFrame(() => {
-      localStorage.setItem(storageKey(), JSON.stringify({ meta: appState.meta, heures: appState.heures, settings: appState.settings }));
-      appState.ui.saving = false;
-      updateAutoSaveIndicator("saved");
-      resolve();
+      const pending = queue.slice();
+      queue = [];
+      try {
+        localStorage.setItem(storageKey(), JSON.stringify(payload));
+        console.log("[persistDay]", new Date().toISOString());
+        appState.ui.saving = false;
+        updateAutoSaveIndicator("saved");
+        pending.forEach((entry) => entry.resolve());
+      } catch (error) {
+        console.error("persistDay", error);
+        appState.ui.saving = false;
+        updateAutoSaveIndicator("error");
+        pending.forEach((entry) => entry.reject(error));
+      }
     });
-  });
-}
+  };
+
+  return function persistDay(options = {}) {
+    const { immediate = false } = options;
+    return new Promise((resolve, reject) => {
+      queue.push({ resolve, reject });
+      appState.ui.saving = true;
+      updateAutoSaveIndicator("saving");
+      if (immediate) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        flush();
+        return;
+      }
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(flush, delay);
+    });
+  };
+})();
 
 function resetDay() {
   localStorage.removeItem(storageKey());
   Object.assign(appState.meta, structuredClone(demoData.meta));
   appState.heures.splice(0, appState.heures.length, ...structuredClone(demoData.heures));
   Object.assign(appState.settings, structuredClone(demoData.settings));
+  applySettingsDefaults();
   ensureHoursStructure();
   renderAll();
-  showToast(i18n.feedback.reset, "success");
+  persistDay({ immediate: true }).then(() => showToast(i18n.feedback.reset, "success"));
 }
 
 function updateAutoSaveIndicator(state) {
@@ -774,10 +994,20 @@ function deltaStatus(minutesAJustifier, causes, tolerance) {
 
 function validateTile(index) {
   const heure = appState.heures[index];
-  const minutesAJustifier = calculateMinutesAJustifier(heure.good || 0, appState.meta.targetRate);
+  if (heure.good === null || !Number.isFinite(Number(heure.good))) {
+    showToast(i18n.feedback.invalidGood(heure.hh), "error");
+    renderHourCardState(index);
+    return false;
+  }
+  if (heure.causes.some((cause) => Number(cause.minutes) < 0)) {
+    showToast(i18n.feedback.invalidMinutes, "error");
+    renderHourCardState(index);
+    return false;
+  }
+  const minutesAJustifier = calculateMinutesAJustifier(heure.good ?? 0, appState.meta.targetRate);
   const { delta, status } = deltaStatus(minutesAJustifier, heure.causes, appState.settings.validation.maxDeltaMinutes);
   if (status === "error") {
-    showToast(i18n.feedback.invalidDelta, "error");
+    showToast(i18n.feedback.invalidDeltaDetail(heure.hh, delta), "error");
     heure.validated = false;
     renderHourCardState(index);
     return false;
@@ -802,7 +1032,7 @@ function autoFillHour(index) {
 }
 function buildHourSummary(index) {
   const heure = appState.heures[index];
-  const minutesAJustifier = calculateMinutesAJustifier(heure.good || 0, appState.meta.targetRate);
+  const minutesAJustifier = calculateMinutesAJustifier(heure.good ?? 0, appState.meta.targetRate);
   const { delta, status, totalCauses } = deltaStatus(minutesAJustifier, heure.causes, appState.settings.validation.maxDeltaMinutes);
   return { heure, minutesAJustifier, delta, status, totalCauses };
 }
@@ -899,7 +1129,7 @@ function renderCurrentHourView() {
             <button type="button" data-action="next-hour" aria-label="${i18n.currentHour.next}" data-touch-area><span aria-hidden="true">▶</span></button>
           </div>
         </div>
-        <div class="timer-circle" role="img" aria-label="Minuteur">
+        <div class="timer-circle" role="img" aria-label="${i18n.currentHour.timer}">
           ${circle}
         </div>
         <div class="template-chips" aria-label="${i18n.currentHour.templateTitle}">
@@ -914,7 +1144,7 @@ function renderCurrentHourView() {
       <form class="hour-form" data-hour-index="${index}">
         <label class="field">
           <span>${i18n.forms.good}</span>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" name="good" value="${heure.good || ""}" required aria-required="true" min="0" data-touch-area />
+          <input type="number" inputmode="numeric" pattern="[0-9]*" name="good" value="${heure.good ?? ""}" required aria-required="true" min="0" data-touch-area />
         </label>
         <label class="field">
           <span>${i18n.forms.comment}</span>
@@ -930,6 +1160,9 @@ function renderCurrentHourView() {
   `;
   setupCurrentHourInteractions(container, index);
   setupSwipeGestures(container.querySelector("article"));
+  if (appState.ui.currentView === "currentHourView") {
+    startCurrentHourTimer();
+  }
 }
 
 function buildTimerCircle() {
@@ -948,7 +1181,7 @@ function buildTimerCircle() {
     </svg>
     <div class="timer-label">
       <div>${formatDuration(remaining)}</div>
-      <span>restant</span>
+      <span>${i18n.currentHour.remaining}</span>
     </div>
   `;
 }
@@ -981,7 +1214,7 @@ function renderCauseRow(hourIndex, causeIndex, cause = { cat: "", sub: "", minut
       </label>
       <label class="field">
         <span>${i18n.forms.minutes}</span>
-        <input type="number" name="minutes" inputmode="numeric" pattern="[0-9]*" min="0" value="${cause.minutes || ""}" data-touch-area />
+        <input type="number" name="minutes" inputmode="numeric" pattern="[0-9]*" min="0" value="${cause.minutes ?? ""}" data-touch-area />
       </label>
       <button type="button" class="remove-cause" data-action="remove-cause" aria-label="${i18n.operator.remove}" data-touch-area>✕</button>
     </div>
@@ -993,13 +1226,36 @@ function getSubcategoriesFor(catName) {
   const subs = category ? category.subs : [];
   return [...subs, "Autre (libre)"];
 }
+
+function focusCauseField(context, hourIndex, causeIndex, field = "cat") {
+  const container = context === "current"
+    ? document.querySelector(`#currentHourView .hour-form[data-hour-index="${hourIndex}"]`)
+    : document.querySelector(`.operator-hour-card[data-hour-index="${hourIndex}"]`);
+  if (!container) return;
+  const row = container.querySelector(`.cause-row[data-hour-index="${hourIndex}"][data-cause-index="${causeIndex}"]`);
+  if (!row) return;
+  const selector = field === "minutes" ? 'input[name="minutes"]' : field === "sub" ? 'select[name="sub"]' : 'select[name="cat"]';
+  const element = row.querySelector(selector);
+  if (element) element.focus();
+}
+
+function focusAddCauseButton(context, hourIndex) {
+  if (context === "current") {
+    const button = document.querySelector(`#currentHourView .hour-form[data-hour-index="${hourIndex}"] button[data-action="add-cause"]`);
+    if (button) button.focus();
+    return;
+  }
+  const button = document.querySelector(`.operator-hour-card[data-hour-index="${hourIndex}"] button[data-action="add-cause"]`);
+  if (button) button.focus();
+}
+
 function setupCurrentHourInteractions(container, hourIndex) {
   const form = container.querySelector("form");
   const heure = appState.heures[hourIndex];
   form.addEventListener("input", (event) => {
     const target = event.target;
     if (target.name === "good") {
-      heure.good = Number(target.value || 0);
+      heure.good = target.value === "" ? null : Number(target.value);
     } else if (target.name === "comment") {
       heure.comment = target.value;
     } else if (target.closest(".cause-row")) {
@@ -1015,14 +1271,26 @@ function setupCurrentHourInteractions(container, hourIndex) {
         subSelect.focus();
       } else if (target.name === "sub") {
         if (target.value === "Autre (libre)") {
-          const libre = prompt("Sous-catégorie");
-          cause.sub = libre || "Non renseigné";
+          const libre = prompt("Sous-catégorie") || "";
+          const trimmed = libre.trim();
+          cause.sub = trimmed || "Non renseigné";
           target.value = cause.sub;
         } else {
           cause.sub = target.value;
         }
       } else if (target.name === "minutes") {
-        cause.minutes = Number(target.value || 0);
+        if (target.value === "") {
+          cause.minutes = 0;
+        } else {
+          const parsed = Number(target.value);
+          if (!Number.isFinite(parsed) || parsed < 0) {
+            showToast(i18n.feedback.invalidMinutes, "error");
+            cause.minutes = 0;
+            target.value = "";
+          } else {
+            cause.minutes = parsed;
+          }
+        }
       }
     }
     heure.validated = false;
@@ -1034,16 +1302,27 @@ function setupCurrentHourInteractions(container, hourIndex) {
     validateTile(hourIndex);
   });
   form.addEventListener("click", (event) => {
-    const action = event.target.dataset.action;
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const action = button.dataset.action;
     if (action === "add-cause") {
+      const newIndex = heure.causes.length;
       heure.causes.push({ cat: "", sub: "", minutes: 0 });
       renderCurrentHourView();
+      requestAnimationFrame(() => focusCauseField("current", hourIndex, newIndex, "cat"));
       persistDay();
     } else if (action === "remove-cause") {
-      const row = event.target.closest(".cause-row");
+      const row = button.closest(".cause-row");
       const idx = Number(row.dataset.causeIndex);
       heure.causes.splice(idx, 1);
       renderCurrentHourView();
+      requestAnimationFrame(() => {
+        if (heure.causes.length) {
+          focusCauseField("current", hourIndex, Math.max(0, idx - 1), "minutes");
+        } else {
+          focusAddCauseButton("current", hourIndex);
+        }
+      });
       persistDay();
     }
   });
@@ -1053,6 +1332,7 @@ function setupCurrentHourInteractions(container, hourIndex) {
       if (!tpl) return;
       heure.causes.push({ cat: tpl.cat, sub: tpl.sub, minutes: tpl.minutes });
       renderCurrentHourView();
+      requestAnimationFrame(() => focusCauseField("current", hourIndex, heure.causes.length - 1, "minutes"));
       persistDay();
     });
   });
@@ -1093,6 +1373,9 @@ function renderOperatorView() {
   const container = document.getElementById("operatorView");
   const cards = appState.heures.map((heure, index) => {
     const { minutesAJustifier, delta, status } = buildHourSummary(index);
+    const tolerance = Math.max(1, appState.settings.validation.maxDeltaMinutes);
+    const ratio = Math.min(100, (Math.abs(delta) / tolerance) * 100);
+    const barColor = status === "success" ? "var(--md-sys-color-success)" : status === "warning" ? "var(--md-sys-color-warning)" : "var(--md-sys-color-error)";
     return `
       <article class="operator-hour-card ${heure.validated ? "validated" : ""}" data-hour-index="${index}" tabindex="0">
         ${heure.validated ? '<span class="validated-flag" aria-hidden="true">✔</span>' : ""}
@@ -1101,10 +1384,10 @@ function renderOperatorView() {
           <span class="chip">${getTeamForHour(heure.hh)}</span>
         </header>
         <div class="badge ${status}">${minutesAJustifier} min · Δ ${delta}</div>
-        <div class="delta-bar" aria-hidden="true"><span style="width: ${Math.min(100, Math.abs(delta))}%"></span></div>
+        <div class="delta-bar" aria-hidden="true"><span style="width: ${ratio}%; background: ${barColor};"></span></div>
         <div class="field">
           <span>${i18n.forms.good}</span>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" value="${heure.good || ""}" data-field="good" data-touch-area />
+          <input type="number" inputmode="numeric" pattern="[0-9]*" value="${heure.good ?? ""}" data-field="good" data-touch-area />
         </div>
         <div class="field">
           <span>${i18n.forms.comment}</span>
@@ -1125,7 +1408,7 @@ function renderOperatorView() {
     card.addEventListener("input", (event) => {
       const target = event.target;
       if (target.dataset.field === "good") {
-        heure.good = Number(target.value || 0);
+        heure.good = target.value === "" ? null : Number(target.value);
       } else if (target.dataset.field === "comment") {
         heure.comment = target.value;
       }
@@ -1134,18 +1417,29 @@ function renderOperatorView() {
       persistDay();
     });
     card.addEventListener("click", (event) => {
-      const action = event.target.dataset.action;
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const action = button.dataset.action;
       if (action === "add-cause") {
+        const newIndex = heure.causes.length;
         heure.causes.push({ cat: "", sub: "", minutes: 0 });
         renderOperatorView();
+        requestAnimationFrame(() => focusCauseField("operator", index, newIndex, "cat"));
         persistDay();
       } else if (action === "validate") {
         validateTile(index);
       } else if (action === "remove-cause") {
-        const row = event.target.closest(".cause-row");
+        const row = button.closest(".cause-row");
         const idx = Number(row.dataset.causeIndex);
         heure.causes.splice(idx, 1);
         renderOperatorView();
+        requestAnimationFrame(() => {
+          if (heure.causes.length) {
+            focusCauseField("operator", index, Math.max(0, idx - 1), "minutes");
+          } else {
+            focusAddCauseButton("operator", index);
+          }
+        });
         persistDay();
       }
     });
@@ -1159,6 +1453,7 @@ function renderOperatorView() {
         const subSelect = row.querySelector("select[name='sub']");
         subSelect.innerHTML = `<option value="">--</option>${subs.map((sub) => `<option value="${sub}">${sub}</option>`).join("")}`;
         cause.sub = "";
+        subSelect.focus();
         heure.validated = false;
         renderHourCardState(index);
         persistDay();
@@ -1170,8 +1465,9 @@ function renderOperatorView() {
         const idx = Number(row.dataset.causeIndex);
         const cause = heure.causes[idx];
         if (event.target.value === "Autre (libre)") {
-          const libre = prompt("Sous-catégorie");
-          cause.sub = libre || "Non renseigné";
+          const libre = prompt("Sous-catégorie") || "";
+          const trimmed = libre.trim();
+          cause.sub = trimmed || "Non renseigné";
           event.target.value = cause.sub;
         } else {
           cause.sub = event.target.value;
@@ -1186,7 +1482,18 @@ function renderOperatorView() {
         const row = event.target.closest(".cause-row");
         const idx = Number(row.dataset.causeIndex);
         const cause = heure.causes[idx];
-        cause.minutes = Number(event.target.value || 0);
+        if (event.target.value === "") {
+          cause.minutes = 0;
+        } else {
+          const parsed = Number(event.target.value);
+          if (!Number.isFinite(parsed) || parsed < 0) {
+            showToast(i18n.feedback.invalidMinutes, "error");
+            cause.minutes = 0;
+            event.target.value = "";
+          } else {
+            cause.minutes = parsed;
+          }
+        }
         heure.validated = false;
         renderHourCardState(index);
         persistDay();
@@ -1265,16 +1572,19 @@ function renderAnalysisView() {
       </section>
       <div class="analysis-layout">
         <div class="chart-card card">
-          <h2 class="card-title" style="font-size:1rem;">Good vs Théorique</h2>
-          <canvas id="lineChart" width="640" height="320" aria-label="Good vs Théorique" role="img"></canvas>
+          <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.lineTitle}</h2>
+          <canvas id="lineChart" width="640" height="320" aria-label="${i18n.analysis.charts.lineTitle}" aria-description="${i18n.analysis.charts.lineDescription}" role="img"></canvas>
+          <noscript>${i18n.analysis.charts.noscript}</noscript>
         </div>
         <div class="chart-card card">
-          <h2 class="card-title" style="font-size:1rem;">Top causes</h2>
-          <canvas id="barChart" width="320" height="320" aria-label="Top causes" role="img"></canvas>
+          <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.barTitle}</h2>
+          <canvas id="barChart" width="320" height="320" aria-label="${i18n.analysis.charts.barTitle}" aria-description="${i18n.analysis.charts.barDescription}" role="img"></canvas>
+          <noscript>${i18n.analysis.charts.noscript}</noscript>
         </div>
         <div class="chart-card card" style="grid-column: 1 / -1;">
-          <h2 class="card-title" style="font-size:1rem;">Heatmap heures × catégories</h2>
-          <canvas id="heatmapChart" width="960" height="320" aria-label="Heatmap" role="img"></canvas>
+          <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.heatmapTitle}</h2>
+          <canvas id="heatmapChart" width="960" height="320" aria-label="${i18n.analysis.charts.heatmapTitle}" aria-description="${i18n.analysis.charts.heatmapDescription}" role="img"></canvas>
+          <noscript>${i18n.analysis.charts.noscript}</noscript>
         </div>
       </div>
     </article>
@@ -1291,14 +1601,30 @@ function renderAnalysisView() {
 
 function buildLineData() {
   const labels = appState.heures.map((h) => h.hh);
-  const good = appState.heures.map((h) => h.good || 0);
+  const good = appState.heures.map((h) => h.good ?? 0);
   const theoretical = appState.heures.map(() => appState.meta.targetRate);
-  return { labels, datasets: [{ label: "Good", data: good, color: "#0b57d0" }, { label: "Théorique", data: theoretical, color: "#5f6b7a" }] };
+  return {
+    labels,
+    datasets: [
+      { label: i18n.analysis.charts.lineDatasetGood, data: good, color: "#0b57d0" },
+      { label: i18n.analysis.charts.lineDatasetTarget, data: theoretical, color: "#5f6b7a" }
+    ],
+    targetLine: { value: appState.meta.targetRate, label: i18n.analysis.charts.targetLabel, color: "#adb5bd" },
+    tooltipValueLabel: i18n.analysis.charts.tooltipValue,
+    valueFormatter: (value) => value.toLocaleString("fr-FR")
+  };
 }
 
 function buildBarData() {
   const topCauses = getTopCauses(appState.heures, 5);
-  return { labels: topCauses.map((c) => `${c.cat} · ${c.sub}`), data: topCauses.map((c) => c.minutes), color: "#0b57d0" };
+  return {
+    labels: topCauses.map((c) => `${c.cat} · ${c.sub}`),
+    datasets: [
+      { label: i18n.analysis.charts.barDataset, data: topCauses.map((c) => c.minutes), color: "#0b57d0" }
+    ],
+    tooltipValueLabel: i18n.analysis.charts.tooltipValue,
+    valueFormatter: (value) => `${Math.round(value)} min`
+  };
 }
 
 function buildHeatmapData() {
@@ -1318,106 +1644,343 @@ function buildHeatmapData() {
 
 async function ensureChartsModule() {
   if (appState.ui.chartsModule) return appState.ui.chartsModule;
-  const moduleCode = `export function renderLineChart(ctx, config) {
-    const { labels, datasets } = config;
-    const width = ctx.canvas.width;
-    const height = ctx.canvas.height;
-    ctx.clearRect(0, 0, width, height);
-    const padding = 40;
-    const max = Math.max(...datasets.flatMap((d) => d.data), 1);
-    const scaleY = (value) => height - padding - (value / max) * (height - padding * 2);
-    const scaleX = (index) => padding + (index / Math.max(1, labels.length - 1)) * (width - padding * 2);
-    ctx.strokeStyle = '#c3cad8';
-    ctx.lineWidth = 1;
+  const moduleCode = String.raw`
+const FONT = '12px Inter';
+const TOOLTIP_BG = 'rgba(27,31,35,0.85)';
+const TOOLTIP_TEXT = '#ffffff';
+
+function drawTooltip(ctx, x, y, lines) {
+  ctx.save();
+  ctx.font = FONT;
+  const padding = 8;
+  const lineHeight = 16;
+  const width = Math.max(...lines.map((line) => ctx.measureText(line).width)) + padding * 2;
+  const height = lines.length * lineHeight + padding * 2;
+  let tx = x + 12;
+  let ty = y - height - 12;
+  if (tx + width > ctx.canvas.width - 4) tx = ctx.canvas.width - width - 4;
+  if (ty < 4) ty = y + 12;
+  ctx.fillStyle = TOOLTIP_BG;
+  ctx.fillRect(tx, ty, width, height);
+  ctx.fillStyle = TOOLTIP_TEXT;
+  lines.forEach((line, index) => {
+    ctx.fillText(line, tx + padding, ty + padding + lineHeight * (index + 0.75));
+  });
+  ctx.restore();
+}
+
+function ensureLineInteractions(canvas) {
+  if (canvas.__lineSetup) return;
+  canvas.addEventListener('mousemove', (event) => {
+    const state = canvas.__lineState;
+    const config = canvas.__lineConfig;
+    if (!state || !config) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    let nearest = null;
+    let minDistance = Infinity;
+    state.points.forEach((point) => {
+      const dx = point.x - x;
+      const dy = point.y - y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = point;
+      }
+    });
+    if (nearest && minDistance < 24) {
+      state.hover = nearest;
+    } else {
+      state.hover = null;
+    }
+    renderLineChart(canvas.getContext('2d'), canvas.__lineConfig);
+  });
+  canvas.addEventListener('mouseleave', () => {
+    const state = canvas.__lineState;
+    const config = canvas.__lineConfig;
+    if (!state || !config) return;
+    state.hover = null;
+    renderLineChart(canvas.getContext('2d'), config);
+  });
+  canvas.addEventListener('click', (event) => {
+    const state = canvas.__lineState;
+    const config = canvas.__lineConfig;
+    if (!state || !config) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const legendItem = state.legend.find((item) => x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height);
+    if (legendItem) {
+      if (state.hidden.has(legendItem.index)) {
+        state.hidden.delete(legendItem.index);
+      } else {
+        state.hidden.add(legendItem.index);
+      }
+      renderLineChart(canvas.getContext('2d'), config);
+    }
+  });
+  canvas.__lineSetup = true;
+}
+
+function ensureBarInteractions(canvas) {
+  if (canvas.__barSetup) return;
+  canvas.addEventListener('mousemove', (event) => {
+    const state = canvas.__barState;
+    const config = canvas.__barConfig;
+    if (!state || !config) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const bar = state.bars.find((item) => x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height);
+    state.hover = bar || null;
+    renderBarChart(canvas.getContext('2d'), config);
+  });
+  canvas.addEventListener('mouseleave', () => {
+    const state = canvas.__barState;
+    const config = canvas.__barConfig;
+    if (!state || !config) return;
+    state.hover = null;
+    renderBarChart(canvas.getContext('2d'), config);
+  });
+  canvas.addEventListener('click', (event) => {
+    const state = canvas.__barState;
+    const config = canvas.__barConfig;
+    if (!state || !config) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const legendItem = state.legend.find((item) => x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height);
+    if (legendItem) {
+      if (state.hidden.has(legendItem.index)) {
+        state.hidden.delete(legendItem.index);
+      } else {
+        state.hidden.add(legendItem.index);
+      }
+      renderBarChart(canvas.getContext('2d'), config);
+    }
+  });
+  canvas.__barSetup = true;
+}
+
+export function renderLineChart(ctx, config) {
+  const canvas = ctx.canvas;
+  const state = canvas.__lineState || (canvas.__lineState = { hidden: new Set(), hover: null, legend: [], points: [] });
+  canvas.__lineConfig = config;
+  ensureLineInteractions(canvas);
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = FONT;
+  Array.from(state.hidden).forEach((index) => {
+    if (index >= config.datasets.length) {
+      state.hidden.delete(index);
+    }
+  });
+  const padding = 48;
+  const active = config.datasets.map((dataset, index) => ({ dataset, index })).filter((entry) => !state.hidden.has(entry.index));
+  const targetValue = config.targetLine && Number.isFinite(Number(config.targetLine.value)) ? Number(config.targetLine.value) : 0;
+  const maxValue = Math.max(1, targetValue, ...active.flatMap((entry) => entry.dataset.data));
+  const scaleY = (value) => height - padding - (value / maxValue) * (height - padding * 2);
+  const scaleX = (index) => padding + (config.labels.length <= 1 ? 0 : (index / (config.labels.length - 1)) * (width - padding * 2));
+  ctx.strokeStyle = '#c3cad8';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding, height - padding);
+  ctx.lineTo(width - padding, height - padding);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, height - padding);
+  ctx.stroke();
+  if (config.targetLine && Number.isFinite(targetValue)) {
+    const y = scaleY(targetValue);
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = config.targetLine.color || '#adb5bd';
     ctx.beginPath();
-    ctx.moveTo(padding, height - padding);
-    ctx.lineTo(width - padding, height - padding);
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
     ctx.stroke();
-    datasets.forEach((dataset) => {
-      ctx.strokeStyle = dataset.color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      dataset.data.forEach((value, index) => {
-        const x = scaleX(index);
-        const y = scaleY(value);
-        if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      dataset.data.forEach((value, index) => {
-        const x = scaleX(index);
-        const y = scaleY(value);
-        ctx.fillStyle = dataset.color;
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    });
+    ctx.restore();
     ctx.fillStyle = '#5f6b7a';
-    ctx.font = '12px Inter';
-    labels.forEach((label, index) => {
-      const x = scaleX(index);
-      ctx.save();
-      ctx.translate(x, height - padding + 12);
-      ctx.rotate(-Math.PI / 4);
-      ctx.fillText(label, 0, 0);
-      ctx.restore();
-    });
+    const labelWidth = ctx.measureText(config.targetLine.label).width;
+    ctx.fillText(config.targetLine.label, width - padding - labelWidth, y - 8);
   }
-  export function renderBarChart(ctx, config) {
-    const { labels, data, color } = config;
-    const width = ctx.canvas.width;
-    const height = ctx.canvas.height;
-    ctx.clearRect(0, 0, width, height);
-    const padding = 40;
-    const barWidth = (width - padding * 2) / Math.max(data.length, 1) - 20;
-    const max = Math.max(...data, 1);
-    data.forEach((value, index) => {
-      const x = padding + index * (barWidth + 20);
-      const h = (value / max) * (height - padding * 2);
-      const y = height - padding - h;
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y, barWidth, h);
-      ctx.fillStyle = '#1b1b1f';
-      ctx.fillText(String(value), x, y - 6);
-      ctx.save();
-      ctx.translate(x + barWidth / 2, height - padding + 12);
-      ctx.rotate(-Math.PI / 4);
-      ctx.textAlign = 'center';
-      ctx.fillText(labels[index], 0, 0);
-      ctx.restore();
+  state.points = [];
+  active.forEach((entry) => {
+    const { dataset, index } = entry;
+    ctx.strokeStyle = dataset.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    dataset.data.forEach((value, pointIndex) => {
+      const x = scaleX(pointIndex);
+      const y = scaleY(value);
+      if (pointIndex === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
-  }
-  export function renderHeatmap(ctx, config) {
-    const { hours, categories, matrix } = config;
-    const width = ctx.canvas.width;
-    const height = ctx.canvas.height;
-    ctx.clearRect(0, 0, width, height);
-    const padding = 60;
-    const cellWidth = (width - padding) / hours.length;
-    const cellHeight = (height - padding) / categories.length;
-    const max = Math.max(...matrix.flat(), 1);
-    categories.forEach((cat, row) => {
-      hours.forEach((hour, col) => {
-        const value = matrix[row][col];
-        const intensity = value / max;
-        ctx.fillStyle = \`rgba(11,87,208,\${intensity * 0.8 + 0.1})\`;
-        ctx.fillRect(col * cellWidth, row * cellHeight, cellWidth - 2, cellHeight - 2);
-      });
+    ctx.stroke();
+    dataset.data.forEach((value, pointIndex) => {
+      const x = scaleX(pointIndex);
+      const y = scaleY(value);
+      ctx.fillStyle = dataset.color;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      state.points.push({ x, y, datasetIndex: index, pointIndex, label: dataset.label, value, hour: config.labels[pointIndex] });
     });
+  });
+  ctx.fillStyle = '#5f6b7a';
+  config.labels.forEach((label, index) => {
+    const x = scaleX(index);
+    ctx.save();
+    ctx.translate(x, height - padding + 12);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  });
+  state.legend = [];
+  let legendX = padding;
+  const legendY = padding - 28;
+  config.datasets.forEach((dataset, index) => {
+    const label = dataset.label;
+    const labelWidth = ctx.measureText(label).width;
+    const boxWidth = 12;
+    const itemWidth = boxWidth + 6 + labelWidth + 12;
+    ctx.fillStyle = state.hidden.has(index) ? '#c3cad8' : dataset.color;
+    ctx.fillRect(legendX, legendY, boxWidth, 12);
     ctx.fillStyle = '#1b1b1f';
-    ctx.font = '12px Inter';
-    categories.forEach((cat, row) => {
-      ctx.fillText(cat, width - padding + 4, row * cellHeight + cellHeight / 2);
-    });
-    hours.forEach((hour, col) => {
-      ctx.save();
-      ctx.translate(col * cellWidth + 12, height - padding + 12);
-      ctx.rotate(-Math.PI / 4);
-      ctx.fillText(hour, 0, 0);
-      ctx.restore();
-    });
+    ctx.fillText(label, legendX + boxWidth + 6, legendY + 10);
+    state.legend.push({ x: legendX - 4, y: legendY - 6, width: itemWidth, height: 24, index });
+    legendX += itemWidth;
+  });
+  if (state.hover) {
+    const dataset = config.datasets[state.hover.datasetIndex];
+    if (dataset) {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = dataset.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(state.hover.x, state.hover.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      const formatValue = typeof config.valueFormatter === 'function' ? config.valueFormatter : (value) => value;
+      drawTooltip(ctx, state.hover.x, state.hover.y, [
+        state.hover.hour,
+        state.hover.label + ': ' + formatValue(state.hover.value)
+      ]);
+    }
   }
-  `;
+}
+
+export function renderBarChart(ctx, config) {
+  const canvas = ctx.canvas;
+  const state = canvas.__barState || (canvas.__barState = { hidden: new Set(), hover: null, legend: [], bars: [] });
+  canvas.__barConfig = config;
+  ensureBarInteractions(canvas);
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = FONT;
+  Array.from(state.hidden).forEach((index) => {
+    if (index >= config.datasets.length) {
+      state.hidden.delete(index);
+    }
+  });
+  const padding = 60;
+  const active = config.datasets.map((dataset, index) => ({ dataset, index })).filter((entry) => !state.hidden.has(entry.index));
+  const dataValues = active.flatMap((entry) => entry.dataset.data);
+  const maxValue = Math.max(1, ...dataValues);
+  const groupCount = config.labels.length || 1;
+  const datasetCount = active.length || 1;
+  const groupWidth = (width - padding * 2) / groupCount;
+  const gap = Math.min(12, groupWidth * 0.2);
+  const barWidth = Math.max(8, (groupWidth - gap * (datasetCount - 1)) / datasetCount);
+  state.bars = [];
+  active.forEach((entry, datasetOrder) => {
+    const { dataset, index } = entry;
+    dataset.data.forEach((value, groupIndex) => {
+      const x = padding + groupIndex * groupWidth + datasetOrder * (barWidth + gap);
+      const barHeight = (value / maxValue) * (height - padding * 2);
+      const y = height - padding - barHeight;
+      ctx.fillStyle = dataset.color;
+      ctx.fillRect(x, y, barWidth, barHeight);
+      ctx.fillStyle = '#1b1b1f';
+      ctx.fillText(String(Math.round(value)), x, y - 6);
+      state.bars.push({ x, y, width: barWidth, height: barHeight, datasetIndex: index, label: config.labels[groupIndex], value });
+    });
+  });
+  ctx.fillStyle = '#5f6b7a';
+  config.labels.forEach((label, index) => {
+    const x = padding + index * groupWidth + barWidth / 2;
+    ctx.save();
+    ctx.translate(x, height - padding + 12);
+    ctx.rotate(-Math.PI / 4);
+    ctx.textAlign = 'center';
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  });
+  state.legend = [];
+  let legendX = padding;
+  const legendY = padding - 28;
+  config.datasets.forEach((dataset, index) => {
+    const labelWidth = ctx.measureText(dataset.label).width;
+    const boxWidth = 12;
+    const itemWidth = boxWidth + 6 + labelWidth + 12;
+    ctx.fillStyle = state.hidden.has(index) ? '#c3cad8' : dataset.color;
+    ctx.fillRect(legendX, legendY, boxWidth, 12);
+    ctx.fillStyle = '#1b1b1f';
+    ctx.fillText(dataset.label, legendX + boxWidth + 6, legendY + 10);
+    state.legend.push({ x: legendX - 4, y: legendY - 6, width: itemWidth, height: 24, index });
+    legendX += itemWidth;
+  });
+  if (state.hover) {
+    const dataset = config.datasets[state.hover.datasetIndex];
+    if (dataset) {
+      ctx.save();
+      ctx.strokeStyle = dataset.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(state.hover.x - 1, state.hover.y - 1, state.hover.width + 2, state.hover.height + 2);
+      ctx.restore();
+      const formatValue = typeof config.valueFormatter === 'function' ? config.valueFormatter : (value) => value;
+      drawTooltip(ctx, state.hover.x + state.hover.width / 2, state.hover.y, [
+        state.hover.label,
+        dataset.label + ': ' + formatValue(state.hover.value)
+      ]);
+    }
+  }
+}
+
+export function renderHeatmap(ctx, config) {
+  const { hours, categories, matrix } = config;
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  ctx.clearRect(0, 0, width, height);
+  const padding = 60;
+  const cellWidth = (width - padding) / Math.max(hours.length, 1);
+  const cellHeight = (height - padding) / Math.max(categories.length, 1);
+  const max = Math.max(...matrix.flat(), 1);
+  categories.forEach((cat, row) => {
+    hours.forEach((hour, col) => {
+      const value = matrix[row][col];
+      const intensity = value / max;
+      ctx.fillStyle = 'rgba(11,87,208,' + (intensity * 0.8 + 0.1) + ')';
+      ctx.fillRect(col * cellWidth, row * cellHeight, cellWidth - 2, cellHeight - 2);
+    });
+  });
+  ctx.fillStyle = '#1b1b1f';
+  ctx.font = FONT;
+  categories.forEach((cat, row) => {
+    ctx.fillText(cat, width - padding + 4, row * cellHeight + cellHeight / 2);
+  });
+  hours.forEach((hour, col) => {
+    ctx.save();
+    ctx.translate(col * cellWidth + 12, height - padding + 12);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillText(hour, 0, 0);
+    ctx.restore();
+  });
+}
+`;
   const blob = new Blob([moduleCode], { type: "text/javascript" });
   const url = URL.createObjectURL(blob);
   appState.ui.chartsModule = await import(url);
@@ -1437,7 +2000,7 @@ function renderSettingsView() {
         <section>
           <h2 class="card-title" style="font-size:1rem;">${i18n.settings.shifts}</h2>
           <table class="shift-table">
-            <thead><tr><th>Nom</th><th>Début</th><th>Fin</th><th></th></tr></thead>
+            <thead><tr><th scope="col">Nom</th><th scope="col">Début</th><th scope="col">Fin</th><th scope="col" aria-label="Actions"></th></tr></thead>
             <tbody>
               ${appState.meta.shifts.map((shift, index) => `
                 <tr data-shift-index="${index}">
@@ -1467,7 +2030,7 @@ function renderSettingsView() {
         <section>
           <h2 class="card-title" style="font-size:1rem;">${i18n.settings.categories}</h2>
           <table class="category-table">
-            <thead><tr><th>Catégorie</th><th>Sous-catégories</th><th></th></tr></thead>
+            <thead><tr><th scope="col">Catégorie</th><th scope="col">Sous-catégories</th><th scope="col" aria-label="Actions"></th></tr></thead>
             <tbody>
               ${appState.settings.categories.map((cat, index) => `
                 <tr data-category-index="${index}">
@@ -1488,7 +2051,7 @@ function renderSettingsView() {
         <section>
           <h2 class="card-title" style="font-size:1rem;">${i18n.settings.templates}</h2>
           <table class="template-table">
-            <thead><tr><th>Libellé</th><th>Catégorie</th><th>Sous-catégorie</th><th>Minutes</th><th></th></tr></thead>
+            <thead><tr><th scope="col">Libellé</th><th scope="col">Catégorie</th><th scope="col">Sous-catégorie</th><th scope="col">Minutes</th><th scope="col" aria-label="Actions"></th></tr></thead>
             <tbody>
               ${appState.settings.templates.map((tpl, index) => `
                 <tr data-template-index="${index}">
@@ -1520,30 +2083,95 @@ function renderSettingsView() {
 }
 function setupSettingsInteractions(container) {
   container.querySelectorAll("input, select").forEach((input) => {
+    input.addEventListener("focus", () => {
+      input.dataset.previousValue = input.value;
+    });
     input.addEventListener("change", () => {
+      const previousValue = input.dataset.previousValue ?? "";
       if (input.id === "targetRate") {
-        appState.meta.targetRate = Number(input.value || 0);
+        const parsed = Number(input.value);
+        const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : appState.meta.targetRate;
+        appState.meta.targetRate = safe;
+        input.value = safe;
         persistDay().then(renderAll);
       } else if (input.id === "qualityGood" || input.id === "qualityTotal") {
         appState.meta.quality = appState.meta.quality || { bons: 0, total: 0 };
-        if (input.id === "qualityGood") appState.meta.quality.bons = Number(input.value || 0);
-        if (input.id === "qualityTotal") appState.meta.quality.total = Number(input.value || 0);
+        const parsed = Number(input.value);
+        const safe = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+        if (input.id === "qualityGood") appState.meta.quality.bons = safe;
+        if (input.id === "qualityTotal") appState.meta.quality.total = safe;
+        input.value = safe;
         persistDay().then(renderDashboardView);
       } else if (input.closest("tr[data-shift-index]")) {
         const row = input.closest("tr[data-shift-index]");
         const shift = appState.meta.shifts[Number(row.dataset.shiftIndex)];
-        shift[input.dataset.field] = input.value;
+        if (input.dataset.field === "name") {
+          const trimmed = input.value.trim();
+          shift.name = trimmed || previousValue;
+          input.value = shift.name;
+        } else {
+          shift[input.dataset.field] = input.value;
+        }
         ensureHoursStructure();
-        persistDay().then(() => { renderOperatorView(); renderCurrentHourView(); renderDashboardView(); });
+        persistDay().then(() => { renderSettingsView(); renderOperatorView(); renderCurrentHourView(); renderDashboardView(); });
       } else if (input.closest("tr[data-category-index]")) {
         const row = input.closest("tr[data-category-index]");
-        const category = appState.settings.categories[Number(row.dataset.categoryIndex)];
-        category[input.dataset.field] = input.value;
-        persistDay().then(() => { renderOperatorView(); renderCurrentHourView(); });
+        const categoryIndex = Number(row.dataset.categoryIndex);
+        const category = appState.settings.categories[categoryIndex];
+        if (input.dataset.field === "name") {
+          const trimmed = input.value.trim();
+          if (!trimmed) {
+            showToast(i18n.feedback.emptyCategory, "error");
+            input.value = category.name;
+            return;
+          }
+          const duplicate = appState.settings.categories.some((cat, idx) => idx !== categoryIndex && cat.name.toLowerCase() === trimmed.toLowerCase());
+          if (duplicate) {
+            showToast(i18n.feedback.duplicateCategory, "error");
+            input.value = category.name;
+            return;
+          }
+          const previousName = category.name;
+          if (previousName !== trimmed) {
+            const subsLookup = new Map(category.subs.map((sub) => [sub.toLowerCase(), sub]));
+            appState.heures.forEach((heure) => {
+              heure.causes.forEach((cause) => {
+                if (cause.cat === previousName) {
+                  cause.cat = trimmed;
+                  const match = subsLookup.get((cause.sub || "").toLowerCase());
+                  cause.sub = match || "";
+                }
+              });
+            });
+            appState.settings.templates.forEach((tpl) => {
+              if (tpl.cat === previousName) tpl.cat = trimmed;
+            });
+            category.name = trimmed;
+          }
+          input.value = category.name;
+          persistDay().then(() => { renderOperatorView(); renderCurrentHourView(); });
+        }
       } else if (input.closest("tr[data-template-index]")) {
         const row = input.closest("tr[data-template-index]");
         const template = appState.settings.templates[Number(row.dataset.templateIndex)];
-        template[input.dataset.field] = input.dataset.field === "minutes" ? Number(input.value || 0) : input.value;
+        if (input.dataset.field === "minutes") {
+          const parsed = Number(input.value);
+          if (!Number.isFinite(parsed) || parsed < 0) {
+            showToast(i18n.feedback.invalidTemplateMinutes, "error");
+            input.value = template.minutes ?? 0;
+            return;
+          }
+          template.minutes = parsed;
+        } else {
+          const trimmed = input.value.trim();
+          if (!trimmed) {
+            showToast(i18n.feedback.emptyTemplate, "error");
+            input.value = template[input.dataset.field] || "";
+            return;
+          }
+          template[input.dataset.field] = trimmed;
+          input.value = trimmed;
+        }
         persistDay();
       }
     });
@@ -1562,7 +2190,17 @@ function setupSettingsInteractions(container) {
         ensureHoursStructure();
         persistDay().then(() => { renderSettingsView(); renderOperatorView(); renderCurrentHourView(); });
       } else if (action === "add-category") {
-        appState.settings.categories.push({ name: "Nouvelle catégorie", subs: ["Sous-catégorie"] });
+        const name = (prompt("Nom de la catégorie") || "").trim();
+        if (!name) {
+          showToast(i18n.feedback.emptyCategory, "error");
+          return;
+        }
+        const duplicate = appState.settings.categories.some((cat) => cat.name.toLowerCase() === name.toLowerCase());
+        if (duplicate) {
+          showToast(i18n.feedback.duplicateCategory, "error");
+          return;
+        }
+        appState.settings.categories.push({ name, subs: [] });
         persistDay().then(() => { renderSettingsView(); renderOperatorView(); });
       } else if (action === "remove-category") {
         const row = button.closest("tr[data-category-index]");
@@ -1572,7 +2210,17 @@ function setupSettingsInteractions(container) {
       } else if (action === "add-sub") {
         const row = button.closest("tr[data-category-index]");
         const category = appState.settings.categories[Number(row.dataset.categoryIndex)];
-        category.subs.push("Nouvelle sous-catégorie");
+        const value = (prompt("Nom de la sous-catégorie") || "").trim();
+        if (!value) {
+          showToast(i18n.feedback.emptySub, "error");
+          return;
+        }
+        const duplicate = category.subs.some((sub) => sub.toLowerCase() === value.toLowerCase());
+        if (duplicate) {
+          showToast(i18n.feedback.duplicateSub, "error");
+          return;
+        }
+        category.subs.push(value);
         persistDay().then(renderSettingsView);
       } else if (action === "remove-sub") {
         const row = button.closest("tr[data-category-index]");
@@ -1606,13 +2254,20 @@ function setupSettingsInteractions(container) {
     const text = await file.text();
     try {
       const imported = JSON.parse(text);
-      if (imported.targetRate) appState.meta.targetRate = imported.targetRate;
-      if (imported.shifts) appState.meta.shifts = imported.shifts;
-      if (imported.categories) appState.settings.categories = imported.categories;
-      if (imported.templates) appState.settings.templates = imported.templates;
-      if (imported.validation) appState.settings.validation = imported.validation;
+      const validated = validateSettingsImport(imported);
+      if (!validated) {
+        showToast(i18n.feedback.importInvalid, "error");
+        return;
+      }
+      appState.meta.targetRate = validated.targetRate;
+      appState.meta.shifts = validated.shifts;
+      appState.settings.categories = validated.categories;
+      appState.settings.templates = validated.templates;
+      appState.settings.validation = validated.validation;
+      appState.settings.version = validated.version;
+      applySettingsDefaults();
       ensureHoursStructure();
-      persistDay().then(() => {
+      persistDay({ immediate: true }).then(() => {
         renderSettingsView();
         renderOperatorView();
         renderCurrentHourView();
@@ -1620,8 +2275,9 @@ function setupSettingsInteractions(container) {
       });
     } catch (err) {
       console.error(err);
-      showToast(i18n.feedback.error, "error");
+      showToast(i18n.feedback.importInvalid, "error");
     }
+    importInput.value = "";
   });
 }
 
@@ -1652,8 +2308,8 @@ function getCurrentHourIndex() {
 function aggregateKPIs(data) {
   const heuresValidees = data.heures.filter((h) => h.validated);
   const planifie = heuresValidees.length * 60;
-  const totalGood = data.heures.reduce((sum, h) => sum + Number(h.good || 0), 0);
-  const minutesJustif = data.heures.reduce((sum, h) => sum + calculateMinutesAJustifier(h.good || 0, data.meta.targetRate), 0);
+  const totalGood = data.heures.reduce((sum, h) => sum + Number(h.good ?? 0), 0);
+  const minutesJustif = data.heures.reduce((sum, h) => sum + calculateMinutesAJustifier(h.good ?? 0, data.meta.targetRate), 0);
   const totalCauses = data.heures.reduce((sum, h) => sum + h.causes.reduce((acc, cause) => acc + Number(cause.minutes || 0), 0), 0);
   const operationnel = heuresValidees.reduce((sum, h) => sum + (60 - h.causes.reduce((acc, cause) => acc + Number(cause.minutes || 0), 0)), 0);
   const disponibilite = planifie ? operationnel / planifie : 0;
@@ -1662,52 +2318,66 @@ function aggregateKPIs(data) {
   const quality = data.meta.quality && data.meta.quality.total ? data.meta.quality.bons / data.meta.quality.total : 1;
   const OEE = disponibilite * performance * quality;
   const nonConform = data.heures.filter((h) => {
-    const minutes = calculateMinutesAJustifier(h.good || 0, data.meta.targetRate);
+    const minutes = calculateMinutesAJustifier(h.good ?? 0, data.meta.targetRate);
     const { delta } = deltaStatus(minutes, h.causes, data.settings.validation.maxDeltaMinutes);
     return Math.abs(delta) > data.settings.validation.maxDeltaMinutes;
   }).length;
   return { D: disponibilite, P: performance, Q: quality, OEE, minutesJustif, nonConform, totalGood, totalCauses };
 }
 function exportDayJSON() {
-  const content = JSON.stringify({ meta: appState.meta, heures: appState.heures, settings: appState.settings }, null, 2);
-  downloadFile(`line-${appState.meta.codeLigne}-${appState.meta.date}.json`, content, "application/json");
+  const payload = { appVersion: APP_VERSION, meta: appState.meta, heures: appState.heures, settings: appState.settings };
+  const content = JSON.stringify(payload, null, 2);
+  downloadFile(`Pilotage_${appState.meta.codeLigne}_${appState.meta.date}.json`, content, "application/json");
 }
 
 function exportSettings() {
-  const content = JSON.stringify({ targetRate: appState.meta.targetRate, shifts: appState.meta.shifts, categories: appState.settings.categories, templates: appState.settings.templates, validation: appState.settings.validation }, null, 2);
+  const content = JSON.stringify({
+    version: appState.settings.version || 1,
+    targetRate: appState.meta.targetRate,
+    shifts: appState.meta.shifts,
+    categories: appState.settings.categories,
+    templates: appState.settings.templates,
+    validation: appState.settings.validation
+  }, null, 2);
   downloadFile(`settings-${appState.meta.codeLigne}.json`, content, "application/json");
 }
 
 function exportDayCSV() {
-  const lines = ["Date,Ligne,Equipe,Heure,Good,TargetRate,Minutes_A_Justifier,Catégorie,Sous_Catégorie,Minutes_Cause,Commentaire,OEE_h"];
+  const rows = ["Date;Ligne;Equipe;Heure;Good;TargetRate;Minutes_A_Justifier;Catégorie;Sous_Catégorie;Minutes_Cause;Commentaire;OEE_h"];
   appState.heures.forEach((heure) => {
-    const minutesAJustifier = calculateMinutesAJustifier(heure.good || 0, appState.meta.targetRate);
+    const produced = Math.round(heure.good ?? 0);
+    const minutesAJustifier = Math.round(calculateMinutesAJustifier(heure.good ?? 0, appState.meta.targetRate));
     const totalCauses = heure.causes.reduce((sum, cause) => sum + Number(cause.minutes || 0), 0);
-    const causes = heure.causes.length ? heure.causes : minutesAJustifier > totalCauses ? [{ cat: "Divers", sub: "Non renseigné", minutes: minutesAJustifier - totalCauses }] : [];
+    const missing = Math.max(0, minutesAJustifier - totalCauses);
+    const causes = heure.causes.length ? heure.causes : missing ? [{ cat: "Divers", sub: "Non renseigné", minutes: missing }] : [];
     const team = getTeamForHour(heure.hh);
     const quality = appState.meta.quality && appState.meta.quality.total ? appState.meta.quality.bons / appState.meta.quality.total : 1;
     const minutesPerHour = heure.causes.reduce((sum, cause) => sum + Number(cause.minutes || 0), 0);
-    const disponibilite = 60 ? (60 - minutesPerHour) / 60 : 0;
-    const performance = appState.meta.targetRate ? (heure.good || 0) / appState.meta.targetRate : 0;
+    const disponibilite = (60 - minutesPerHour) / 60;
+    const performance = appState.meta.targetRate ? produced / appState.meta.targetRate : 0;
     const OEEh = disponibilite * performance * quality;
+    const targetRate = Math.round(appState.meta.targetRate);
     causes.forEach((cause) => {
-      lines.push([
+      const minutesCause = Math.round(Number(cause.minutes || 0));
+      const fields = [
         appState.meta.date,
         appState.meta.codeLigne,
         team,
         heure.hh,
-        heure.good || 0,
-        appState.meta.targetRate,
+        produced,
+        targetRate,
         minutesAJustifier,
-        cause.cat,
-        cause.sub,
-        cause.minutes,
+        cause.cat || "Divers",
+        cause.sub || "Non renseigné",
+        minutesCause,
         (heure.comment || "").replace(/"/g, '""'),
         OEEh.toFixed(4)
-      ].map((value) => typeof value === "string" ? `"${value}"` : value).join(","));
+      ];
+      rows.push(fields.map((value) => typeof value === "string" ? `"${value.replace(/"/g, '""')}"` : value).join(";"));
     });
   });
-  downloadFile(`line-${appState.meta.codeLigne}-${appState.meta.date}.csv`, lines.join("\n"), "text/csv");
+  const content = `\uFEFF${rows.join("\n")}`;
+  downloadFile(`Pilotage_${appState.meta.codeLigne}_${appState.meta.date}.csv`, content, "text/csv;charset=utf-8;");
 }
 
 function downloadFile(filename, content, type) {
@@ -1749,7 +2419,8 @@ function setupNavigation() {
   document.querySelectorAll(".nav-tabs button").forEach((button) => {
     button.addEventListener("click", () => {
       const viewId = button.dataset.view;
-      if (appState.ui.currentView === viewId) return;
+      const previousView = appState.ui.currentView;
+      if (previousView === viewId) return;
       appState.ui.currentView = viewId;
       document.querySelectorAll(".nav-tabs button").forEach((btn) => btn.classList.toggle("active", btn.dataset.view === viewId));
       document.querySelectorAll(".view").forEach((view) => view.classList.toggle("active", view.id === viewId));
@@ -1758,19 +2429,38 @@ function setupNavigation() {
       }
       if (viewId === "currentHourView") {
         renderCurrentHourView();
+        startCurrentHourTimer();
+      } else if (previousView === "currentHourView") {
+        stopCurrentHourTimer();
       }
     });
   });
 }
 
-function setupTimerUpdate() {
-  if (appState.ui.currentHourTimer) clearInterval(appState.ui.currentHourTimer);
+function startCurrentHourTimer() {
+  if (appState.ui.currentHourTimer) return;
+  const tick = () => {
+    if (appState.ui.currentView !== "currentHourView") return;
+    const timer = document.querySelector("#currentHourView .timer-circle");
+    if (timer) timer.innerHTML = buildTimerCircle();
+  };
   appState.ui.currentHourTimer = setInterval(() => {
-    if (appState.ui.currentView === "currentHourView") {
-      const timer = document.querySelector("#currentHourView .timer-circle");
-      if (timer) timer.innerHTML = buildTimerCircle();
-    }
+    requestAnimationFrame(tick);
   }, 1000);
+  requestAnimationFrame(tick);
+}
+
+function stopCurrentHourTimer() {
+  if (!appState.ui.currentHourTimer) return;
+  clearInterval(appState.ui.currentHourTimer);
+  appState.ui.currentHourTimer = null;
+}
+
+function setupTimerUpdate() {
+  stopCurrentHourTimer();
+  if (appState.ui.currentView === "currentHourView") {
+    startCurrentHourTimer();
+  }
 }
 
 function setupFullScreen() {
@@ -1831,25 +2521,11 @@ function setGuideSeen() {
 
 function setupGuide() {
   const overlay = document.getElementById("guideOverlay");
-  if (!overlay) return;
-  if (getGuideSeen()) {
-    overlay.hidden = true;
-    overlay.innerHTML = "";
-    document.body.classList.remove("no-scroll");
-    return;
-  }
-
-  let step = 0;
+  const trigger = document.getElementById("guideTrigger");
+  if (!overlay || !trigger) return;
   const steps = i18n.feedback.guideSteps;
-
-  const closeGuide = () => {
-    overlay.hidden = true;
-    overlay.innerHTML = "";
-    document.body.classList.remove("no-scroll");
-    setGuideSeen();
-    overlay.removeEventListener("click", overlayClickHandler);
-    document.removeEventListener("keydown", keydownHandler);
-  };
+  let step = 0;
+  let isOpen = false;
 
   const overlayClickHandler = (event) => {
     if (event.target === overlay) {
@@ -1863,10 +2539,28 @@ function setupGuide() {
     }
   };
 
+  const detachListeners = () => {
+    overlay.removeEventListener("click", overlayClickHandler);
+    document.removeEventListener("keydown", keydownHandler);
+  };
+
+  const closeGuide = () => {
+    if (!isOpen) return;
+    isOpen = false;
+    overlay.hidden = true;
+    overlay.innerHTML = "";
+    document.body.classList.remove("no-scroll");
+    setGuideSeen();
+    detachListeners();
+  };
+
   const render = () => {
     overlay.innerHTML = `
-      <div class="guide-panel" role="document">
-        <h2>${i18n.feedback.guideTitle}</h2>
+      <div class="guide-panel" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+        <div class="guide-panel-header">
+          <h2 id="guideTitle">${i18n.feedback.guideTitle}</h2>
+          <button type="button" class="icon-button" data-action="close" aria-label="${i18n.feedback.closeGuide}">✕</button>
+        </div>
         <p>${steps[step]}</p>
         <div class="guide-steps" aria-hidden="true">
           ${steps.map((_, index) => `<span class="${index === step ? "active" : ""}"></span>`).join("")}
@@ -1875,17 +2569,15 @@ function setupGuide() {
           <button type="button" class="btn-secondary" data-action="prev" ${step === 0 ? "disabled" : ""}>Précédent</button>
           <button type="button" class="btn-primary" data-action="next">${step === steps.length - 1 ? "C'est parti" : "Suivant"}</button>
         </div>
-        <button type="button" class="btn-text" data-action="skip" aria-label="Ignorer le guide">Ignorer</button>
+        <button type="button" class="btn-text" data-action="skip">Ignorer</button>
       </div>
     `;
-    overlay.hidden = false;
-    document.body.classList.add("no-scroll");
-    const focusTarget = overlay.querySelector(".guide-panel");
-    if (focusTarget) {
-      focusTarget.setAttribute("tabindex", "-1");
-      focusTarget.focus();
+    const panel = overlay.querySelector(".guide-panel");
+    if (panel) {
+      panel.setAttribute("tabindex", "-1");
+      panel.focus();
     }
-    overlay.querySelectorAll("button").forEach((btn) => {
+    overlay.querySelectorAll("button[data-action]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const { action } = btn.dataset;
         if (action === "prev") {
@@ -1898,16 +2590,40 @@ function setupGuide() {
           } else {
             closeGuide();
           }
-        } else if (action === "skip") {
+        } else if (action === "skip" || action === "close") {
           closeGuide();
         }
       });
     });
   };
 
-  overlay.addEventListener("click", overlayClickHandler);
-  document.addEventListener("keydown", keydownHandler);
-  render();
+  const openGuide = (manual = false) => {
+    if (isOpen) {
+      render();
+      return;
+    }
+    step = 0;
+    isOpen = true;
+    overlay.hidden = false;
+    document.body.classList.add("no-scroll");
+    render();
+    overlay.addEventListener("click", overlayClickHandler);
+    document.addEventListener("keydown", keydownHandler);
+    if (manual) {
+      showToast(i18n.feedback.guideReopen, "info");
+    }
+  };
+
+  trigger.addEventListener("click", () => {
+    openGuide(true);
+  });
+
+  if (!getGuideSeen()) {
+    openGuide(false);
+  } else {
+    overlay.hidden = true;
+    overlay.innerHTML = "";
+  }
 }
 
 function registerServiceWorker() {
@@ -1978,37 +2694,38 @@ function exportDayCSVTest() {
   });
 }
 
-function runAcceptanceTests() {
+async function runAcceptanceTests() {
   const tests = [];
-  tests.push(() => calculateMinutesAJustifier(0, 16000) === 60);
+  tests.push(async () => calculateMinutesAJustifier(0, 16000) === 60);
   const heureTest = { good: 0, causes: [{ minutes: 30 }] };
   const deltaTest = calculateMinutesAJustifier(heureTest.good, 16000) - heureTest.causes[0].minutes;
-  tests.push(() => Math.abs(deltaTest) === 30);
-  tests.push(() => {
+  tests.push(async () => Math.abs(deltaTest) === 30);
+  tests.push(async () => {
     const key = storageKey();
-    persistDay();
+    await persistDay({ immediate: true });
     const restored = JSON.parse(localStorage.getItem(key));
-    return restored && restored.heures && restored.heures.length > 0;
+    return restored && Array.isArray(restored.heures) && restored.heures.length > 0;
   });
-  tests.push(exportDayCSVTest);
-  tests.push(() => {
+  tests.push(async () => exportDayCSVTest());
+  tests.push(async () => {
     const aggregates = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
     const check = Math.abs(aggregates.OEE - (aggregates.D * aggregates.P * aggregates.Q)) < 1e-6;
     return check;
   });
-  tests.push(() => {
+  tests.push(async () => {
     const select = document.createElement("select");
     select.innerHTML = getSubcategoriesFor("Technique").map((sub) => `<option>${sub}</option>`).join("");
     return select.children.length > 0;
   });
-  const results = tests.map((fn) => {
+  const results = [];
+  for (const fn of tests) {
     try {
-      return fn();
+      results.push(await fn());
     } catch (err) {
       console.error(err);
-      return false;
+      results.push(false);
     }
-  });
+  }
   if (results.every(Boolean)) {
     console.info("Tests d'acceptation OK");
   } else {
