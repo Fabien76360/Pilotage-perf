@@ -7,7 +7,8 @@
 <meta name="theme-color" content="#0b57d0" />
 <style>
 :root {
-  color-scheme: light;
+  /* PATCH v3: enable adaptive color scheme */
+  color-scheme: light dark;
   font-size: 16px;
   --md-sys-color-primary: #0b57d0;
   --md-sys-color-on-primary: #ffffff;
@@ -25,6 +26,19 @@
   --radius-sm: 12px;
   --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.08);
   --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.14);
+}
+/* PATCH v3: dark mode tokens */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-sys-color-surface: #0f1217;
+    --md-sys-color-on-surface: #e7eaf0;
+    --md-sys-color-surface-variant: #1a2230;
+    --md-sys-color-outline: #2b3240;
+  }
+  body { background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface); }
+  .card,
+  .operator-hour-card { background: #131922; }
+  .toast { background: #2a2f3a; color: var(--md-sys-color-on-surface); }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -435,6 +449,10 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 .settings-grid { display: grid; gap: 1rem; }
+/* PATCH v3: tables scroll on small screens */
+.settings-grid .shift-table,
+.settings-grid .category-table,
+.settings-grid .template-table { display: block; overflow-x: auto; }
 .shift-table, .category-table, .template-table { width: 100%; border-collapse: collapse; }
 .shift-table th, .shift-table td,
 .category-table th, .category-table td,
@@ -458,6 +476,10 @@ main {
   box-shadow: var(--shadow-md);
   z-index: 150;
 }
+.chip:focus-visible,
+.chip:hover { outline: none; box-shadow: 0 0 0 3px rgba(11, 87, 208, 0.2); }
+.chip[tabindex] { cursor: pointer; }
+.chip[tabindex]:focus-visible { box-shadow: 0 0 0 3px rgba(11, 87, 208, 0.4); }
 .icon-button {
   border-radius: 999px;
   padding: 0.5rem 0.75rem;
@@ -518,6 +540,7 @@ main {
           <span class="dot" aria-hidden="true"></span>
           <span id="autoSaveLabel">Sauvegardé</span>
         </div>
+        <button type="button" class="icon-button" id="updateAppBtn" aria-label="Mettre à jour l'application" data-touch-area hidden>⟳</button>
         <button type="button" class="icon-button" id="guideTrigger" aria-label="Aide" data-touch-area>?</button>
       </div>
     </div>
@@ -588,6 +611,7 @@ const i18n = Object.freeze({
   analysis: {
     title: "Analyse",
     filters: "Filtres",
+    partial: "Données du jour affichées",
     oee: "OEE",
     availability: "Disponibilité",
     performance: "Performance",
@@ -607,7 +631,8 @@ const i18n = Object.freeze({
       lineDescription: "Courbe comparant la production réelle et la cible horaire.",
       barDescription: "Barres représentant les minutes par cause.",
       heatmapDescription: "Carte de chaleur des minutes par heure et catégorie.",
-      noscript: "Activez JavaScript pour afficher les graphiques."
+      noscript: "Activez JavaScript pour afficher les graphiques.",
+      fallback: "Graphiques désactivés (module indisponible)."
     }
   },
   qualityPanel: { good: "Bons", total: "Total" },
@@ -616,6 +641,7 @@ const i18n = Object.freeze({
     saved: "Sauvegardé",
     saving: "Sauvegarde…",
     error: "Erreur de sauvegarde",
+    storageError: "Stockage indisponible. Données non sauvegardées.",
     validated: "Heure validée",
     invalidDelta: "Delta hors tolérance. Ajuster les causes.",
     invalidDeltaDetail: (hh, delta) => `Heure ${hh} · Δ ${delta} min hors tolérance.`,
@@ -716,11 +742,41 @@ const appState = {
     currentHourTimer: null,
     chartsModule: null,
     hourSwipe: { startX: null, startTime: null },
-    saving: false
+    saving: false,
+    analysisFilters: { range: "day", team: "all", category: "all" }
   }
 };
 
 const storageKey = () => `pilotage:${appState.meta.date}:${appState.meta.codeLigne}`;
+/* PATCH v3: storage helpers resilient to quota/errors */
+function safeGetItem(key, fallback = null) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn("safeGetItem", error);
+    return fallback;
+  }
+}
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (error) {
+    console.warn("safeSetItem", error);
+    return false;
+  }
+}
+function safeRemoveItem(key) {
+  try {
+    localStorage.removeItem(key);
+    return true;
+  } catch (error) {
+    console.warn("safeRemoveItem", error);
+    return false;
+  }
+}
 
 function ensureHoursStructure() {
   const hours = buildHoursFromShifts();
@@ -748,6 +804,7 @@ function ensureHoursStructure() {
 }
 
 function buildHoursFromShifts(shifts = appState.meta.shifts || []) {
+  /* PATCH v3: generate hourly ticks per shift with exclusive end, deduplicated */
   const seen = new Set();
   const hours = [];
   const dayMinutes = 24 * 60;
@@ -779,6 +836,11 @@ function formatHourMinutes(total) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function runAppMigration(payload) {
+  // PATCH v3: placeholder for future migrations when appVersion changes
+  return payload;
+}
+
 function migrateDayPayload(payload) {
   if (!payload || typeof payload !== "object") return null;
   if (!payload.meta) payload.meta = {};
@@ -789,7 +851,7 @@ function migrateDayPayload(payload) {
   if (!payload.settings.validation) payload.settings.validation = { maxDeltaMinutes: 5 };
   if (!payload.settings.version) payload.settings.version = 1;
   if (payload.appVersion !== APP_VERSION) {
-    // future migrations can transform payload here
+    runAppMigration(payload);
   }
   payload.appVersion = APP_VERSION;
   return payload;
@@ -868,21 +930,16 @@ function validateSettingsImport(raw) {
 }
 
 function loadDay() {
-  try {
-    const raw = localStorage.getItem(storageKey());
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    const migrated = migrateDayPayload(parsed);
-    if (!migrated) return false;
-    if (migrated.meta) appState.meta = migrated.meta;
-    if (Array.isArray(migrated.heures)) appState.heures = migrated.heures;
-    if (migrated.settings) appState.settings = migrated.settings;
-    applySettingsDefaults();
-    return true;
-  } catch (err) {
-    console.error(err);
-    return false;
-  }
+  // PATCH v3: tolerant storage read
+  const stored = safeGetItem(storageKey());
+  if (!stored) return false;
+  const migrated = migrateDayPayload(stored);
+  if (!migrated) return false;
+  if (migrated.meta) appState.meta = migrated.meta;
+  if (Array.isArray(migrated.heures)) appState.heures = migrated.heures;
+  if (migrated.settings) appState.settings = migrated.settings;
+  applySettingsDefaults();
+  return true;
 }
 
 const persistDay = (() => {
@@ -901,16 +958,17 @@ const persistDay = (() => {
     requestAnimationFrame(() => {
       const pending = queue.slice();
       queue = [];
-      try {
-        localStorage.setItem(storageKey(), JSON.stringify(payload));
+      const success = safeSetItem(storageKey(), payload);
+      if (success) {
         console.log("[persistDay]", new Date().toISOString());
         appState.ui.saving = false;
         updateAutoSaveIndicator("saved");
         pending.forEach((entry) => entry.resolve());
-      } catch (error) {
-        console.error("persistDay", error);
+      } else {
+        const error = new Error("localStorage unavailable");
         appState.ui.saving = false;
         updateAutoSaveIndicator("error");
+        showToast(i18n.feedback.storageError, "error");
         pending.forEach((entry) => entry.reject(error));
       }
     });
@@ -937,7 +995,7 @@ const persistDay = (() => {
 })();
 
 function resetDay() {
-  localStorage.removeItem(storageKey());
+  safeRemoveItem(storageKey());
   Object.assign(appState.meta, structuredClone(demoData.meta));
   appState.heures.splice(0, appState.heures.length, ...structuredClone(demoData.heures));
   Object.assign(appState.settings, structuredClone(demoData.settings));
@@ -1278,6 +1336,8 @@ function setupCurrentHourInteractions(container, hourIndex) {
         } else {
           cause.sub = target.value;
         }
+        const minutesField = row.querySelector('input[name="minutes"]');
+        if (minutesField) minutesField.focus();
       } else if (target.name === "minutes") {
         if (target.value === "") {
           cause.minutes = 0;
@@ -1288,7 +1348,9 @@ function setupCurrentHourInteractions(container, hourIndex) {
             cause.minutes = 0;
             target.value = "";
           } else {
-            cause.minutes = parsed;
+            const sanitized = Math.max(0, Math.round(parsed));
+            cause.minutes = sanitized;
+            target.value = String(sanitized);
           }
         }
       }
@@ -1472,6 +1534,8 @@ function renderOperatorView() {
         } else {
           cause.sub = event.target.value;
         }
+        const minutesField = row.querySelector('input[name="minutes"]');
+        if (minutesField) minutesField.focus();
         heure.validated = false;
         renderHourCardState(index);
         persistDay();
@@ -1491,7 +1555,9 @@ function renderOperatorView() {
             cause.minutes = 0;
             event.target.value = "";
           } else {
-            cause.minutes = parsed;
+            const sanitized = Math.max(0, Math.round(parsed));
+            cause.minutes = sanitized;
+            event.target.value = String(sanitized);
           }
         }
         heure.validated = false;
@@ -1524,9 +1590,28 @@ function setupSwipeGestures(element) {
     appState.ui.hourSwipe = { startX: null, startTime: null };
   });
 }
+/* PATCH v3: filter helper for analysis view */
+function filterHeures(filters = {}, state = appState) {
+  const { range = "day", team = "all", category = "all" } = filters;
+  let heures = Array.isArray(state.heures) ? [...state.heures] : [];
+  if (team !== "all") {
+    heures = heures.filter((heure) => getTeamForHour(heure.hh) === team);
+  }
+  if (category !== "all") {
+    const target = category.toLowerCase();
+    heures = heures.filter((heure) =>
+      heure.causes.some((cause) => (cause.cat || "").toLowerCase() === target)
+    );
+  }
+  const partial = range !== "day";
+  return { heures, meta: state.meta, settings: state.settings, partial };
+}
+
 function renderAnalysisView() {
   const container = document.getElementById("analysisView");
-  const aggregates = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
+  const filters = appState.ui.analysisFilters || { range: "day", team: "all", category: "all" };
+  const filtered = filterHeures(filters, appState);
+  const aggregates = aggregateKPIs(filtered);
   container.innerHTML = `
     <article class="card" aria-labelledby="analysisTitle">
       <div class="card-header">
@@ -1562,47 +1647,87 @@ function renderAnalysisView() {
         </label>
       </section>
       <section class="metric-grid">
-        <div class="metric"><span>${i18n.analysis.oee}</span><strong>${(aggregates.OEE * 100).toFixed(1)} %</strong></div>
-        <div class="metric"><span>${i18n.analysis.availability}</span><strong>${(aggregates.D * 100).toFixed(1)} %</strong></div>
-        <div class="metric"><span>${i18n.analysis.performance}</span><strong>${(aggregates.P * 100).toFixed(1)} %</strong></div>
-        <div class="metric"><span>${i18n.analysis.quality}</span><strong>${(aggregates.Q * 100).toFixed(1)} %</strong></div>
-        <div class="metric"><span>${i18n.analysis.minutes}</span><strong>${aggregates.minutesJustif} min</strong></div>
+        <div class="metric"><span>${i18n.analysis.oee}</span><strong>${formatPercent(aggregates.OEE)}</strong></div>
+        <div class="metric"><span>${i18n.analysis.availability}</span><strong>${formatPercent(aggregates.D)}</strong></div>
+        <div class="metric"><span>${i18n.analysis.performance}</span><strong>${formatPercent(aggregates.P)}</strong></div>
+        <div class="metric"><span>${i18n.analysis.quality}</span><strong>${formatPercent(aggregates.Q)}</strong></div>
+        <div class="metric"><span>${i18n.analysis.minutes}</span><strong>${Math.round(aggregates.minutesJustif)} min</strong></div>
         <div class="metric"><span>${i18n.analysis.nonConform}</span><strong>${aggregates.nonConform}</strong></div>
         <div class="metric"><span>${i18n.analysis.volume}</span><strong>${aggregates.totalGood.toLocaleString("fr-FR")}</strong></div>
       </section>
       <div class="analysis-layout">
         <div class="chart-card card">
           <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.lineTitle}</h2>
-          <canvas id="lineChart" width="640" height="320" aria-label="${i18n.analysis.charts.lineTitle}" aria-description="${i18n.analysis.charts.lineDescription}" role="img"></canvas>
+          <canvas id="lineChart" width="640" height="320" role="img" aria-label="${i18n.analysis.charts.lineTitle}" aria-description="${i18n.analysis.charts.lineDescription}"></canvas>
           <noscript>${i18n.analysis.charts.noscript}</noscript>
         </div>
         <div class="chart-card card">
           <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.barTitle}</h2>
-          <canvas id="barChart" width="320" height="320" aria-label="${i18n.analysis.charts.barTitle}" aria-description="${i18n.analysis.charts.barDescription}" role="img"></canvas>
+          <canvas id="barChart" width="320" height="320" role="img" aria-label="${i18n.analysis.charts.barTitle}" aria-description="${i18n.analysis.charts.barDescription}"></canvas>
           <noscript>${i18n.analysis.charts.noscript}</noscript>
         </div>
         <div class="chart-card card" style="grid-column: 1 / -1;">
           <h2 class="card-title" style="font-size:1rem;">${i18n.analysis.charts.heatmapTitle}</h2>
-          <canvas id="heatmapChart" width="960" height="320" aria-label="${i18n.analysis.charts.heatmapTitle}" aria-description="${i18n.analysis.charts.heatmapDescription}" role="img"></canvas>
+          <canvas id="heatmapChart" width="960" height="320" role="img" aria-label="${i18n.analysis.charts.heatmapTitle}" aria-description="${i18n.analysis.charts.heatmapDescription}"></canvas>
           <noscript>${i18n.analysis.charts.noscript}</noscript>
         </div>
       </div>
     </article>
   `;
-  ensureChartsModule().then((charting) => {
-    const lineCtx = document.getElementById("lineChart").getContext("2d");
-    const barCtx = document.getElementById("barChart").getContext("2d");
-    const heatCtx = document.getElementById("heatmapChart").getContext("2d");
-    charting.renderLineChart(lineCtx, buildLineData());
-    charting.renderBarChart(barCtx, buildBarData());
-    charting.renderHeatmap(heatCtx, buildHeatmapData());
+  if (filtered.partial) {
+    const badge = document.createElement("span");
+    badge.className = "chip";
+    badge.textContent = i18n.analysis.partial;
+    const header = container.querySelector(".card-header");
+    if (header) header.appendChild(badge);
+  }
+  const rangeSelect = container.querySelector("#analysisRange");
+  const teamSelect = container.querySelector("#analysisTeam");
+  const categorySelect = container.querySelector("#analysisCategory");
+  if (rangeSelect) rangeSelect.value = filters.range;
+  if (teamSelect) teamSelect.value = filters.team;
+  if (categorySelect) categorySelect.value = filters.category;
+  [rangeSelect, teamSelect, categorySelect].forEach((select) => {
+    if (!select) return;
+    select.addEventListener("change", () => {
+      appState.ui.analysisFilters = {
+        range: rangeSelect?.value || "day",
+        team: teamSelect?.value || "all",
+        category: categorySelect?.value || "all"
+      };
+      renderAnalysisView();
+    });
+  });
+  Promise.resolve().then(async () => {
+    try {
+      const charting = await ensureChartsModule();
+      const lineCanvas = document.getElementById("lineChart");
+      const barCanvas = document.getElementById("barChart");
+      const heatmapCanvas = document.getElementById("heatmapChart");
+      if (lineCanvas) {
+        charting.renderLineChart(lineCanvas.getContext("2d"), buildLineData(filtered.heures));
+      }
+      if (barCanvas) {
+        charting.renderBarChart(barCanvas.getContext("2d"), buildBarData(filtered.heures));
+      }
+      if (heatmapCanvas) {
+        charting.renderHeatmap(heatmapCanvas.getContext("2d"), buildHeatmapData(filtered.heures));
+      }
+    } catch (error) {
+      console.error("Charts module", error);
+      container.querySelectorAll(".chart-card canvas").forEach((canvas) => {
+        const notice = document.createElement("p");
+        notice.textContent = i18n.analysis.charts.fallback;
+        canvas.replaceWith(notice);
+      });
+    }
   });
 }
 
-function buildLineData() {
-  const labels = appState.heures.map((h) => h.hh);
-  const good = appState.heures.map((h) => h.good ?? 0);
-  const theoretical = appState.heures.map(() => appState.meta.targetRate);
+function buildLineData(source = appState.heures) {
+  const labels = source.map((h) => h.hh);
+  const good = source.map((h) => h.good ?? 0);
+  const theoretical = source.map(() => appState.meta.targetRate);
   return {
     labels,
     datasets: [
@@ -1615,8 +1740,8 @@ function buildLineData() {
   };
 }
 
-function buildBarData() {
-  const topCauses = getTopCauses(appState.heures, 5);
+function buildBarData(source = appState.heures) {
+  const topCauses = getTopCauses(source, 5);
   return {
     labels: topCauses.map((c) => `${c.cat} · ${c.sub}`),
     datasets: [
@@ -1627,11 +1752,11 @@ function buildBarData() {
   };
 }
 
-function buildHeatmapData() {
-  const hours = appState.heures.map((h) => h.hh);
+function buildHeatmapData(source = appState.heures) {
+  const hours = source.map((h) => h.hh);
   const categories = appState.settings.categories.map((c) => c.name);
   const matrix = categories.map(() => hours.map(() => 0));
-  appState.heures.forEach((heure, i) => {
+  source.forEach((heure, i) => {
     heure.causes.forEach((cause) => {
       const catIndex = categories.indexOf(cause.cat);
       if (catIndex >= 0) {
@@ -2305,6 +2430,12 @@ function getCurrentHourIndex() {
   return closest;
 }
 
+function formatPercent(value) {
+  // PATCH v3: helper for analysis metrics formatting
+  const numeric = Number.isFinite(Number(value)) ? Number(value) : 0;
+  return `${(numeric * 100).toFixed(1)} %`;
+}
+
 function aggregateKPIs(data) {
   const heuresValidees = data.heures.filter((h) => h.validated);
   const planifie = heuresValidees.length * 60;
@@ -2376,6 +2507,21 @@ function exportDayCSV() {
       rows.push(fields.map((value) => typeof value === "string" ? `"${value.replace(/"/g, '""')}"` : value).join(";"));
     });
   });
+  const totals = aggregateKPIs({ heures: appState.heures, meta: appState.meta, settings: appState.settings });
+  rows.push([
+    `"${appState.meta.date}"`,
+    `"${appState.meta.codeLigne}"`,
+    `""`,
+    `"TOTAL"`,
+    Math.round(totals.totalGood),
+    Math.round(appState.meta.targetRate),
+    Math.round(totals.minutesJustif),
+    `"--"`,
+    `"--"`,
+    Math.round(totals.totalCauses),
+    `""`,
+    totals.OEE.toFixed(4)
+  ].join(";"));
   const content = `\uFEFF${rows.join("\n")}`;
   downloadFile(`Pilotage_${appState.meta.codeLigne}_${appState.meta.date}.csv`, content, "text/csv;charset=utf-8;");
 }
@@ -2506,7 +2652,7 @@ function getGuideSeen() {
     );
   } catch (error) {
     console.warn("Guide storage (get)", error);
-    return false;
+    return true;
   }
 }
 
@@ -2523,9 +2669,14 @@ function setupGuide() {
   const overlay = document.getElementById("guideOverlay");
   const trigger = document.getElementById("guideTrigger");
   if (!overlay || !trigger) return;
+  // PATCH v3: mark guide as seen by default to avoid blocking when storage fails
+  try { setGuideSeen(); } catch {}
+  overlay.hidden = true;
+  overlay.innerHTML = "";
   const steps = i18n.feedback.guideSteps;
   let step = 0;
   let isOpen = false;
+  let watchdogId = null;
 
   const overlayClickHandler = (event) => {
     if (event.target === overlay) {
@@ -2544,15 +2695,21 @@ function setupGuide() {
     document.removeEventListener("keydown", keydownHandler);
   };
 
-  const closeGuide = () => {
+  const performClose = () => {
     if (!isOpen) return;
     isOpen = false;
+    if (watchdogId) {
+      clearTimeout(watchdogId);
+      watchdogId = null;
+    }
     overlay.hidden = true;
     overlay.innerHTML = "";
     document.body.classList.remove("no-scroll");
     setGuideSeen();
     detachListeners();
   };
+
+  let closeGuide = () => performClose();
 
   const render = () => {
     overlay.innerHTML = `
@@ -2609,6 +2766,13 @@ function setupGuide() {
     render();
     overlay.addEventListener("click", overlayClickHandler);
     document.addEventListener("keydown", keydownHandler);
+    if (watchdogId) clearTimeout(watchdogId);
+    watchdogId = setTimeout(() => {
+      performClose();
+    }, 10000);
+    closeGuide = () => {
+      performClose();
+    };
     if (manual) {
       showToast(i18n.feedback.guideReopen, "info");
     }
@@ -2617,17 +2781,28 @@ function setupGuide() {
   trigger.addEventListener("click", () => {
     openGuide(true);
   });
-
-  if (!getGuideSeen()) {
-    openGuide(false);
-  } else {
-    overlay.hidden = true;
-    overlay.innerHTML = "";
-  }
 }
 
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
+  const updateButton = document.getElementById("updateAppBtn");
+  let waitingWorker = null;
+  if (updateButton) {
+    updateButton.addEventListener("click", () => {
+      if (!waitingWorker) return;
+      updateButton.disabled = true;
+      updateButton.setAttribute("aria-busy", "true");
+      waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    });
+  }
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (updateButton) {
+      updateButton.hidden = true;
+      updateButton.disabled = false;
+      updateButton.removeAttribute("aria-busy");
+    }
+    window.location.reload();
+  });
   const swCode = `const CACHE_NAME = 'pilotage-cache-v1';
 const CORE_ASSETS = ['.'];
 self.addEventListener('install', (event) => {
@@ -2648,12 +2823,38 @@ self.addEventListener('fetch', (event) => {
       return response;
     }).catch(() => caches.match('.')))
   );
+});
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });`;
   const blob = new Blob([swCode], { type: "text/javascript" });
   const url = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(url).catch((err) => {
-    console.error("Service worker", err);
-  });
+  navigator.serviceWorker
+    .register(url)
+    .then((registration) => {
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      const exposeUpdate = (reg) => {
+        if (!updateButton || !reg.waiting) return;
+        waitingWorker = reg.waiting;
+        updateButton.hidden = false;
+        updateButton.disabled = false;
+        updateButton.removeAttribute("aria-busy");
+      };
+      if (registration.waiting) exposeUpdate(registration);
+      registration.addEventListener("updatefound", () => {
+        const installing = registration.installing;
+        if (!installing) return;
+        installing.addEventListener("statechange", () => {
+          if (registration.waiting) exposeUpdate(registration);
+        });
+      });
+    })
+    .catch((err) => {
+      console.error("Service worker", err);
+      URL.revokeObjectURL(url);
+    });
 }
 
 function initApp() {
